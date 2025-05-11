@@ -1,0 +1,152 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 18, 18, 18;
+  --background-end-rgb: 10, 10, 10;
+  --agent-green: 0, 255, 65;
+  --agent-green-dark: 0, 128, 42;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  font-family: 'Orbitron', sans-serif;
+  scroll-behavior: smooth;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      rgb(var(--background-start-rgb)),
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Custom glowing text effects */
+.text-glow {
+  text-shadow: 0 0 10px rgba(0, 255, 65, 0.7);
+}
+
+.text-glow-strong {
+  text-shadow: 0 0 15px rgba(0, 255, 65, 0.9), 0 0 25px rgba(0, 255, 65, 0.5);
+}
+
+/* Custom grid background */
+.grid-bg {
+  background-image: 
+    linear-gradient(rgba(0, 255, 65, 0.2) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 65, 0.2) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-position: -1px -1px;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgb(var(--background-start-rgb));
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--agent-green-dark));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--agent-green), 0.8);
+}
+
+/* Custom Animations */
+@keyframes scanline {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+.scanline {
+  position: absolute;
+  width: 100%;
+  height: 4px;
+  background: rgba(0, 255, 65, 0.2);
+  opacity: 0.75;
+  pointer-events: none;
+  animation: scanline 6s linear infinite;
+}
+
+/* Matrix Rain animation for accents */
+.matrix-bg {
+  position: relative;
+  overflow: hidden;
+}
+
+.matrix-bg::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.9)), 
+              radial-gradient(circle, rgba(0, 255, 65, 0.1) 0%, rgba(0, 0, 0, 0) 70%);
+  z-index: -1;
+}
+
+/* Button styles */
+.btn-primary {
+  @apply bg-agent-green text-agent-black font-bold py-2 px-6 rounded-md 
+         transition-all duration-300 ease-in-out hover:bg-agent-green-light 
+         hover:shadow-[0_0_15px_rgba(0,255,65,0.7)] focus:outline-none;
+}
+
+.btn-secondary {
+  @apply bg-transparent border-2 border-agent-green text-agent-green font-bold 
+         py-2 px-6 rounded-md transition-all duration-300 ease-in-out 
+         hover:bg-agent-green/10 hover:shadow-[0_0_10px_rgba(0,255,65,0.5)] focus:outline-none;
+}
+
+/* Custom badge styles */
+.badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-agent-green-dark/30 text-agent-green-light;
+}
+
+/* Card styles */
+.card {
+  @apply bg-agent-gray/70 backdrop-blur-sm rounded-xl border border-agent-green/20 
+         shadow-lg transition-all duration-300 hover:shadow-[0_0_15px_rgba(0,255,65,0.2)] 
+         hover:border-agent-green/40;
+}
+
+.glass-card {
+  @apply bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-md 
+         rounded-xl border border-white/10 shadow-xl;
+}
+
+/* Responsive containers */
+.container-responsive {
+  @apply px-4 mx-auto sm:px-6 md:px-8 max-w-7xl;
+} 
