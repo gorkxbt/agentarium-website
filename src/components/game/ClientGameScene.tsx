@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useRef, useEffect, useMemo, useState } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import React, { useRef, useEffect, useMemo, useState, useCallback, Suspense } from 'react';
+import { Canvas, useFrame, useThree, extend } from '@react-three/fiber';
 import { 
   OrbitControls, 
   Sky, 
@@ -10,9 +10,11 @@ import {
   Trail,
   Float,
   Cloud,
-  Html
+  Html,
+  PerspectiveCamera
 } from '@react-three/drei';
 import * as THREE from 'three';
+import { isWebGLAvailable, resetWebGLContext } from '@/utils/webgl-helper';
 
 // Add interface extension for Window type
 declare global {
@@ -143,6 +145,34 @@ interface AgentData {
   resources: number;
   earnings: number;
   level: number;
+}
+
+// Error boundary to catch rendering errors
+class ErrorBoundary extends React.Component<{
+  children: React.ReactNode, 
+  fallback: React.ReactNode,
+  onError?: () => void
+}> {
+  state = { hasError: false, error: null };
+  
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+  
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("Error in 3D scene:", error, errorInfo);
+    if (this.props.onError) {
+      this.props.onError();
+    }
+  }
+  
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    
+    return this.props.children;
+  }
 }
 
 interface ClientGameSceneProps {
@@ -2951,8 +2981,13 @@ const SceneContent: React.FC<{
           directionalPosition: [100, 100, 50] as [number, number, number],
           directionalColor: '#FFFFFF',
           fogColor: '#1a2e3b',
-          hemisphereArgs: ['#87ceeb', '#3f3f3f', 0.8] as [string, string, number]
+          hemisphereArgs: ['#87ceeb', '#3f3f3f', 0.8] as [string, string, number],
+          skyTurbidity: 10,
+          skyRayleigh: 0.5,
+          skyInclination: 0.49,
+          skyAzimuth: 0.25
         };
+      case 'evening':
       case 'sunset':
         return {
           skyColor: '#FF7F50',
@@ -2962,7 +2997,11 @@ const SceneContent: React.FC<{
           directionalPosition: [50, 20, 100] as [number, number, number],
           directionalColor: '#FF7F50',
           fogColor: '#4B0082',
-          hemisphereArgs: ['#FF7F50', '#4B0082', 0.6] as [string, string, number]
+          hemisphereArgs: ['#FF7F50', '#4B0082', 0.6] as [string, string, number],
+          skyTurbidity: 6,
+          skyRayleigh: 1,
+          skyInclination: 0.1,
+          skyAzimuth: 0.75
         };
       case 'night':
         return {
@@ -2973,7 +3012,26 @@ const SceneContent: React.FC<{
           directionalPosition: [-50, 20, -100] as [number, number, number],
           directionalColor: '#3333FF',
           fogColor: '#000033',
-          hemisphereArgs: ['#000033', '#000011', 0.3] as [string, string, number]
+          hemisphereArgs: ['#000033', '#000011', 0.3] as [string, string, number],
+          skyTurbidity: 20,
+          skyRayleigh: 3,
+          skyInclination: -0.3,
+          skyAzimuth: 0.25
+        };
+      case 'morning':
+        return {
+          skyColor: '#ADD8E6',
+          sunPosition: [0.5, 0.2, 0] as [number, number, number],
+          ambientIntensity: 0.5,
+          directionalIntensity: 0.9,
+          directionalPosition: [80, 40, 50] as [number, number, number],
+          directionalColor: '#FFD580',
+          fogColor: '#ADD8E6',
+          hemisphereArgs: ['#ADD8E6', '#3f3f3f', 0.7] as [string, string, number],
+          skyTurbidity: 8,
+          skyRayleigh: 0.7,
+          skyInclination: 0.2,
+          skyAzimuth: 0.35
         };
       default:
         return {
@@ -2984,7 +3042,11 @@ const SceneContent: React.FC<{
           directionalPosition: [100, 100, 50] as [number, number, number],
           directionalColor: '#FFFFFF',
           fogColor: '#1a2e3b',
-          hemisphereArgs: ['#87ceeb', '#3f3f3f', 0.8] as [string, string, number]
+          hemisphereArgs: ['#87ceeb', '#3f3f3f', 0.8] as [string, string, number],
+          skyTurbidity: 10,
+          skyRayleigh: 0.5,
+          skyInclination: 0.49,
+          skyAzimuth: 0.25
         };
     }
   };
