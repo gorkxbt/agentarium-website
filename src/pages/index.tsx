@@ -243,11 +243,11 @@ export default function Home() {
                 <motion.div variants={fadeInUp}>
                   <GlassCard className="p-6 h-full">
                     <div className="w-12 h-12 flex items-center justify-center text-xl mb-4 rounded-full bg-purple-700/30 text-purple-400">
-                      💰
+                      🌆
                     </div>
-                    <h3 className="text-xl font-bold text-white mb-2">Stake-to-Earn Economy</h3>
+                    <h3 className="text-xl font-bold text-white mb-2">Dynamic City Simulation</h3>
                     <p className="text-white/70">
-                      Stake $AGENT tokens on your preferred agents and earn rewards as they successfully navigate the simulation and accumulate resources.
+                      Watch as 10 unique AI agents navigate and interact with a living city, forming relationships, conducting business, and building a virtual society.
                     </p>
                   </GlassCard>
                 </motion.div>
@@ -276,7 +276,7 @@ export default function Home() {
                       Dynamic Resource Economy
                     </h3>
                     <p className="text-white/80 mb-6">
-                      Agentarium features a fully simulated economy where resources are finite, agents have specialized roles, and supply and demand fluctuate based on agent and player actions.
+                      Agentarium features a fully simulated economy where resources are finite, agents have specialized roles, and supply and demand fluctuate based on agent interactions.
                     </p>
                     <ul className="space-y-3">
                       <li className="flex items-start">
@@ -301,7 +301,7 @@ export default function Home() {
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
                         </div>
-                        <span className="text-white/80">Market fluctuations that create strategic opportunities for skilled players</span>
+                        <span className="text-white/80">Market fluctuations driven by AI agent decisions and behavior</span>
                       </li>
                     </ul>
                   </div>
@@ -369,10 +369,10 @@ export default function Home() {
                 <motion.div variants={fadeInUp} className="order-2 md:order-1">
                   <div className="md:pr-10 max-w-xl">
                     <h3 className="text-2xl md:text-3xl font-bold text-white mb-4">
-                      Stake-to-Earn Mechanics
+                      Realistic City Simulation
                     </h3>
                     <p className="text-white/80 mb-6">
-                      The primary way users participate in Agentarium is through staking $AGENT tokens on their chosen AI agents, creating alignment between player investment and agent performance.
+                      Explore a vibrant 3D city environment where AI agents live, work, and interact with dozens of NPCs and a realistic urban landscape.
                     </p>
                     <ul className="space-y-3">
                       <li className="flex items-start">
@@ -381,7 +381,7 @@ export default function Home() {
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
                         </div>
-                        <span className="text-white/80">Energy boosts, skill unlocks, and access priority for well-staked agents</span>
+                        <span className="text-white/80">Detailed 3D city with banks, shopping malls, restaurants, nightclubs, and more</span>
                       </li>
                       <li className="flex items-start">
                         <div className="flex-shrink-0 h-6 w-6 rounded-full bg-agent-green/20 flex items-center justify-center text-agent-green mr-3 mt-0.5">
@@ -389,7 +389,7 @@ export default function Home() {
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
                         </div>
-                        <span className="text-white/80">Reward multipliers for long-term stakers and governance voting rights</span>
+                        <span className="text-white/80">Day/night cycle and dynamic weather systems that affect agent behavior</span>
                       </li>
                       <li className="flex items-start">
                         <div className="flex-shrink-0 h-6 w-6 rounded-full bg-agent-green/20 flex items-center justify-center text-agent-green mr-3 mt-0.5">
@@ -397,7 +397,7 @@ export default function Home() {
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
                         </div>
-                        <span className="text-white/80">Dynamic reallocation options as agent performance changes</span>
+                        <span className="text-white/80">Life-like NPC movement and behaviors create an immersive experience</span>
                       </li>
                     </ul>
                   </div>
@@ -406,7 +406,7 @@ export default function Home() {
                 <motion.div variants={fadeInUp} className="order-1 md:order-2">
                   <GlassCard className="w-full h-full min-h-[300px] rounded-xl overflow-hidden" borderGlow={true}>
                     <div className="relative w-full h-full flex items-center justify-center p-6">
-                      <div className="text-5xl">💎</div>
+                      <div className="text-5xl">🏙️</div>
                       <div className="absolute inset-0 bg-gradient-to-br from-transparent to-agent-black/50 pointer-events-none" />
                     </div>
                   </GlassCard>
