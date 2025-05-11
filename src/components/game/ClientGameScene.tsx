@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useEffect, useMemo, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { 
   OrbitControls, 
@@ -33,6 +33,19 @@ interface BuildingProps {
   name: string;
 }
 
+interface VehicleProps {
+  position: [number, number, number];
+  color: string;
+  type: 'car' | 'taxi' | 'bus';
+  speed: number;
+}
+
+interface NPCProps {
+  position: [number, number, number];
+  color: string;
+  speed: number;
+}
+
 interface AgentData {
   id: number;
   name: string;
@@ -48,13 +61,14 @@ interface AgentData {
 
 interface ClientGameSceneProps {
   onAgentClick?: (agent: any) => void;
+  onTimeChange?: (timeOfDay: string) => void;
 }
 
 // City configuration
-const CITY_SIZE = 150;
-const ROAD_WIDTH = 10;
-const BLOCK_SIZE = 30;
-const SIDEWALK_WIDTH = 2;
+const CITY_SIZE = 180;
+const ROAD_WIDTH = 12;
+const BLOCK_SIZE = 35;
+const SIDEWALK_WIDTH = 3;
 
 // Agent component with animation
 const Agent: React.FC<AgentProps> = ({ position, color, speed, agentData, onAgentClick }) => {
@@ -882,7 +896,408 @@ const Building: React.FC<BuildingProps> = ({
   );
 };
 
-// City component with buildings and agents
+// Vehicle component
+const Vehicle: React.FC<VehicleProps> = ({ position, color, type, speed }) => {
+  const meshRef = useRef<THREE.Group>(null);
+  const targetRef = useRef(new THREE.Vector3(
+    position[0] + (Math.random() * 100 - 50),
+    position[1],
+    position[2] + (Math.random() * 100 - 50)
+  ));
+  
+  // List of possible destinations (road points)
+  const roadPoints = useMemo(() => {
+    const points = [];
+    // Create road points grid
+    for (let i = -3; i <= 3; i++) {
+      for (let j = -3; j <= 3; j++) {
+        // Horizontal roads
+        points.push(new THREE.Vector3(i * BLOCK_SIZE, 0, j * BLOCK_SIZE));
+        // Additional points for smoother navigation
+        if (j < 3) {
+          points.push(new THREE.Vector3(i * BLOCK_SIZE, 0, j * BLOCK_SIZE + BLOCK_SIZE/2));
+        }
+        if (i < 3) {
+          points.push(new THREE.Vector3(i * BLOCK_SIZE + BLOCK_SIZE/2, 0, j * BLOCK_SIZE));
+        }
+      }
+    }
+    return points;
+  }, []);
+  
+  // Update target when vehicle reaches current target
+  const updateTarget = () => {
+    const possibleTargets = roadPoints.filter(point => {
+      // Only consider road points (not inside blocks)
+      const isOnRoadX = Math.abs(point.x % BLOCK_SIZE) < ROAD_WIDTH/2;
+      const isOnRoadZ = Math.abs(point.z % BLOCK_SIZE) < ROAD_WIDTH/2;
+      return isOnRoadX || isOnRoadZ;
+    });
+    
+    // Choose a random valid road point
+    const newTarget = possibleTargets[Math.floor(Math.random() * possibleTargets.length)];
+    targetRef.current.copy(newTarget);
+  };
+  
+  // Initial target update
+  useEffect(() => {
+    updateTarget();
+  }, []);
+  
+  useFrame((state, delta) => {
+    if (!meshRef.current) return;
+    
+    // Move towards target
+    const direction = new THREE.Vector3().subVectors(targetRef.current, meshRef.current.position);
+    
+    // If close to target, update target
+    if (direction.length() < 1) {
+      updateTarget();
+      return;
+    }
+    
+    // Calculate next position
+    direction.normalize().multiplyScalar(delta * speed);
+    meshRef.current.position.add(direction);
+    
+    // Rotate to face direction of movement
+    if (direction.length() > 0.01) {
+      const lookAtPos = new THREE.Vector3().addVectors(
+        meshRef.current.position,
+        new THREE.Vector3(direction.x, 0, direction.z).normalize()
+      );
+      meshRef.current.lookAt(lookAtPos);
+    }
+  });
+  
+  return (
+    <group ref={meshRef} position={position}>
+      {type === 'taxi' && (
+        <>
+          {/* Taxi body */}
+          <mesh castShadow position={[0, 0.6, 0]}>
+            <boxGeometry args={[2.2, 0.8, 4]} />
+            <meshStandardMaterial color="#FFD700" metalness={0.2} roughness={0.3} />
+          </mesh>
+          
+          {/* Taxi roof */}
+          <mesh castShadow position={[0, 1.2, 0]}>
+            <boxGeometry args={[2, 0.6, 3]} />
+            <meshStandardMaterial color="#444444" metalness={0.3} roughness={0.4} />
+          </mesh>
+          
+          {/* Taxi sign */}
+          <mesh castShadow position={[0, 1.6, 0]}>
+            <boxGeometry args={[0.8, 0.3, 0.8]} />
+            <meshStandardMaterial color="#FFFFFF" emissive="#FFFF00" emissiveIntensity={0.5} />
+          </mesh>
+          
+          {/* Wheels */}
+          <group position={[-1.1, 0.3, 1.2]} rotation={[Math.PI / 2, 0, 0]}>
+            <mesh castShadow>
+              <cylinderGeometry args={[0.3, 0.3, 0.4, 16]} />
+              <meshStandardMaterial color="#111111" roughness={0.9} />
+            </mesh>
+          </group>
+          <group position={[1.1, 0.3, 1.2]} rotation={[Math.PI / 2, 0, 0]}>
+            <mesh castShadow>
+              <cylinderGeometry args={[0.3, 0.3, 0.4, 16]} />
+              <meshStandardMaterial color="#111111" roughness={0.9} />
+            </mesh>
+          </group>
+          <group position={[-1.1, 0.3, -1.2]} rotation={[Math.PI / 2, 0, 0]}>
+            <mesh castShadow>
+              <cylinderGeometry args={[0.3, 0.3, 0.4, 16]} />
+              <meshStandardMaterial color="#111111" roughness={0.9} />
+            </mesh>
+          </group>
+          <group position={[1.1, 0.3, -1.2]} rotation={[Math.PI / 2, 0, 0]}>
+            <mesh castShadow>
+              <cylinderGeometry args={[0.3, 0.3, 0.4, 16]} />
+              <meshStandardMaterial color="#111111" roughness={0.9} />
+            </mesh>
+          </group>
+        </>
+      )}
+      
+      {type === 'car' && (
+        <>
+          {/* Car body */}
+          <mesh castShadow position={[0, 0.6, 0]}>
+            <boxGeometry args={[2, 0.8, 4.2]} />
+            <meshStandardMaterial color={color} metalness={0.4} roughness={0.4} />
+          </mesh>
+          
+          {/* Car roof */}
+          <mesh castShadow position={[0, 1.2, -0.3]}>
+            <boxGeometry args={[1.8, 0.6, 2.8]} />
+            <meshStandardMaterial color={color} metalness={0.2} roughness={0.3} />
+          </mesh>
+          
+          {/* Windows */}
+          <mesh castShadow position={[0, 1.2, 0.8]}>
+            <boxGeometry args={[1.85, 0.5, 0.1]} />
+            <meshStandardMaterial color="#222222" metalness={0.5} roughness={0.2} />
+          </mesh>
+          
+          {/* Wheels */}
+          <group position={[-1, 0.3, 1.2]} rotation={[Math.PI / 2, 0, 0]}>
+            <mesh castShadow>
+              <cylinderGeometry args={[0.3, 0.3, 0.4, 16]} />
+              <meshStandardMaterial color="#111111" roughness={0.9} />
+            </mesh>
+          </group>
+          <group position={[1, 0.3, 1.2]} rotation={[Math.PI / 2, 0, 0]}>
+            <mesh castShadow>
+              <cylinderGeometry args={[0.3, 0.3, 0.4, 16]} />
+              <meshStandardMaterial color="#111111" roughness={0.9} />
+            </mesh>
+          </group>
+          <group position={[-1, 0.3, -1.2]} rotation={[Math.PI / 2, 0, 0]}>
+            <mesh castShadow>
+              <cylinderGeometry args={[0.3, 0.3, 0.4, 16]} />
+              <meshStandardMaterial color="#111111" roughness={0.9} />
+            </mesh>
+          </group>
+          <group position={[1, 0.3, -1.2]} rotation={[Math.PI / 2, 0, 0]}>
+            <mesh castShadow>
+              <cylinderGeometry args={[0.3, 0.3, 0.4, 16]} />
+              <meshStandardMaterial color="#111111" roughness={0.9} />
+            </mesh>
+          </group>
+        </>
+      )}
+      
+      {type === 'bus' && (
+        <>
+          {/* Bus body */}
+          <mesh castShadow position={[0, 1, 0]}>
+            <boxGeometry args={[2.5, 2, 7]} />
+            <meshStandardMaterial color={color} metalness={0.2} roughness={0.4} />
+          </mesh>
+          
+          {/* Windows */}
+          {[...Array(3)].map((_, i) => (
+            <React.Fragment key={`bus-window-left-${i}`}>
+              <mesh castShadow position={[-1.26, 1.2, -2 + i * 1.5]}>
+                <boxGeometry args={[0.1, 0.8, 1]} />
+                <meshStandardMaterial color="#AADDFF" metalness={0.5} roughness={0.2} />
+              </mesh>
+              <mesh castShadow position={[1.26, 1.2, -2 + i * 1.5]}>
+                <boxGeometry args={[0.1, 0.8, 1]} />
+                <meshStandardMaterial color="#AADDFF" metalness={0.5} roughness={0.2} />
+              </mesh>
+            </React.Fragment>
+          ))}
+          
+          {/* Windshield */}
+          <mesh castShadow position={[0, 1.2, 3.46]}>
+            <boxGeometry args={[2.4, 0.8, 0.1]} />
+            <meshStandardMaterial color="#222222" metalness={0.5} roughness={0.2} />
+          </mesh>
+          
+          {/* Wheels */}
+          <group position={[-1.3, 0.5, 2]} rotation={[Math.PI / 2, 0, 0]}>
+            <mesh castShadow>
+              <cylinderGeometry args={[0.5, 0.5, 0.4, 16]} />
+              <meshStandardMaterial color="#111111" roughness={0.9} />
+            </mesh>
+          </group>
+          <group position={[1.3, 0.5, 2]} rotation={[Math.PI / 2, 0, 0]}>
+            <mesh castShadow>
+              <cylinderGeometry args={[0.5, 0.5, 0.4, 16]} />
+              <meshStandardMaterial color="#111111" roughness={0.9} />
+            </mesh>
+          </group>
+          <group position={[-1.3, 0.5, -2]} rotation={[Math.PI / 2, 0, 0]}>
+            <mesh castShadow>
+              <cylinderGeometry args={[0.5, 0.5, 0.4, 16]} />
+              <meshStandardMaterial color="#111111" roughness={0.9} />
+            </mesh>
+          </group>
+          <group position={[1.3, 0.5, -2]} rotation={[Math.PI / 2, 0, 0]}>
+            <mesh castShadow>
+              <cylinderGeometry args={[0.5, 0.5, 0.4, 16]} />
+              <meshStandardMaterial color="#111111" roughness={0.9} />
+            </mesh>
+          </group>
+        </>
+      )}
+    </group>
+  );
+};
+
+// NPC component
+const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
+  const meshRef = useRef<THREE.Group>(null);
+  const targetRef = useRef(new THREE.Vector3(
+    position[0] + (Math.random() * 40 - 20),
+    position[1],
+    position[2] + (Math.random() * 40 - 20)
+  ));
+  
+  const [state, setState] = React.useState('walking');
+  const [stateTimer, setStateTimer] = React.useState(Math.random() * 5 + 5);
+  
+  // List of possible sidewalk destinations
+  const sidewalkPoints = useMemo(() => {
+    const points = [];
+    
+    // Create a grid of sidewalk points along roads
+    for (let i = -3; i <= 3; i++) {
+      for (let j = -3; j <= 3; j++) {
+        // Points alongside horizontal roads
+        points.push(new THREE.Vector3(i * BLOCK_SIZE, 0, j * BLOCK_SIZE + ROAD_WIDTH/2 + 1));
+        points.push(new THREE.Vector3(i * BLOCK_SIZE, 0, j * BLOCK_SIZE - ROAD_WIDTH/2 - 1));
+        
+        // Points alongside vertical roads
+        points.push(new THREE.Vector3(i * BLOCK_SIZE + ROAD_WIDTH/2 + 1, 0, j * BLOCK_SIZE));
+        points.push(new THREE.Vector3(i * BLOCK_SIZE - ROAD_WIDTH/2 - 1, 0, j * BLOCK_SIZE));
+      }
+    }
+    
+    return points;
+  }, []);
+  
+  // Building boundaries to avoid collisions
+  const buildingBoundaries = useMemo(() => [
+    // Bank area
+    {
+      center: new THREE.Vector2(-BLOCK_SIZE, -BLOCK_SIZE),
+      size: new THREE.Vector2(20, 20)
+    },
+    // Police area
+    {
+      center: new THREE.Vector2(BLOCK_SIZE, -BLOCK_SIZE),
+      size: new THREE.Vector2(15, 15)
+    },
+    // Market area
+    {
+      center: new THREE.Vector2(-BLOCK_SIZE, BLOCK_SIZE),
+      size: new THREE.Vector2(20, 20)
+    },
+    // Hotel area
+    {
+      center: new THREE.Vector2(BLOCK_SIZE, BLOCK_SIZE),
+      size: new THREE.Vector2(15, 15)
+    },
+    // Gas station area
+    {
+      center: new THREE.Vector2(0, -2 * BLOCK_SIZE),
+      size: new THREE.Vector2(10, 8)
+    },
+    // Office buildings
+    {
+      center: new THREE.Vector2(-2 * BLOCK_SIZE, 0),
+      size: new THREE.Vector2(12, 12)
+    },
+    {
+      center: new THREE.Vector2(2 * BLOCK_SIZE, 0),
+      size: new THREE.Vector2(15, 15)
+    },
+    // Houses (simplified as one area)
+    {
+      center: new THREE.Vector2(0, 2 * BLOCK_SIZE),
+      size: new THREE.Vector2(30, 15)
+    }
+  ], []);
+  
+  // Check if a position is inside a building
+  const isInsideBuilding = (x: number, z: number): boolean => {
+    return buildingBoundaries.some(boundary => {
+      return (
+        x > boundary.center.x - boundary.size.x/2 &&
+        x < boundary.center.x + boundary.size.x/2 &&
+        z > boundary.center.y - boundary.size.y/2 &&
+        z < boundary.center.y + boundary.size.y/2
+      );
+    });
+  };
+  
+  // Update target when NPC reaches current target or changes state
+  const updateTarget = () => {
+    // Only get new target if walking
+    if (state !== 'walking') return;
+    
+    // Get valid sidewalk points (not inside buildings)
+    const validPoints = sidewalkPoints.filter(point => 
+      !isInsideBuilding(point.x, point.z)
+    );
+    
+    // Pick a random valid point
+    const newTarget = validPoints[Math.floor(Math.random() * validPoints.length)];
+    targetRef.current.copy(newTarget);
+  };
+  
+  // Update NPC state periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Random state change
+      const rand = Math.random();
+      if (rand < 0.3) {
+        setState('idle');
+        setStateTimer(Math.random() * 3 + 2); // Idle for 2-5 seconds
+      } else {
+        setState('walking');
+        setStateTimer(Math.random() * 10 + 5); // Walk for 5-15 seconds
+        updateTarget(); // Get a new destination
+      }
+    }, stateTimer * 1000);
+    
+    return () => clearInterval(interval);
+  }, [stateTimer]);
+  
+  useFrame((state, delta) => {
+    if (!meshRef.current) return;
+    
+    // Only move if in walking state
+    if (state !== 'walking') return;
+    
+    // Move towards target
+    const direction = new THREE.Vector3().subVectors(targetRef.current, meshRef.current.position);
+    
+    // If close to target, become idle
+    if (direction.length() < 0.5) {
+      setState('idle');
+      setStateTimer(Math.random() * 3 + 2); // Idle for 2-5 seconds
+      return;
+    }
+    
+    // Calculate next position
+    direction.normalize().multiplyScalar(delta * speed);
+    meshRef.current.position.add(direction);
+    
+    // Rotate to face direction of movement
+    if (direction.length() > 0.01) {
+      const lookAtPos = new THREE.Vector3().addVectors(
+        meshRef.current.position,
+        new THREE.Vector3(direction.x, 0, direction.z).normalize()
+      );
+      meshRef.current.lookAt(lookAtPos);
+    }
+    
+    // Bobbing animation when walking
+    meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 5) * 0.05;
+  });
+  
+  return (
+    <group ref={meshRef} position={position}>
+      {/* NPC body */}
+      <mesh castShadow>
+        <capsuleGeometry args={[0.2, 0.8, 8, 8]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+      
+      {/* NPC head */}
+      <mesh position={[0, 0.7, 0]} castShadow>
+        <sphereGeometry args={[0.2, 16, 16]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+    </group>
+  );
+};
+
+// City component with buildings, agents, vehicles and NPCs
 const City: React.FC<{ onAgentClick: (agent: any) => void }> = ({ onAgentClick }) => {
   // Define buildings
   const buildings = useMemo(() => [
@@ -1139,6 +1554,76 @@ const City: React.FC<{ onAgentClick: (agent: any) => void }> = ({ onAgentClick }
     { position: [0, 0, 2 * BLOCK_SIZE], name: "Houses" }
   ];
   
+  // Define vehicles data
+  const vehiclesData = useMemo(() => {
+    const vehicles = [];
+    
+    // Taxis
+    for (let i = 0; i < 5; i++) {
+      vehicles.push({
+        type: 'taxi' as const,
+        color: '#FFD700',
+        position: [
+          Math.random() * CITY_SIZE - CITY_SIZE/2,
+          0.1,
+          Math.random() * CITY_SIZE - CITY_SIZE/2
+        ] as [number, number, number],
+        speed: 5 + Math.random() * 2
+      });
+    }
+    
+    // Cars with different colors
+    const carColors = ['#3366CC', '#DC3545', '#28A745', '#6F42C1', '#FD7E14', '#20C997', '#E83E8C'];
+    for (let i = 0; i < 8; i++) {
+      vehicles.push({
+        type: 'car' as const,
+        color: carColors[i % carColors.length],
+        position: [
+          Math.random() * CITY_SIZE - CITY_SIZE/2,
+          0.1,
+          Math.random() * CITY_SIZE - CITY_SIZE/2
+        ] as [number, number, number],
+        speed: 4 + Math.random() * 3
+      });
+    }
+    
+    // Buses
+    for (let i = 0; i < 2; i++) {
+      vehicles.push({
+        type: 'bus' as const,
+        color: '#3498DB',
+        position: [
+          Math.random() * CITY_SIZE - CITY_SIZE/2,
+          0.1,
+          Math.random() * CITY_SIZE - CITY_SIZE/2
+        ] as [number, number, number],
+        speed: 3 + Math.random()
+      });
+    }
+    
+    return vehicles;
+  }, []);
+  
+  // Define NPCs data
+  const npcsData = useMemo(() => {
+    const npcs = [];
+    const npcColors = ['#F5DEB3', '#D2B48C', '#BC8F8F', '#A0522D', '#8B4513', '#FFDEAD', '#FFE4C4'];
+    
+    for (let i = 0; i < 15; i++) {
+      npcs.push({
+        color: npcColors[Math.floor(Math.random() * npcColors.length)],
+        position: [
+          Math.random() * CITY_SIZE - CITY_SIZE/2,
+          0.6,
+          Math.random() * CITY_SIZE - CITY_SIZE/2
+        ] as [number, number, number],
+        speed: 0.8 + Math.random() * 1.2
+      });
+    }
+    
+    return npcs;
+  }, []);
+  
   return (
     <group>
       {/* Ground */}
@@ -1152,6 +1637,27 @@ const City: React.FC<{ onAgentClick: (agent: any) => void }> = ({ onAgentClick }
         <Building 
           key={`building-${i}`} 
           {...building}
+        />
+      ))}
+      
+      {/* Vehicles */}
+      {vehiclesData.map((vehicle, i) => (
+        <Vehicle 
+          key={`vehicle-${i}`} 
+          position={vehicle.position}
+          color={vehicle.color}
+          type={vehicle.type}
+          speed={vehicle.speed}
+        />
+      ))}
+      
+      {/* NPCs */}
+      {npcsData.map((npc, i) => (
+        <NPC 
+          key={`npc-${i}`} 
+          position={npc.position}
+          color={npc.color}
+          speed={npc.speed}
         />
       ))}
       
@@ -1215,21 +1721,104 @@ const City: React.FC<{ onAgentClick: (agent: any) => void }> = ({ onAgentClick }
 };
 
 // Main component
-const ClientGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {} }) => {
+const ClientGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}, onTimeChange = () => {} }) => {
+  // Control day/night cycle
+  const [timeOfDay, setTimeOfDay] = useState('day');
+  const timeRef = useRef({ time: 0, cycleLength: 300 }); // 5-minute cycle
+  
+  // Update time of day
+  useFrame((state) => {
+    timeRef.current.time += state.clock.elapsedTime * 0.001;
+    const normalizedTime = (timeRef.current.time % timeRef.current.cycleLength) / timeRef.current.cycleLength;
+    
+    // Change time of day based on cycle
+    let newTimeOfDay = timeOfDay;
+    if (normalizedTime < 0.45 && timeOfDay !== 'day') {
+      newTimeOfDay = 'day';
+      setTimeOfDay(newTimeOfDay);
+    } else if (normalizedTime >= 0.45 && normalizedTime < 0.55 && timeOfDay !== 'sunset') {
+      newTimeOfDay = 'sunset';
+      setTimeOfDay(newTimeOfDay);
+    } else if (normalizedTime >= 0.55 && timeOfDay !== 'night') {
+      newTimeOfDay = 'night';
+      setTimeOfDay(newTimeOfDay);
+    }
+    
+    // Notify parent component when time changes
+    if (newTimeOfDay !== timeOfDay) {
+      onTimeChange(newTimeOfDay);
+    }
+  });
+  
+  // Sky and lighting settings based on time of day
+  const getLightingSettings = () => {
+    switch (timeOfDay) {
+      case 'day':
+        return {
+          skyColor: '#87ceeb',
+          sunPosition: [1, 0.5, 0],
+          ambientIntensity: 0.7,
+          directionalIntensity: 1.2,
+          directionalPosition: [100, 100, 50],
+          directionalColor: '#FFFFFF',
+          fogColor: '#1a2e3b',
+          hemisphereArgs: ['#87ceeb', '#3f3f3f', 0.8]
+        };
+      case 'sunset':
+        return {
+          skyColor: '#FF7F50',
+          sunPosition: [0.3, 0.1, 0],
+          ambientIntensity: 0.5,
+          directionalIntensity: 0.8,
+          directionalPosition: [50, 20, 100],
+          directionalColor: '#FF7F50',
+          fogColor: '#4B0082',
+          hemisphereArgs: ['#FF7F50', '#4B0082', 0.6]
+        };
+      case 'night':
+        return {
+          skyColor: '#000033',
+          sunPosition: [-0.5, -0.2, 0],
+          ambientIntensity: 0.2,
+          directionalIntensity: 0.3,
+          directionalPosition: [-50, 20, -100],
+          directionalColor: '#3333FF',
+          fogColor: '#000033',
+          hemisphereArgs: ['#000033', '#000011', 0.3]
+        };
+      default:
+        return {
+          skyColor: '#87ceeb',
+          sunPosition: [1, 0.5, 0],
+          ambientIntensity: 0.7,
+          directionalIntensity: 1.2,
+          directionalPosition: [100, 100, 50],
+          directionalColor: '#FFFFFF',
+          fogColor: '#1a2e3b',
+          hemisphereArgs: ['#87ceeb', '#3f3f3f', 0.8]
+        };
+    }
+  };
+  
+  const settings = getLightingSettings();
+  
   return (
     <Canvas 
-      shadows 
+      shadows={{ type: 'PCFSoftShadowMap', enabled: true }}
       className="w-full h-full"
-      camera={{ position: [80, 80, 80], fov: 45 }}
+      camera={{ position: [100, 100, 100], fov: 45 }}
+      gl={{ antialias: true, alpha: false }}
+      dpr={[1, 2]} // Dynamic pixel ratio for better performance
     >
-      <fog attach="fog" args={['#1a2e3b', 100, 300]} />
-      <color attach="background" args={['#87ceeb']} />
+      <fog attach="fog" args={[settings.fogColor, 120, 350]} />
+      <color attach="background" args={[settings.skyColor]} />
       
-      <ambientLight intensity={0.5} />
+      <ambientLight intensity={settings.ambientIntensity} />
       <directionalLight
         castShadow
-        position={[100, 100, 50]}
-        intensity={1}
+        position={settings.directionalPosition}
+        intensity={settings.directionalIntensity}
+        color={settings.directionalColor}
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
         shadow-camera-far={300}
@@ -1239,19 +1828,40 @@ const ClientGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => 
         shadow-camera-bottom={-100}
       />
       
-      <hemisphereLight args={['#87ceeb', '#3f3f3f', 0.7]} />
-      <Sky distance={450000} sunPosition={[1, 0.5, 0]} />
+      <hemisphereLight args={settings.hemisphereArgs} />
+      <Sky distance={450000} sunPosition={settings.sunPosition} />
+      
+      {/* Add stars at night */}
+      {timeOfDay === 'night' && (
+        <group>
+          {Array.from({ length: 200 }).map((_, i) => {
+            const x = Math.random() * 400 - 200;
+            const y = Math.random() * 200 + 50;
+            const z = Math.random() * 400 - 200;
+            const size = Math.random() * 0.5 + 0.1;
+            
+            return (
+              <mesh key={`star-${i}`} position={[x, y, z]}>
+                <sphereGeometry args={[size, 8, 8]} />
+                <meshBasicMaterial color="#FFFFFF" />
+              </mesh>
+            );
+          })}
+        </group>
+      )}
       
       {/* Clouds */}
       <group position={[0, 60, 0]}>
         <Cloud position={[-40, 20, -20]} speed={0.2} opacity={0.7} />
         <Cloud position={[40, 10, 30]} speed={0.1} opacity={0.6} />
         <Cloud position={[-60, 0, 40]} speed={0.3} opacity={0.5} />
+        <Cloud position={[20, 20, -50]} speed={0.15} opacity={0.6} />
+        <Cloud position={[-10, 10, 60]} speed={0.25} opacity={0.7} />
       </group>
       
       <City onAgentClick={onAgentClick} />
       
-      <Environment preset="city" />
+      <Environment preset={timeOfDay === 'night' ? 'night' : 'city'} />
       <OrbitControls 
         enablePan={false}
         enableZoom={true}
@@ -1259,12 +1869,14 @@ const ClientGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => 
         maxPolarAngle={Math.PI / 2.5}
         minPolarAngle={Math.PI / 8}
         minDistance={40}
-        maxDistance={150}
+        maxDistance={160}
         target={[0, 0, 0]}
         autoRotate={false}
+        enableDamping={true}
+        dampingFactor={0.05}
       />
     </Canvas>
   );
 };
 
-export default ClientGameScene; 
+export default ClientGameScene;

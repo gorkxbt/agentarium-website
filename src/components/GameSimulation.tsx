@@ -51,6 +51,9 @@ function SimulationGuide({ onClose }: { onClose: () => void }) {
                 <li><span className="text-red-400 font-medium">Gas Station</span> - For resource replenishment</li>
                 <li><span className="text-gray-400 font-medium">Tech Hub & Finance Center</span> - Office buildings for specialized work</li>
                 <li><span className="text-amber-700 font-medium">Residential Area</span> - Houses where some agents live</li>
+                <li><span className="text-purple-400 font-medium">City Park</span> - Recreation area with seating and fountains</li>
+                <li><span className="text-pink-500 font-medium">Shopping Mall</span> - Large retail center</li>
+                <li><span className="text-cyan-500 font-medium">Transport Hub</span> - Central taxi and bus station</li>
               </ul>
             </div>
             
@@ -68,6 +71,20 @@ function SimulationGuide({ onClose }: { onClose: () => void }) {
                 Agents use roads for navigation and cannot walk through buildings. Their behavior is determined
                 by their role, current state, and location in the city.
               </p>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-medium text-white mb-2">City Environment</h3>
+              <p className="mb-2">
+                The city is populated with:
+              </p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li><span className="text-yellow-400 font-medium">Taxis</span> - Moving around the city roads</li>
+                <li><span className="text-blue-500 font-medium">Cars</span> - Regular traffic on main streets</li>
+                <li><span className="text-gray-400 font-medium">NPCs</span> - Non-player characters that add life to the city</li>
+                <li><span className="text-green-400 font-medium">Trees & Plants</span> - Natural elements throughout the city</li>
+                <li><span className="text-cyan-400 font-medium">Water Features</span> - Fountains and decorative elements</li>
+              </ul>
             </div>
             
             <div>
@@ -229,6 +246,8 @@ function AgentDetailsPanel({ agent, onClose }: { agent: any | null, onClose: () 
 const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string) => void }) => {
   const [selectedAgent, setSelectedAgent] = useState<any | null>(null);
   const [showIntro, setShowIntro] = useState(true);
+  const [showGuide, setShowGuide] = useState(false);
+  const [timeOfDay, setTimeOfDay] = useState('day');
   
   // Hide intro after 5 seconds
   useEffect(() => {
@@ -249,9 +268,13 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
   const closeAgentDetails = () => {
     setSelectedAgent(null);
   };
+
+  const handleTimeChange = (newTime: string) => {
+    setTimeOfDay(newTime);
+  };
   
   return (
-    <div className="relative mx-auto my-4 w-full max-w-[1400px] aspect-[16/9] bg-agent-black rounded-xl border border-white/5 shadow-2xl overflow-hidden">
+    <div className="relative mx-auto my-4 w-full max-w-[1680px] aspect-[16/9] bg-agent-black rounded-xl border border-white/5 shadow-2xl overflow-hidden">
       {/* Intro overlay */}
       <AnimatePresence>
         {showIntro && (
@@ -283,11 +306,23 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
         )}
       </AnimatePresence>
       
+      {/* Guide overlay */}
+      <AnimatePresence>
+        {showGuide && <SimulationGuide onClose={() => setShowGuide(false)} />}
+      </AnimatePresence>
+      
       {/* Game overlay UI elements */}
       <div className="absolute top-4 left-4 z-10 flex items-center space-x-4">
         <div className="px-3 py-1.5 bg-agent-black/60 backdrop-blur-sm rounded-lg border border-white/10 flex items-center">
           <span className="text-agent-green text-xs font-bold">AGENTARIUM CITY</span>
         </div>
+        
+        <button 
+          onClick={() => setShowGuide(true)}
+          className="px-3 py-1.5 bg-agent-black/60 backdrop-blur-sm rounded-lg border border-white/10 flex items-center hover:bg-agent-dark-gray/60 transition-colors"
+        >
+          <span className="text-white/80 text-xs">Guide</span>
+        </button>
       </div>
       
       {/* Social links */}
@@ -324,8 +359,8 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
         </a>
       </div>
       
-      {/* Legend */}
-      <div className="absolute bottom-4 right-4 z-10">
+      {/* Legend - moved to left side above "click on any agent" text */}
+      <div className="absolute bottom-16 left-4 z-10">
         <div className="px-3 py-2 bg-agent-black/60 backdrop-blur-sm rounded-lg border border-white/10">
           <h4 className="text-white/90 text-xs font-medium mb-1.5">Agent States</h4>
           <div className="space-y-1">
@@ -352,10 +387,41 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
         </div>
       </div>
       
+      {/* Time of day indicator */}
+      <div className="absolute bottom-4 right-4 z-10">
+        <div className="px-3 py-2 bg-agent-black/60 backdrop-blur-sm rounded-lg border border-white/10 flex items-center space-x-2">
+          {timeOfDay === 'day' && (
+            <>
+              <svg className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+              </svg>
+              <span className="text-white/80 text-xs">Daytime</span>
+            </>
+          )}
+          {timeOfDay === 'sunset' && (
+            <>
+              <svg className="w-4 h-4 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+              </svg>
+              <span className="text-white/80 text-xs">Sunset</span>
+            </>
+          )}
+          {timeOfDay === 'night' && (
+            <>
+              <svg className="w-4 h-4 text-indigo-300" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+              </svg>
+              <span className="text-white/80 text-xs">Night</span>
+            </>
+          )}
+        </div>
+      </div>
+      
       {/* 3D Canvas */}
       <div className="w-full h-full">
         <ClientGameScene 
           onAgentClick={handleAgentClick}
+          onTimeChange={handleTimeChange}
         />
       </div>
       
