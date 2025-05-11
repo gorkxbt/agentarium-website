@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { useGLTF, Text, Billboard } from '@react-three/drei';
+import { useGLTF, Text, Billboard, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 
 // Tree model
@@ -130,14 +130,13 @@ export function PathSection({ position, rotation = 0, length = 2 }: { position: 
 // Fountain
 export function Fountain({ position }: { position: [number, number, number] }) {
   const waterRef = useRef<THREE.Mesh>(null);
+  const displacementMap = useTexture("https://cdn.jsdelivr.net/gh/pmndrs/drei-assets@master/noise.jpg");
   
   useFrame((state) => {
-    if (waterRef.current) {
+    if (waterRef.current && waterRef.current.material instanceof THREE.MeshStandardMaterial) {
       const t = state.clock.getElapsedTime();
       // Animate water surface
-      if (waterRef.current.material instanceof THREE.Material) {
-        (waterRef.current.material as THREE.MeshStandardMaterial).displacementScale = Math.sin(t * 2) * 0.05 + 0.05;
-      }
+      waterRef.current.material.displacementScale = Math.sin(t * 2) * 0.05 + 0.05;
     }
   });
   
@@ -166,12 +165,8 @@ export function Fountain({ position }: { position: [number, number, number] }) {
           metalness={0.3}
           displacementScale={0.05}
           displacementBias={0}
-        >
-          <displacementMap 
-            attach="displacementMap" 
-            url="https://cdn.jsdelivr.net/gh/pmndrs/drei-assets@master/noise.jpg" 
-          />
-        </meshStandardMaterial>
+          displacementMap={displacementMap}
+        />
       </mesh>
       
       {/* Center column */}
