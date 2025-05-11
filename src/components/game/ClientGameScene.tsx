@@ -1130,14 +1130,9 @@ const Vehicle: React.FC<VehicleProps> = ({ position, color, type, speed }) => {
 // NPC component
 const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
   const meshRef = useRef<THREE.Group>(null);
-  const targetRef = useRef(new THREE.Vector3(
-    position[0] + (Math.random() * 40 - 20),
-    position[1],
-    position[2] + (Math.random() * 40 - 20)
-  ));
-  
-  const [state, setState] = React.useState('walking');
-  const [stateTimer, setStateTimer] = React.useState(Math.random() * 5 + 5);
+  const targetRef = useRef(new THREE.Vector3(position[0], position[1], position[2]));
+  const [state, setState] = useState('idle');
+  const [stateTimer, setStateTimer] = useState(Math.random() * 3);
   
   // List of possible sidewalk destinations
   const sidewalkPoints = useMemo(() => {
@@ -1247,7 +1242,7 @@ const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
     return () => clearInterval(interval);
   }, [stateTimer]);
   
-  useFrame((state, delta) => {
+  useFrame((frameState, delta) => {
     if (!meshRef.current) return;
     
     // Only move if in walking state
@@ -1277,7 +1272,7 @@ const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
     }
     
     // Bobbing animation when walking
-    meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 5) * 0.05;
+    meshRef.current.position.y = position[1] + Math.sin(frameState.clock.elapsedTime * 5) * 0.05;
   });
   
   return (
@@ -1756,46 +1751,46 @@ const ClientGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => 
       case 'day':
         return {
           skyColor: '#87ceeb',
-          sunPosition: [1, 0.5, 0],
+          sunPosition: [1, 0.5, 0] as [number, number, number],
           ambientIntensity: 0.7,
           directionalIntensity: 1.2,
-          directionalPosition: [100, 100, 50],
+          directionalPosition: [100, 100, 50] as [number, number, number],
           directionalColor: '#FFFFFF',
           fogColor: '#1a2e3b',
-          hemisphereArgs: ['#87ceeb', '#3f3f3f', 0.8]
+          hemisphereArgs: ['#87ceeb', '#3f3f3f', 0.8] as [string, string, number]
         };
       case 'sunset':
         return {
           skyColor: '#FF7F50',
-          sunPosition: [0.3, 0.1, 0],
+          sunPosition: [0.3, 0.1, 0] as [number, number, number],
           ambientIntensity: 0.5,
           directionalIntensity: 0.8,
-          directionalPosition: [50, 20, 100],
+          directionalPosition: [50, 20, 100] as [number, number, number],
           directionalColor: '#FF7F50',
           fogColor: '#4B0082',
-          hemisphereArgs: ['#FF7F50', '#4B0082', 0.6]
+          hemisphereArgs: ['#FF7F50', '#4B0082', 0.6] as [string, string, number]
         };
       case 'night':
         return {
           skyColor: '#000033',
-          sunPosition: [-0.5, -0.2, 0],
+          sunPosition: [-0.5, -0.2, 0] as [number, number, number],
           ambientIntensity: 0.2,
           directionalIntensity: 0.3,
-          directionalPosition: [-50, 20, -100],
+          directionalPosition: [-50, 20, -100] as [number, number, number],
           directionalColor: '#3333FF',
           fogColor: '#000033',
-          hemisphereArgs: ['#000033', '#000011', 0.3]
+          hemisphereArgs: ['#000033', '#000011', 0.3] as [string, string, number]
         };
       default:
         return {
           skyColor: '#87ceeb',
-          sunPosition: [1, 0.5, 0],
+          sunPosition: [1, 0.5, 0] as [number, number, number],
           ambientIntensity: 0.7,
           directionalIntensity: 1.2,
-          directionalPosition: [100, 100, 50],
+          directionalPosition: [100, 100, 50] as [number, number, number],
           directionalColor: '#FFFFFF',
           fogColor: '#1a2e3b',
-          hemisphereArgs: ['#87ceeb', '#3f3f3f', 0.8]
+          hemisphereArgs: ['#87ceeb', '#3f3f3f', 0.8] as [string, string, number]
         };
     }
   };
@@ -1804,7 +1799,7 @@ const ClientGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => 
   
   return (
     <Canvas 
-      shadows={{ type: 'PCFSoftShadowMap', enabled: true }}
+      shadows
       className="w-full h-full"
       camera={{ position: [100, 100, 100], fov: 45 }}
       gl={{ antialias: true, alpha: false }}
