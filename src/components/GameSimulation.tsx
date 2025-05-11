@@ -311,11 +311,11 @@ function InteractionEffect({ position, type, timer }: Interaction) {
 
 // The main simulation scene
 function SimulationScene({ agents, buildings, resources, interactions, selectedAgentId, onAgentClick }: {
-  agents: Agent[];
-  buildings: Building[];
-  resources: Resource[];
-  interactions: Interaction[];
-  selectedAgentId: number | null;
+    agents: Agent[];
+    buildings: Building[];
+    resources: Resource[];
+    interactions: Interaction[];
+    selectedAgentId: number | null;
   onAgentClick: (id: number) => void;
 }) {
   const { camera } = useThree();
@@ -455,7 +455,7 @@ const GameSimulation = ({ onAgentSelect }: GameSimulationProps) => {
       const targetResource = simulation.resources[randomResourceIndex];
       
       agent.targetPosition = { ...targetResource.position };
-      agent.state = 'gathering';
+        agent.state = 'gathering';
       agent.stateTimer = 0;
       agent.targetId = targetResource.id;
       generateTrajectory(agent);
@@ -466,11 +466,11 @@ const GameSimulation = ({ onAgentSelect }: GameSimulationProps) => {
       const targetBuilding = simulation.buildings[randomBuildingIndex];
       
       // Set position to the front of the building
-      agent.targetPosition = {
+        agent.targetPosition = {
         x: targetBuilding.position.x,
         y: targetBuilding.position.y + targetBuilding.size.width / 2
-      };
-      agent.state = 'entering';
+        };
+        agent.state = 'entering';
       agent.stateTimer = 0;
       agent.targetId = targetBuilding.id;
       generateTrajectory(agent);
@@ -488,76 +488,76 @@ const GameSimulation = ({ onAgentSelect }: GameSimulationProps) => {
     y: -20 + marginY + Math.random() * (40 - 2 * marginY)
   });
   
-  const createBuildings = () => {
+    const createBuildings = () => {
     const buildings: Building[] = [];
-    const buildingCount = 5;
-    
-    for (let i = 0; i < buildingCount; i++) {
-      const buildingType = BUILDING_TYPES[i % BUILDING_TYPES.length];
-      const buildingSize = 2 + Math.random() * 3;
+      const buildingCount = 5;
       
+      for (let i = 0; i < buildingCount; i++) {
+        const buildingType = BUILDING_TYPES[i % BUILDING_TYPES.length];
+      const buildingSize = 2 + Math.random() * 3;
+        
       buildings.push({
-        id: i,
+          id: i,
         position: getRandomPosition(10, 10),
         size: { 
           width: buildingSize, 
           height: 2 + Math.random() * 3,
           depth: buildingSize
         },
-        type: buildingType.type,
-        color: buildingType.color
-      });
-    }
+          type: buildingType.type,
+          color: buildingType.color
+        });
+      }
     
     return buildings;
-  };
-  
-  const createResources = () => {
+    };
+    
+    const createResources = () => {
     const resources: Resource[] = [];
     const resourceCount = 15;
     const resourceTypes = ['Energy', 'Tokens', 'Materials', 'Data', 'Artifacts'];
     const resourceColors = ['#FFC107', '#9C27B0', '#E91E63', '#03A9F4', '#4CAF50'];
-    
-    for (let i = 0; i < resourceCount; i++) {
+      
+      for (let i = 0; i < resourceCount; i++) {
       const typeIndex = Math.floor(Math.random() * resourceTypes.length);
       
       resources.push({
-        id: i,
+          id: i,
         position: getRandomPosition(),
         type: resourceTypes[typeIndex],
-        value: 10 + Math.floor(Math.random() * 90),
+          value: 10 + Math.floor(Math.random() * 90),
         color: resourceColors[typeIndex]
-      });
-    }
+        });
+      }
     
     return resources;
-  };
-  
-  const createAgents = () => {
+    };
+    
+    const createAgents = () => {
     const agents: Agent[] = [];
     const agentCount = 20;
-    
-    for (let i = 0; i < agentCount; i++) {
-      const agentType = AGENT_TYPES[i % AGENT_TYPES.length];
-      const position = getRandomPosition();
       
-      const agent: Agent = {
-        id: i,
+      for (let i = 0; i < agentCount; i++) {
+        const agentType = AGENT_TYPES[i % AGENT_TYPES.length];
+      const position = getRandomPosition();
+        
+        const agent: Agent = {
+          id: i,
         position: position,
         targetPosition: position, // Start at the same spot
-        type: agentType.type,
-        color: agentType.color,
-        icon: agentType.icon,
+          type: agentType.type,
+          color: agentType.color,
+          icon: agentType.icon,
         speed: 0.05 + Math.random() * 0.05,
-        state: 'wandering',
-        stateTimer: 0,
-        trajectory: [],
+          state: 'wandering',
+          stateTimer: 0,
+          trajectory: [],
         resources: Math.floor(Math.random() * 50)
-      };
-      
+        };
+        
       // Set initial target
-      setNewAgentTarget(agent);
-      
+        setNewAgentTarget(agent);
+        
       agents.push(agent);
     }
     
@@ -635,7 +635,7 @@ const GameSimulation = ({ onAgentSelect }: GameSimulationProps) => {
       </Canvas>
       
       <div className="absolute bottom-4 left-4 right-4 flex justify-between">
-        <button 
+        <button
           onClick={toggleSimulation}
           className="px-4 py-2 bg-agent-green-muted/80 text-white rounded-md hover:bg-agent-green-muted transition"
         >
