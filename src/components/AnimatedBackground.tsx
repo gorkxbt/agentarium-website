@@ -73,12 +73,6 @@ export const AnimatedBackground = () => {
       }
     }
     
-    // Matrix rain (subtle in background)
-    const fontSize = 12;
-    const columns = Math.floor(canvas.width / fontSize);
-    const drops: number[] = Array(columns).fill(1);
-    const characters = "01";
-    
     // Animation loop
     const animate = () => {
       if (!canvas || !ctx) return;
@@ -86,21 +80,6 @@ export const AnimatedBackground = () => {
       // Clear canvas with slight opacity to create trail effect
       ctx.fillStyle = 'rgba(18, 18, 18, 0.05)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // Draw subtle matrix rain
-      ctx.fillStyle = 'rgba(0, 255, 65, 0.08)';
-      ctx.font = `${fontSize}px monospace`;
-      
-      for (let i = 0; i < drops.length; i++) {
-        const text = characters.charAt(Math.floor(Math.random() * characters.length));
-        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-        
-        if (drops[i] * fontSize > canvas.height && Math.random() > 0.98) {
-          drops[i] = 0;
-        }
-        
-        drops[i]++;
-      }
       
       // Draw and update particles
       particles.forEach((particle, index) => {
@@ -134,25 +113,6 @@ export const AnimatedBackground = () => {
         if (particle.y < 0) particle.y = canvas.height;
         if (particle.y > canvas.height) particle.y = 0;
       });
-      
-      // Draw subtle grid
-      ctx.strokeStyle = 'rgba(45, 45, 45, 0.2)';
-      ctx.lineWidth = 0.5;
-      
-      const gridSize = 50;
-      for (let x = 0; x < canvas.width; x += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvas.height);
-        ctx.stroke();
-      }
-      
-      for (let y = 0; y < canvas.height; y += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvas.width, y);
-        ctx.stroke();
-      }
       
       // Connect nearby particles with lines
       ctx.strokeStyle = 'rgba(0, 255, 65, 0.15)';

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import GlassCard from './GlassCard';
 
@@ -116,26 +116,41 @@ const AGENT_TYPES = [
   }
 ];
 
-const AgentProfiles = () => {
+interface AgentProfilesProps {
+  initialAgent?: string;
+}
+
+const AgentProfiles = ({ initialAgent }: AgentProfilesProps) => {
   const [selectedAgent, setSelectedAgent] = useState(AGENT_TYPES[0]);
+  
+  useEffect(() => {
+    if (initialAgent) {
+      const agent = AGENT_TYPES.find(a => a.type === initialAgent);
+      if (agent) {
+        setSelectedAgent(agent);
+      }
+    }
+  }, [initialAgent]);
   
   return (
     <div className="w-full">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="mb-8"
-      >
-        <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
-          Meet the <span className="text-agent-green-muted">AI Agents</span>
-        </h2>
-        <p className="text-white/70 max-w-3xl">
-          Each of the 10 agents in Agentarium has a unique personality and specialized skills.
-          They autonomously make decisions, interact with other agents, and adapt their strategies
-          over time based on the evolving simulation environment.
-        </p>
-      </motion.div>
+      {!initialAgent && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="mb-8"
+        >
+          <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
+            Meet the <span className="text-agent-green-muted">AI Agents</span>
+          </h2>
+          <p className="text-white/70 max-w-3xl">
+            Each of the 10 agents in Agentarium has a unique personality and specialized skills.
+            They autonomously make decisions, interact with other agents, and adapt their strategies
+            over time based on the evolving simulation environment.
+          </p>
+        </motion.div>
+      )}
       
       {/* Agent Selection */}
       <div className="mb-8 grid grid-cols-2 md:grid-cols-5 gap-2">

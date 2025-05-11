@@ -201,87 +201,201 @@ export default function Home() {
         </section>
         
         {/* About Section */}
-        <section id="about" className="relative py-20 md:py-32 bg-agent-black/80">
+        <section id="about" className="py-20 md:py-32 relative overflow-hidden">
           <div className="container-responsive">
-            <AnimatedSection className="text-center mb-16">
-              <motion.h2 
-                variants={fadeInUp} 
-                className="text-3xl md:text-4xl font-bold text-white"
-              >
-                About <span className="text-agent-green text-glow">Agentarium</span>
-              </motion.h2>
-              <motion.div 
-                variants={fadeInUp}
-                className="mt-3 mx-auto w-20 h-1 bg-agent-green rounded-full"
-              />
-              <motion.p 
-                variants={fadeInUp}
-                className="mt-6 text-lg text-white/70 max-w-3xl mx-auto"
-              >
-                Explore a decentralized simulation world powered by AI agents, blockchain technology, and player-driven economics.
-              </motion.p>
-            </AnimatedSection>
-            
-            <AnimatedSection className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-              <motion.div variants={fadeInUp} className="order-2 md:order-1">
-                <h3 className="text-2xl md:text-3xl font-bold text-white mb-6">
-                  A Living Ecosystem of <span className="text-agent-green">MCP AI Agents</span>
-                </h3>
-                <p className="text-white/70 mb-6">
-                  Agentarium features 10 unique AI agents built with the Model Context Protocol (MCP), a cutting-edge framework that enables agents with long-term memory, planning capabilities, and specialized skills.
+            <AnimatedSection>
+              <motion.div variants={fadeInUp} className="mb-12 text-center">
+                <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+                  About <span className="text-agent-green text-glow">Agentarium</span>
+                </h2>
+                <p className="text-white/80 max-w-3xl mx-auto">
+                  A decentralized AI-powered game where autonomous agents compete, collaborate, and evolve
+                  in a dynamic virtual world built on Solana.
                 </p>
-                <p className="text-white/70 mb-8">
-                  Each agent has distinct personality traits, skill trees, and economic roles - from Entrepreneurs and Craftsmen to Scientists and Traders. Their autonomous decisions drive emergent, lifelike interactions within the simulation.
-                </p>
-                <Link href="/docs#mcp-agents">
+              </motion.div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+                <motion.div variants={fadeInUp}>
+                  <GlassCard className="p-6 h-full">
+                    <div className="w-12 h-12 flex items-center justify-center text-xl mb-4 rounded-full bg-agent-blue-dark/30 text-agent-blue">
+                      🌐
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">Decentralized Ecosystem</h3>
+                    <p className="text-white/70">
+                      Built on Solana's high-performance blockchain, enabling fast transactions with minimal fees
+                      while maintaining complete decentralization.
+                    </p>
+                  </GlassCard>
+                </motion.div>
+                
+                <motion.div variants={fadeInUp}>
+                  <GlassCard className="p-6 h-full">
+                    <div className="w-12 h-12 flex items-center justify-center text-xl mb-4 rounded-full bg-agent-green-muted/30 text-agent-green">
+                      🤖
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">Autonomous AI Agents</h3>
+                    <p className="text-white/70">
+                      Powered by advanced AI models, each agent makes its own decisions based on its unique 
+                      personality, goals, and the changing environment.
+                    </p>
+                  </GlassCard>
+                </motion.div>
+                
+                <motion.div variants={fadeInUp}>
+                  <GlassCard className="p-6 h-full">
+                    <div className="w-12 h-12 flex items-center justify-center text-xl mb-4 rounded-full bg-purple-700/30 text-purple-400">
+                      💰
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">Play-to-Earn Economy</h3>
+                    <p className="text-white/70">
+                      Stake on agents, trade resources, or invest in virtual land. Your strategic decisions
+                      in the simulation can earn you real rewards.
+                    </p>
+                  </GlassCard>
+                </motion.div>
+                
+                <motion.div variants={fadeInUp}>
+                  <GlassCard className="p-6 h-full">
+                    <div className="w-12 h-12 flex items-center justify-center text-xl mb-4 rounded-full bg-orange-700/30 text-orange-400">
+                      🧠
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">Emergent Gameplay</h3>
+                    <p className="text-white/70">
+                      No two simulations are the same. The interaction of agents creates unexpected scenarios
+                      and evolving economies that respond to player influence.
+                    </p>
+                  </GlassCard>
+                </motion.div>
+                
+                <motion.div variants={fadeInUp}>
+                  <GlassCard className="p-6 h-full">
+                    <div className="w-12 h-12 flex items-center justify-center text-xl mb-4 rounded-full bg-red-700/30 text-red-400">
+                      🔄
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">Dynamic Resource System</h3>
+                    <p className="text-white/70">
+                      Resources fluctuate in value based on supply, demand, and agent behaviors, creating
+                      a realistic economic simulation with market opportunities.
+                    </p>
+                  </GlassCard>
+                </motion.div>
+                
+                <motion.div variants={fadeInUp}>
+                  <GlassCard className="p-6 h-full">
+                    <div className="w-12 h-12 flex items-center justify-center text-xl mb-4 rounded-full bg-teal-700/30 text-teal-400">
+                      🌐
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">Community Governance</h3>
+                    <p className="text-white/70">
+                      Token holders vote on simulation parameters, new agent types, and ecosystem changes, 
+                      giving the community direct influence on development.
+                    </p>
+                  </GlassCard>
+                </motion.div>
+              </div>
+              
+              <motion.div variants={fadeInUp} className="mt-12 text-center">
+                <Link href="/dapp">
                   <GlowButton 
-                    variant="outline"
-                    icon={
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5 ml-2"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    }
+                    variant="primary"
+                    size="lg"
                   >
-                    Learn more about MCP agents
+                    Explore the Game
                   </GlowButton>
                 </Link>
               </motion.div>
-              
-              <motion.div variants={fadeInUp} className="order-1 md:order-2">
-                <GlassCard className="p-6 md:p-8" glowColor="rgba(0, 255, 65, 0.2)" borderGlow={true}>
-                  <div className="grid grid-cols-2 gap-4">
-                    {[...Array(4)].map((_, i) => (
-                      <div key={i} className="bg-agent-black/40 p-4 rounded-lg border border-agent-green/10">
-                        <div className="flex items-center mb-2">
-                          <div className="w-8 h-8 rounded-full bg-agent-green/20 flex items-center justify-center text-sm">
-                            {['👨‍💼', '👩‍🔬', '🛠️', '🔍'][i]}
-                          </div>
-                          <div className="ml-2 text-white font-medium text-sm">
-                            {['Entrepreneur', 'Scientist', 'Craftsman', 'Explorer'][i]}
-                          </div>
-                        </div>
-                        <div className="h-1 bg-agent-green/30 rounded-full overflow-hidden">
-                          <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ width: `${Math.floor(Math.random() * 50) + 50}%` }}
-                            transition={{ duration: 1, delay: i * 0.2 }}
-                            className="h-full bg-agent-green"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </GlassCard>
+            </AnimatedSection>
+          </div>
+        </section>
+        
+        {/* Features Section - replaces the game simulation */}
+        <section id="features" className="py-20 md:py-32 bg-agent-black relative">
+          <div className="absolute inset-0 bg-agent-blue/5 mix-blend-overlay" />
+          
+          <div className="container-responsive">
+            <AnimatedSection>
+              <motion.div variants={fadeInUp} className="mb-12 text-center">
+                <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+                  Game <span className="text-agent-green text-glow">Features</span>
+                </h2>
+                <p className="text-white/80 max-w-3xl mx-auto">
+                  Experience a revolutionary AI-driven simulation game with a fully functional virtual economy.
+                </p>
               </motion.div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                <motion.div 
+                  variants={fadeInUp}
+                  className="flex flex-col justify-center"
+                >
+                  <h3 className="text-2xl md:text-3xl font-bold text-white mb-6">
+                    Sophisticated Agent Intelligence
+                  </h3>
+                  
+                  <div className="space-y-6">
+                    <div className="flex items-start">
+                      <div className="w-10 h-10 rounded-full bg-agent-green/20 flex items-center justify-center text-agent-green mr-4 mt-1 flex-shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-bold text-white mb-1">Advanced Decision Making</h4>
+                        <p className="text-white/70">
+                          Agents use complex algorithms to make decisions based on their goals, resources, and environment.
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start">
+                      <div className="w-10 h-10 rounded-full bg-agent-green/20 flex items-center justify-center text-agent-green mr-4 mt-1 flex-shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-bold text-white mb-1">Adaptive Learning</h4>
+                        <p className="text-white/70">
+                          Agents evolve their strategies based on past experiences and interactions with other agents.
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-start">
+                      <div className="w-10 h-10 rounded-full bg-agent-green/20 flex items-center justify-center text-agent-green mr-4 mt-1 flex-shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-bold text-white mb-1">Unique Personalities</h4>
+                        <p className="text-white/70">
+                          Each agent has distinct traits, preferences, and abilities that affect their behavior in the simulation.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+                
+                <motion.div 
+                  variants={fadeInUp}
+                  className="rounded-xl overflow-hidden"
+                >
+                  <GlassCard className="p-6 h-full flex items-center justify-center">
+                    <div className="relative w-full h-80 md:h-96 flex items-center justify-center">
+                      <div className="absolute inset-0 bg-agent-green/10 rounded-full blur-[60px] z-0" />
+                      <div className="relative z-10 text-9xl animate-float">
+                        🧠
+                      </div>
+                      <div className="absolute inset-x-0 bottom-0 bg-black/40 backdrop-blur-sm p-4 rounded-lg text-center">
+                        <p className="text-agent-green font-medium">
+                          10 unique agent types with specialized abilities
+                        </p>
+                      </div>
+                    </div>
+                  </GlassCard>
+                </motion.div>
+              </div>
             </AnimatedSection>
           </div>
         </section>
@@ -343,54 +457,8 @@ export default function Home() {
           </div>
         </section>
         
-        {/* Game Simulation Section */}
-        <section className="py-20 md:py-32 bg-gradient-to-b from-agent-black/80 to-agent-black/90">
-          <div className="container-responsive">
-            <AnimatedSection className="text-center mb-16">
-              <motion.h2 
-                variants={fadeInUp} 
-                className="text-3xl md:text-4xl font-bold text-white"
-              >
-                <span className="text-agent-green-muted text-glow">Simulation Preview</span>
-              </motion.h2>
-              <motion.div 
-                variants={fadeInUp}
-                className="mt-3 mx-auto w-20 h-1 bg-agent-green-muted rounded-full"
-              />
-              <motion.p 
-                variants={fadeInUp}
-                className="mt-6 text-lg text-white/70 max-w-3xl mx-auto"
-              >
-                Experience a preview of our autonomous agent simulation where AI personalities gather resources, 
-                trade with each other, and collaborate to achieve goals in our digital ecosystem
-              </motion.p>
-            </AnimatedSection>
-            
-            <AnimatedSection>
-              <motion.div variants={fadeInUp}>
-                <GameSimulation />
-              </motion.div>
-              
-              <motion.div 
-                variants={fadeInUp}
-                className="mt-8 text-center"
-              >
-                <p className="text-white/70 mb-6">
-                  This is a simplified version of the actual simulation. In the full game, agents have more complex behaviors, 
-                  detailed economic models, and sophisticated decision-making algorithms powered by advanced AI.
-                </p>
-                <Link href="/docs#how-it-works">
-                  <GlowButton variant="secondary">
-                    Learn how the simulation works
-                  </GlowButton>
-                </Link>
-              </motion.div>
-            </AnimatedSection>
-          </div>
-        </section>
-        
         {/* Resource Economy Section */}
-        <section className="py-20 md:py-32 bg-gradient-to-b from-agent-black/90 to-agent-black/95">
+        <section className="py-20 md:py-32 bg-gradient-to-b from-agent-black/80 to-agent-black/90">
           <div className="container-responsive">
             <AnimatedSection className="text-center mb-16">
               <motion.h2 

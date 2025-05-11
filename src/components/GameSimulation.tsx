@@ -138,7 +138,11 @@ interface Interaction {
   agents: number[];
 }
 
-const GameSimulation = () => {
+interface GameSimulationProps {
+  onAgentSelect?: (agentType: string) => void;
+}
+
+const GameSimulation = ({ onAgentSelect }: GameSimulationProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isSimulationActive, setIsSimulationActive] = useState(true);
   const simulationRef = useRef<{
@@ -148,13 +152,15 @@ const GameSimulation = () => {
     interactions: Interaction[];
     width: number;
     height: number;
+    selectedAgentId: number | null;
   }>({
     agents: [],
     buildings: [],
     resources: [],
     interactions: [],
     width: 800,
-    height: 500
+    height: 500,
+    selectedAgentId: null
   });
   
   // Animation controls
@@ -746,6 +752,18 @@ const GameSimulation = () => {
           );
         }
       }
+      
+      // Highlight selected agent
+      if (simulation.selectedAgentId !== null) {
+        const selectedAgent = simulation.agents.find(a => a.id === simulation.selectedAgentId);
+        if (selectedAgent) {
+          ctx.strokeStyle = 'white';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(selectedAgent.position.x, selectedAgent.position.y, 20, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
     };
     
     // Start the animation loop
@@ -757,63 +775,57 @@ const GameSimulation = () => {
     };
   }, [isAnimating]);
   
+  // Handle agent clicks
+  const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    
+    // Check if any agent was clicked
+    const sim = simulationRef.current;
+    const clickedAgent = sim.agents.find(agent => {
+      const dx = agent.position.x - x;
+      const dy = agent.position.y - y;
+      return Math.sqrt(dx * dx + dy * dy) < 20; // 20px radius for click detection
+    });
+    
+    if (clickedAgent) {
+      sim.selectedAgentId = clickedAgent.id;
+      if (onAgentSelect) {
+        onAgentSelect(clickedAgent.type);
+      }
+    }
+  };
+  
   return (
-    <div className="w-full relative">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="relative w-full glass-card overflow-hidden rounded-xl border border-agent-green/30"
-      >
-        <canvas
-          ref={canvasRef}
-          className="w-full"
-          style={{ background: 'rgba(18, 18, 18, 0.7)' }}
-        />
-        
-        <motion.div
-          className="absolute bottom-4 right-4 z-10"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
+    <>
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full rounded-lg"
+        onClick={handleCanvasClick}
+      />
+      <div className="absolute bottom-4 right-4 flex space-x-2">
+        <button
+          onClick={toggleSimulation}
+          className="bg-agent-black/70 backdrop-blur-sm text-white p-2 rounded-md hover:bg-agent-black transition-colors"
         >
-          <button
-            onClick={toggleSimulation}
-            className="bg-agent-green/20 hover:bg-agent-green/30 border border-agent-green/50 text-agent-green rounded-full p-2 transition-colors"
-            title={isAnimating ? "Pause Simulation" : "Resume Simulation"}
-          >
-            {isAnimating ? (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            )}
-          </button>
-        </motion.div>
-      </motion.div>
-      
-      <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-        {AGENT_TYPES.slice(0, 4).map((agent, index) => (
-          <motion.div
-            key={index}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 + index * 0.1 }}
-            className="flex items-center bg-agent-black/50 p-2 rounded border border-agent-green/20"
-          >
-            <div className="w-6 h-6 flex items-center justify-center mr-2">
-              {agent.icon}
-            </div>
-            <span>{agent.type}</span>
-          </motion.div>
-        ))}
+          {isAnimating ? (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="6" y="4" width="4" height="16"></rect>
+              <rect x="14" y="4" width="4" height="16"></rect>
+            </svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+          )}
+        </button>
       </div>
-    </div>
+    </>
   );
 };
 
-export default GameSimulation; 
+export default GameSimulation;
