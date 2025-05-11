@@ -2922,6 +2922,7 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
   const [timeOfDay, setTimeOfDay] = useState('day');
   const [hasError, setHasError] = useState(false);
   const [canvasLoaded, setCanvasLoaded] = useState(false);
+  const [renderAttempts, setRenderAttempts] = useState(0);
   
   // Handle WebGL and Three.js initialization errors
   useEffect(() => {
@@ -2936,23 +2937,38 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
       const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
       if (!gl) {
         handleError();
+        return;
+      }
+      
+      // Force a re-render attempt if the canvas hasn't loaded yet
+      if (!canvasLoaded && renderAttempts < 3) {
+        const timer = setTimeout(() => {
+          console.log("Attempting to re-render the canvas...");
+          setRenderAttempts(prev => prev + 1);
+        }, 1000);
+        
+        return () => clearTimeout(timer);
       }
     } catch (e) {
       handleError();
     }
     
     // Listen for error events that might indicate Three.js failures
-    window.addEventListener('error', (e) => {
+    const errorHandler = (e: ErrorEvent) => {
       if (e.message && (
         e.message.includes('WebGL') || 
         e.message.includes('three') || 
         e.message.includes('R3F') ||
         e.message.includes('Canvas')
       )) {
+        console.error("WebGL error detected:", e.message);
         handleError();
       }
-    });
-  }, []);
+    };
+    
+    window.addEventListener('error', errorHandler);
+    return () => window.removeEventListener('error', errorHandler);
+  }, [canvasLoaded, renderAttempts]);
   
   if (hasError) {
     return <FallbackScene />;
@@ -2968,14 +2984,31 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
         gl={{ 
           antialias: true, 
           alpha: false,
-          powerPreference: "high-performance"
+          powerPreference: "high-performance" 
         }}
         dpr={[1, 1.5]} // Reduced max DPR for better performance
         onCreated={state => {
           console.log("Canvas initialized");
+          // Force a single render to ensure everything is visible
+          state.gl.render(state.scene, state.camera);
           setCanvasLoaded(true);
         }}
+        style={{ background: "#87ceeb" }} // Default sky blue background
+        linear
       >
+        {/* Fallback content while loading */}
+        {!canvasLoaded && (
+          <>
+            <ambientLight intensity={1} />
+            <pointLight position={[10, 10, 10]} />
+            <mesh>
+              <boxGeometry args={[1, 1, 1]} />
+              <meshStandardMaterial color="hotpink" />
+            </mesh>
+          </>
+        )}
+        
+        {/* Actual scene content */}
         {canvasLoaded && (
           <SceneContent 
             onAgentClick={onAgentClick} 

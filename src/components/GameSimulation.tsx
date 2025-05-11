@@ -2,6 +2,7 @@
 import { useState, useEffect, Component } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
+import React from 'react';
 
 // Import the client component with no SSR and a fallback
 const ClientGameScene = dynamic(() => import('./game/ClientGameScene').catch(err => {
@@ -328,7 +329,7 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
   };
   
   return (
-    <div className="relative mx-auto my-4 w-full max-w-[1680px] aspect-[16/9] bg-agent-black rounded-xl border border-white/5 shadow-2xl overflow-hidden">
+    <div className="relative mx-auto my-4 w-full max-w-[1848px] aspect-[16/9] bg-agent-black rounded-xl border border-white/5 shadow-2xl overflow-hidden">
       {/* Intro overlay */}
       <AnimatePresence>
         {showIntro && (
@@ -381,7 +382,7 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
           <span className="text-agent-green text-xs font-bold">AGENTARIUM CITY</span>
         </div>
         
-        <button 
+        <button
           onClick={() => setShowGuide(true)}
           className="px-3 py-1.5 bg-agent-black/60 backdrop-blur-sm rounded-lg border border-white/10 flex items-center hover:bg-agent-dark-gray/60 transition-colors"
         >
@@ -492,10 +493,20 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
             </div>
           </div>
         }>
-          <ClientGameScene 
-            onAgentClick={handleAgentClick}
-            onTimeChange={handleTimeChange}
-          />
+          <React.Suspense fallback={
+            <div className="w-full h-full bg-agent-dark-gray flex items-center justify-center">
+              <div className="text-white text-center p-4">
+                <h3 className="text-xl font-bold mb-2">Loading Agentarium City...</h3>
+                <p>The 3D simulation is initializing...</p>
+                <div className="mt-4 w-16 h-16 border-t-2 border-agent-green rounded-full animate-spin mx-auto"></div>
+              </div>
+            </div>
+          }>
+            <ClientGameScene 
+              onAgentClick={handleAgentClick}
+              onTimeChange={handleTimeChange}
+            />
+          </React.Suspense>
         </ErrorBoundary>
       </div>
       
