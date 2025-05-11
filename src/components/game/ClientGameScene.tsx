@@ -233,63 +233,67 @@ const Agent: React.FC<AgentProps> = ({ position, color, speed, agentData, onAgen
   }, [stateTimer]);
   
   useFrame((state, delta) => {
-    if (!meshRef.current) return;
-    
-    // Only move if in walking state
-    if (currentState === 'walking') {
-      // Move towards target
-      const direction = new THREE.Vector3().subVectors(targetRef.current, meshRef.current.position);
+    try {
+      if (!meshRef.current) return;
       
-      // If close to target, update state
-      if (direction.length() < 0.5) {
-        setCurrentState('idle');
-        setShowTrail(false);
-        setStateTimer(Math.random() * 3 + 1); // Idle for 1-4 seconds
-        return;
-      }
-      
-      // Calculate next position
-      const nextPosition = new THREE.Vector3().copy(meshRef.current.position);
-      direction.normalize().multiplyScalar(delta * speed);
-      nextPosition.add(direction);
-      
-      // Check if next position is valid (not inside a building)
-      if (!isInsideBuilding(nextPosition.x, nextPosition.z)) {
-        meshRef.current.position.copy(nextPosition);
-      } else {
-        // If we'd hit a building, try to move along the building
-        // by preserving one coordinate and only moving along the other
-        const tryX = new THREE.Vector3().copy(meshRef.current.position);
-        tryX.x += direction.x;
+      // Only move if in walking state
+      if (currentState === 'walking') {
+        // Move towards target
+        const direction = new THREE.Vector3().subVectors(targetRef.current, meshRef.current.position);
         
-        const tryZ = new THREE.Vector3().copy(meshRef.current.position);
-        tryZ.z += direction.z;
+        // If close to target, update state
+        if (direction.length() < 0.5) {
+          setCurrentState('idle');
+          setShowTrail(false);
+          setStateTimer(Math.random() * 3 + 1); // Idle for 1-4 seconds
+          return;
+        }
         
-        if (!isInsideBuilding(tryX.x, meshRef.current.position.z)) {
-          meshRef.current.position.x = tryX.x;
-        } else if (!isInsideBuilding(meshRef.current.position.x, tryZ.z)) {
-          meshRef.current.position.z = tryZ.z;
+        // Calculate next position
+        const nextPosition = new THREE.Vector3().copy(meshRef.current.position);
+        direction.normalize().multiplyScalar(delta * speed);
+        nextPosition.add(direction);
+        
+        // Check if next position is valid (not inside a building)
+        if (!isInsideBuilding(nextPosition.x, nextPosition.z)) {
+          meshRef.current.position.copy(nextPosition);
         } else {
-          // If both directions would hit a building, get a new target
-          updateTarget();
+          // If we'd hit a building, try to move along the building
+          // by preserving one coordinate and only moving along the other
+          const tryX = new THREE.Vector3().copy(meshRef.current.position);
+          tryX.x += direction.x;
+          
+          const tryZ = new THREE.Vector3().copy(meshRef.current.position);
+          tryZ.z += direction.z;
+          
+          if (!isInsideBuilding(tryX.x, meshRef.current.position.z)) {
+            meshRef.current.position.x = tryX.x;
+          } else if (!isInsideBuilding(meshRef.current.position.x, tryZ.z)) {
+            meshRef.current.position.z = tryZ.z;
+          } else {
+            // If both directions would hit a building, get a new target
+            updateTarget();
+          }
+        }
+        
+        // Rotate to face direction of movement
+        if (direction.length() > 0.01) {
+          const lookAtPos = new THREE.Vector3().addVectors(
+            meshRef.current.position,
+            new THREE.Vector3(direction.x, 0, direction.z).normalize()
+          );
+          meshRef.current.lookAt(lookAtPos);
         }
       }
       
-      // Rotate to face direction of movement
-      if (direction.length() > 0.01) {
-        const lookAtPos = new THREE.Vector3().addVectors(
-          meshRef.current.position,
-          new THREE.Vector3(direction.x, 0, direction.z).normalize()
-        );
-        meshRef.current.lookAt(lookAtPos);
+      // Bobbing animation based on state
+      if (currentState === 'walking') {
+        meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 5) * 0.1;
+      } else if (currentState === 'working') {
+        meshRef.current.rotation.y += delta * 2; // Spin when working
       }
-    }
-    
-    // Bobbing animation based on state
-    if (currentState === 'walking') {
-      meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 5) * 0.1;
-    } else if (currentState === 'working') {
-      meshRef.current.rotation.y += delta * 2; // Spin when working
+    } catch (error) {
+      console.error("Error in Agent animation frame:", error);
     }
   });
   
@@ -945,28 +949,32 @@ const Vehicle: React.FC<VehicleProps> = ({ position, color, type, speed }) => {
   }, []);
   
   useFrame((state, delta) => {
-    if (!meshRef.current) return;
-    
-    // Move towards target
-    const direction = new THREE.Vector3().subVectors(targetRef.current, meshRef.current.position);
-    
-    // If close to target, update target
-    if (direction.length() < 1) {
-      updateTarget();
-      return;
-    }
-    
-    // Calculate next position
-    direction.normalize().multiplyScalar(delta * speed);
-    meshRef.current.position.add(direction);
-    
-    // Rotate to face direction of movement
-    if (direction.length() > 0.01) {
-      const lookAtPos = new THREE.Vector3().addVectors(
-        meshRef.current.position,
-        new THREE.Vector3(direction.x, 0, direction.z).normalize()
-      );
-      meshRef.current.lookAt(lookAtPos);
+    try {
+      if (!meshRef.current) return;
+      
+      // Move towards target
+      const direction = new THREE.Vector3().subVectors(targetRef.current, meshRef.current.position);
+      
+      // If close to target, update target
+      if (direction.length() < 1) {
+        updateTarget();
+        return;
+      }
+      
+      // Calculate next position
+      direction.normalize().multiplyScalar(delta * speed);
+      meshRef.current.position.add(direction);
+      
+      // Rotate to face direction of movement
+      if (direction.length() > 0.01) {
+        const lookAtPos = new THREE.Vector3().addVectors(
+          meshRef.current.position,
+          new THREE.Vector3(direction.x, 0, direction.z).normalize()
+        );
+        meshRef.current.lookAt(lookAtPos);
+      }
+    } catch (error) {
+      console.error("Error in Vehicle animation frame:", error);
     }
   });
   
@@ -1248,36 +1256,40 @@ const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
   }, [stateTimer]);
   
   useFrame((frameState, delta) => {
-    if (!meshRef.current) return;
-    
-    // Only move if in walking state
-    if (state !== 'walking') return;
-    
-    // Move towards target
-    const direction = new THREE.Vector3().subVectors(targetRef.current, meshRef.current.position);
-    
-    // If close to target, become idle
-    if (direction.length() < 0.5) {
-      setState('idle');
-      setStateTimer(Math.random() * 3 + 2); // Idle for 2-5 seconds
-      return;
+    try {
+      if (!meshRef.current) return;
+      
+      // Only move if in walking state
+      if (state !== 'walking') return;
+      
+      // Move towards target
+      const direction = new THREE.Vector3().subVectors(targetRef.current, meshRef.current.position);
+      
+      // If close to target, become idle
+      if (direction.length() < 0.5) {
+        setState('idle');
+        setStateTimer(Math.random() * 3 + 2); // Idle for 2-5 seconds
+        return;
+      }
+      
+      // Calculate next position
+      direction.normalize().multiplyScalar(delta * speed);
+      meshRef.current.position.add(direction);
+      
+      // Rotate to face direction of movement
+      if (direction.length() > 0.01) {
+        const lookAtPos = new THREE.Vector3().addVectors(
+          meshRef.current.position,
+          new THREE.Vector3(direction.x, 0, direction.z).normalize()
+        );
+        meshRef.current.lookAt(lookAtPos);
+      }
+      
+      // Bobbing animation when walking
+      meshRef.current.position.y = position[1] + Math.sin(frameState.clock.elapsedTime * 5) * 0.05;
+    } catch (error) {
+      console.error("Error in NPC animation frame:", error);
     }
-    
-    // Calculate next position
-    direction.normalize().multiplyScalar(delta * speed);
-    meshRef.current.position.add(direction);
-    
-    // Rotate to face direction of movement
-    if (direction.length() > 0.01) {
-      const lookAtPos = new THREE.Vector3().addVectors(
-        meshRef.current.position,
-        new THREE.Vector3(direction.x, 0, direction.z).normalize()
-      );
-      meshRef.current.lookAt(lookAtPos);
-    }
-    
-    // Bobbing animation when walking
-    meshRef.current.position.y = position[1] + Math.sin(frameState.clock.elapsedTime * 5) * 0.05;
   });
   
   return (
