@@ -142,7 +142,7 @@ const AgentProfiles = ({ initialAgent }: AgentProfilesProps) => {
           className="mb-8"
         >
           <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
-            Meet the <span className="text-agent-green-muted">AI Agents</span>
+            Meet the <span className="text-agent-green text-glow">AI Agents</span>
           </h2>
           <p className="text-white/70 max-w-3xl">
             Each of the 10 agents in Agentarium has a unique personality and specialized skills.
@@ -152,8 +152,8 @@ const AgentProfiles = ({ initialAgent }: AgentProfilesProps) => {
         </motion.div>
       )}
       
-      {/* Agent Selection */}
-      <div className="mb-8 grid grid-cols-2 md:grid-cols-5 gap-2">
+      {/* Agent Selection - Fixed responsiveness with proper grid layoout */}
+      <div className="mb-8 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-10 gap-2">
         {AGENT_TYPES.map((agent, index) => (
           <motion.button
             key={agent.type}
@@ -166,6 +166,9 @@ const AgentProfiles = ({ initialAgent }: AgentProfilesProps) => {
                 ? 'bg-agent-black border border-white/20 shadow-lg' 
                 : 'hover:bg-agent-black/50'
             }`}
+            style={{
+              boxShadow: selectedAgent.type === agent.type ? `0 0 15px rgba(${hexToRgb(agent.color)}, 0.2)` : 'none'
+            }}
           >
             <div 
               className="w-12 h-12 rounded-full flex items-center justify-center mb-2 text-xl"
@@ -184,39 +187,40 @@ const AgentProfiles = ({ initialAgent }: AgentProfilesProps) => {
         ))}
       </div>
       
-      {/* Selected Agent Details */}
+      {/* Selected Agent Details - Improved layout and spacing */}
       <GlassCard 
         className="p-6 md:p-8" 
         glowColor={`${selectedAgent.color}40`}
         borderGlow={true}
       >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Agent Header */}
-          <div className="md:col-span-3 flex items-center mb-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Agent Header - Improved responsiveness */}
+          <div className="lg:col-span-3 flex flex-col sm:flex-row items-start sm:items-center mb-6">
             <div 
-              className="w-16 h-16 rounded-full flex items-center justify-center text-2xl mr-4"
+              className="w-16 h-16 rounded-full flex items-center justify-center text-2xl mb-4 sm:mb-0 sm:mr-4"
               style={{ 
                 backgroundColor: `${selectedAgent.color}20`,
                 color: selectedAgent.color,
-                border: `2px solid ${selectedAgent.color}`
+                border: `2px solid ${selectedAgent.color}`,
+                boxShadow: `0 0 15px rgba(${hexToRgb(selectedAgent.color)}, 0.3)`
               }}
             >
               {selectedAgent.icon}
             </div>
             <div>
               <h3 className="text-2xl font-bold text-white">The {selectedAgent.type}</h3>
-              <p className="text-white/70">{selectedAgent.description}</p>
+              <p className="text-white/70 mt-1">{selectedAgent.description}</p>
             </div>
           </div>
           
           {/* Traits */}
-          <div className="bg-agent-black/40 p-4 rounded-lg border border-white/10">
+          <div className="bg-agent-black/40 p-4 rounded-lg border border-white/10 backdrop-blur-sm transition-all duration-300 hover:border-white/20">
             <h4 className="text-white font-bold mb-2 text-sm uppercase tracking-wider">Personality Traits</h4>
             <div className="flex flex-wrap gap-2 mt-3">
               {selectedAgent.traits.map(trait => (
                 <span 
                   key={trait} 
-                  className="px-3 py-1 rounded-full text-xs font-medium"
+                  className="px-3 py-1 rounded-full text-xs font-medium transition-all duration-300 hover:scale-105"
                   style={{ backgroundColor: `${selectedAgent.color}20`, color: selectedAgent.color }}
                 >
                   {trait}
@@ -230,10 +234,10 @@ const AgentProfiles = ({ initialAgent }: AgentProfilesProps) => {
           </div>
           
           {/* Competencies */}
-          <div className="bg-agent-black/40 p-4 rounded-lg border border-white/10">
+          <div className="bg-agent-black/40 p-4 rounded-lg border border-white/10 backdrop-blur-sm transition-all duration-300 hover:border-white/20">
             <h4 className="text-white font-bold mb-3 text-sm uppercase tracking-wider">Core Competencies</h4>
             <div className="space-y-3">
-              {selectedAgent.competencies.map(competency => (
+              {selectedAgent.competencies.map((competency, index) => (
                 <div key={competency} className="group">
                   <div className="flex items-center">
                     <div 
@@ -248,61 +252,99 @@ const AgentProfiles = ({ initialAgent }: AgentProfilesProps) => {
                     <motion.div 
                       initial={{ width: 0 }}
                       animate={{ width: `${Math.floor(Math.random() * 30) + 70}%` }}
-                      transition={{ duration: 1 }}
+                      transition={{ duration: 1, delay: 0.2 * index }}
                       className="h-full rounded-full"
                       style={{ backgroundColor: selectedAgent.color }}
-                    />
+                    ></motion.div>
                   </div>
                 </div>
               ))}
             </div>
-            <div className="mt-4">
-              <h4 className="text-white font-bold mb-2 text-sm uppercase tracking-wider">Strengths</h4>
-              <p className="text-white/70 text-sm">{selectedAgent.strengths}</p>
-            </div>
           </div>
           
-          {/* Synergies */}
-          <div className="bg-agent-black/40 p-4 rounded-lg border border-white/10">
-            <h4 className="text-white font-bold mb-3 text-sm uppercase tracking-wider">Synergistic Relationships</h4>
-            <p className="text-white/70 text-sm mb-3">
-              The {selectedAgent.type} works most effectively with:
-            </p>
-            <div className="grid grid-cols-1 gap-2">
+          {/* Advantages */}
+          <div className="bg-agent-black/40 p-4 rounded-lg border border-white/10 backdrop-blur-sm transition-all duration-300 hover:border-white/20">
+            <h4 className="text-white font-bold mb-2 text-sm uppercase tracking-wider">Strengths & Synergies</h4>
+            <p className="text-white/70 text-sm mb-3">{selectedAgent.strengths}</p>
+            
+            <h5 className="text-white/90 text-xs font-semibold mt-4 mb-2">Synergizes Well With:</h5>
+            <div className="flex flex-wrap gap-2">
               {selectedAgent.synergies.map(synergy => {
                 const synergyAgent = AGENT_TYPES.find(a => a.type === synergy);
                 return (
                   <div 
-                    key={synergy} 
-                    className="flex items-center p-2 rounded-lg"
-                    style={{ backgroundColor: `${synergyAgent?.color}10` }}
+                    key={synergy}
+                    className="flex items-center bg-agent-black/60 px-2 py-1 rounded border border-white/5 transition-all duration-300 hover:border-white/20"
                   >
-                    <div 
-                      className="w-8 h-8 rounded-full flex items-center justify-center mr-2 text-sm"
-                      style={{ 
-                        backgroundColor: `${synergyAgent?.color}20`,
-                        color: synergyAgent?.color 
-                      }}
+                    <span 
+                      className="mr-1 text-sm"
+                      style={{ color: synergyAgent?.color }}
                     >
                       {synergyAgent?.icon}
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium" style={{ color: synergyAgent?.color }}>
-                        {synergy}
-                      </div>
-                      <div className="text-xs text-white/60">
-                        {AGENT_TYPES.find(a => a.type === synergy)?.traits[0]}
-                      </div>
-                    </div>
+                    </span>
+                    <span className="text-xs text-white/90">{synergy}</span>
                   </div>
                 );
               })}
             </div>
           </div>
         </div>
+        
+        {/* Agent Stats - New addition for more information */}
+        <div className="mt-6 bg-agent-black/30 rounded-lg p-4 border border-white/10">
+          <h4 className="text-white font-bold mb-4 text-sm uppercase tracking-wider">Agent Performance Metrics</h4>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+            {['Efficiency', 'Adaptability', 'Cooperation', 'Productivity', 'Innovation'].map((stat) => {
+              const value = Math.floor(Math.random() * 30) + 70;
+              return (
+                <div key={stat} className="flex flex-col items-center">
+                  <div className="relative w-16 h-16">
+                    <svg viewBox="0 0 120 120" className="w-full h-full">
+                      <circle 
+                        cx="60" 
+                        cy="60" 
+                        r="54" 
+                        fill="none" 
+                        stroke="#282828" 
+                        strokeWidth="12" 
+                      />
+                      <circle 
+                        cx="60" 
+                        cy="60" 
+                        r="54" 
+                        fill="none" 
+                        stroke={selectedAgent.color} 
+                        strokeWidth="12" 
+                        strokeDasharray="339.292"
+                        strokeDashoffset={339.292 * (1 - value / 100)}
+                        transform="rotate(-90 60 60)"
+                      />
+                    </svg>
+                    <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
+                      <span className="text-xs font-bold text-white">{value}</span>
+                    </div>
+                  </div>
+                  <span className="text-xs text-white/70 mt-2">{stat}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </GlassCard>
     </div>
   );
 };
+
+// Helper function to convert hex to RGB values
+function hexToRgb(hex: string) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!result) return "0, 0, 0";
+  
+  const r = parseInt(result[1], 16);
+  const g = parseInt(result[2], 16);
+  const b = parseInt(result[3], 16);
+  
+  return `${r}, ${g}, ${b}`;
+}
 
 export default AgentProfiles; 

@@ -1,5 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo, Suspense } from 'react';
 import { motion } from 'framer-motion';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { OrbitControls, useTexture, Text, Environment, Billboard, Float, Html } from '@react-three/drei';
+import * as THREE from 'three';
 
 // Agent types with their respective roles and colors
 const AGENT_TYPES = [
@@ -98,12 +101,13 @@ const BUILDING_TYPES = [
 interface Point {
   x: number;
   y: number;
+  z?: number;
 }
 
 interface Building {
   id: number;
   position: Point;
-  size: { width: number; height: number };
+  size: { width: number; height: number; depth?: number };
   type: string;
   color: string;
 }
@@ -142,8 +146,248 @@ interface GameSimulationProps {
   onAgentSelect?: (agentType: string) => void;
 }
 
+// Helper functions
+function hexToRgb(hex: string) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16) / 255,
+    g: parseInt(result[2], 16) / 255,
+    b: parseInt(result[3], 16) / 255
+  } : { r: 0, g: 0, b: 0 };
+}
+
+// The 3D ground component
+function Ground() {
+  const gridSize = 40;
+  const gridDivisions = 20;
+
+  return (
+    <group position={[0, -0.01, 0]}>
+      <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
+        <planeGeometry args={[gridSize, gridSize]} />
+        <meshStandardMaterial color="#121212" />
+      </mesh>
+      <gridHelper args={[gridSize, gridDivisions, "#1DB954", "#282828"]} />
+    </group>
+  );
+}
+
+// Building component
+function BuildingModel({ position, size, color, type }: Building) {
+  const rgbColor = hexToRgb(color);
+  
+  return (
+    <group position={[position.x, size.height / 2, position.y]}>
+      <mesh castShadow receiveShadow>
+        <boxGeometry args={[size.width, size.height, size.width]} />
+        <meshStandardMaterial color={new THREE.Color(rgbColor.r, rgbColor.g, rgbColor.b)} />
+      </mesh>
+      <Billboard position={[0, size.height / 2 + 1, 0]}>
+        <Text
+          fontSize={0.5}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+        >
+          {type}
+        </Text>
+      </Billboard>
+      {/* Windows */}
+      {Array.from({ length: 4 }).map((_, i) => (
+        <mesh key={i} position={[
+          size.width / 2 * (i % 2 === 0 ? 1 : -1) * 0.8,
+          -size.height / 4 + (i < 2 ? 1 : -1),
+          size.width / 2 * 1.001
+        ]}>
+          <planeGeometry args={[0.8, 0.4]} />
+          <meshStandardMaterial color="#1DB954" emissive="#1DB954" emissiveIntensity={0.5} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+// Resource component
+function ResourceModel({ position, color, type, value }: Resource) {
+  const rgbColor = hexToRgb(color);
+  
+  return (
+    <group position={[position.x, 0.5, position.y]}>
+      <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
+        <mesh castShadow>
+          <sphereGeometry args={[0.6, 16, 16]} />
+          <meshStandardMaterial 
+            color={new THREE.Color(rgbColor.r, rgbColor.g, rgbColor.b)} 
+            emissive={new THREE.Color(rgbColor.r, rgbColor.g, rgbColor.b)}
+            emissiveIntensity={0.5}
+            metalness={0.8}
+            roughness={0.2}
+          />
+        </mesh>
+        <Billboard position={[0, 1.2, 0]}>
+          <Text fontSize={0.3} color="white" anchorX="center" anchorY="middle">
+            {`${type}: ${value}`}
+          </Text>
+        </Billboard>
+      </Float>
+    </group>
+  );
+}
+
+// Agent component
+function AgentModel({ position, color, icon, resources, selected }: Agent & { selected: boolean }) {
+  const rgbColor = hexToRgb(color);
+  
+  return (
+    <group position={[position.x, 0.5, position.y]}>
+      <Billboard>
+        <mesh>
+          <circleGeometry args={[0.6, 32]} />
+          <meshStandardMaterial 
+            color={new THREE.Color(rgbColor.r, rgbColor.g, rgbColor.b)} 
+            emissive={new THREE.Color(rgbColor.r, rgbColor.g, rgbColor.b)}
+            emissiveIntensity={0.3}
+            transparent
+            opacity={0.8}
+          />
+        </mesh>
+        <Text
+          fontSize={0.5}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+        >
+          {icon}
+        </Text>
+        <Text
+          position={[0, -0.8, 0]}
+          fontSize={0.3}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+        >
+          {resources}
+        </Text>
+        
+        {selected && (
+          <mesh position={[0, 0, -0.1]}>
+            <ringGeometry args={[0.7, 0.8, 32]} />
+            <meshBasicMaterial color="#ffffff" />
+          </mesh>
+        )}
+      </Billboard>
+    </group>
+  );
+}
+
+// Interaction component
+function InteractionEffect({ position, type, timer }: Interaction) {
+  const scale = Math.min(1, timer / 30);
+  
+  return (
+    <group position={[position.x, 1, position.y]}>
+      <Billboard>
+        <mesh>
+          <circleGeometry args={[1 * scale, 32]} />
+          <meshBasicMaterial 
+            color={type === 'trading' ? "#1DB954" : "#FFD700"} 
+            transparent 
+            opacity={0.3 * scale} 
+          />
+        </mesh>
+        <Text
+          position={[0, 0, 0]}
+          fontSize={0.8}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+        >
+          {type === 'trading' ? '💱' : '⚡'}
+        </Text>
+      </Billboard>
+    </group>
+  );
+}
+
+// The main simulation scene
+function SimulationScene({ agents, buildings, resources, interactions, selectedAgentId, onAgentClick }: {
+  agents: Agent[];
+  buildings: Building[];
+  resources: Resource[];
+  interactions: Interaction[];
+  selectedAgentId: number | null;
+  onAgentClick: (id: number) => void;
+}) {
+  const { camera } = useThree();
+  
+  useEffect(() => {
+    camera.position.set(10, 15, 10);
+    camera.lookAt(0, 0, 0);
+  }, [camera]);
+  
+  return (
+    <>
+      <ambientLight intensity={0.5} />
+      <directionalLight 
+        position={[10, 10, 5]} 
+        intensity={1} 
+        castShadow 
+        shadow-mapSize-width={2048} 
+        shadow-mapSize-height={2048}
+        shadow-camera-far={50}
+        shadow-camera-left={-10}
+        shadow-camera-right={10}
+        shadow-camera-top={10}
+        shadow-camera-bottom={-10}
+      />
+      
+      <Environment preset="city" />
+      <Ground />
+      
+      {buildings.map(building => (
+        <BuildingModel key={`building-${building.id}`} {...building} />
+      ))}
+      
+      {resources.map(resource => (
+        <ResourceModel key={`resource-${resource.id}`} {...resource} />
+      ))}
+      
+      {agents.map(agent => (
+        agent.state !== 'inside' && (
+          <mesh
+            key={`agent-${agent.id}`}
+            position={[agent.position.x, 0, agent.position.y]}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAgentClick(agent.id);
+            }}
+          >
+            <AgentModel 
+              {...agent} 
+              selected={agent.id === selectedAgentId} 
+            />
+          </mesh>
+        )
+      ))}
+      
+      {interactions.map((interaction, index) => (
+        <InteractionEffect key={`interaction-${index}`} {...interaction} />
+      ))}
+      
+      <OrbitControls 
+        enablePan={true}
+        enableZoom={true}
+        enableRotate={true}
+        maxPolarAngle={Math.PI / 2}
+        minDistance={5}
+        maxDistance={30}
+      />
+    </>
+  );
+}
+
+// Main component
 const GameSimulation = ({ onAgentSelect }: GameSimulationProps) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isSimulationActive, setIsSimulationActive] = useState(true);
   const simulationRef = useRef<{
     agents: Agent[];
@@ -158,8 +402,8 @@ const GameSimulation = ({ onAgentSelect }: GameSimulationProps) => {
     buildings: [],
     resources: [],
     interactions: [],
-    width: 800,
-    height: 500,
+    width: 40,
+    height: 40,
     selectedAgentId: null
   });
   
@@ -173,7 +417,7 @@ const GameSimulation = ({ onAgentSelect }: GameSimulationProps) => {
   
   // Helper to set a wandering target
   const setWanderingTarget = (agent: Agent) => {
-    const margin = 30;
+    const margin = 5;
     const simulation = simulationRef.current;
     agent.targetPosition = {
       x: margin + Math.random() * (simulation.width - 2 * margin),
@@ -192,234 +436,174 @@ const GameSimulation = ({ onAgentSelect }: GameSimulationProps) => {
     
     // Create a control point for the curve
     const controlPoint = {
-      x: (startPoint.x + endPoint.x) / 2 + (Math.random() - 0.5) * 100,
-      y: (startPoint.y + endPoint.y) / 2 + (Math.random() - 0.5) * 100
+      x: (startPoint.x + endPoint.x) / 2 + (Math.random() - 0.5) * 10,
+      y: (startPoint.y + endPoint.y) / 2 + (Math.random() - 0.5) * 10
     };
     
     // Generate points along a quadratic curve
     const steps = 20;
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
-      const point = {
-        x: Math.pow(1 - t, 2) * startPoint.x + 2 * (1 - t) * t * controlPoint.x + Math.pow(t, 2) * endPoint.x,
-        y: Math.pow(1 - t, 2) * startPoint.y + 2 * (1 - t) * t * controlPoint.y + Math.pow(t, 2) * endPoint.y
-      };
-      agent.trajectory.push(point);
+      
+      // Quadratic Bezier curve formula
+      const x = Math.pow(1 - t, 2) * startPoint.x + 
+                2 * (1 - t) * t * controlPoint.x + 
+                Math.pow(t, 2) * endPoint.x;
+      
+      const y = Math.pow(1 - t, 2) * startPoint.y + 
+                2 * (1 - t) * t * controlPoint.y + 
+                Math.pow(t, 2) * endPoint.y;
+      
+      agent.trajectory.push({ x, y });
     }
   };
   
-  // Helper to set a new target for an agent
+  // Set a new target for an agent
   const setNewAgentTarget = (agent: Agent) => {
     const simulation = simulationRef.current;
-    // Clear previous target
-    agent.targetId = undefined;
     
-    // Decide action based on agent type and current state
-    const randomAction = Math.random();
-    
-    if (randomAction < 0.3) {
-      // Target a resource
-      if (simulation.resources.length > 0) {
-        const resourceIndex = Math.floor(Math.random() * simulation.resources.length);
-        const resource = simulation.resources[resourceIndex];
-        
-        agent.targetPosition = { ...resource.position };
-        agent.targetId = resource.id;
-        agent.state = 'gathering';
-        agent.stateTimer = 20 + Math.floor(Math.random() * 60);
-      } else {
-        // Wander if no resources
-        setWanderingTarget(agent);
-      }
-    } else if (randomAction < 0.7) {
-      // Target a building
-      if (simulation.buildings.length > 0) {
-        const buildingIndex = Math.floor(Math.random() * simulation.buildings.length);
-        const building = simulation.buildings[buildingIndex];
-        
-        // Position at the entrance of the building
-        agent.targetPosition = {
-          x: building.position.x + building.size.width / 2,
-          y: building.position.y + building.size.height
-        };
-        agent.targetId = building.id;
-        agent.state = 'entering';
-        agent.stateTimer = 30 + Math.floor(Math.random() * 120);
-      } else {
-        // Wander if no buildings
-        setWanderingTarget(agent);
-      }
-    } else {
-      // Wander
+    // Sometimes go to a resource
+    if (Math.random() < 0.4 && simulation.resources.length > 0) {
+      const randomResourceIndex = Math.floor(Math.random() * simulation.resources.length);
+      const targetResource = simulation.resources[randomResourceIndex];
+      
+      agent.targetPosition = { ...targetResource.position };
+      agent.state = 'gathering';
+      agent.stateTimer = 0;
+      agent.targetId = targetResource.id;
+      generateTrajectory(agent);
+    } 
+    // Sometimes go to a building
+    else if (Math.random() < 0.5 && simulation.buildings.length > 0) {
+      const randomBuildingIndex = Math.floor(Math.random() * simulation.buildings.length);
+      const targetBuilding = simulation.buildings[randomBuildingIndex];
+      
+      // Set position to the front of the building
+      agent.targetPosition = {
+        x: targetBuilding.position.x,
+        y: targetBuilding.position.y + targetBuilding.size.width / 2
+      };
+      agent.state = 'entering';
+      agent.stateTimer = 0;
+      agent.targetId = targetBuilding.id;
+      generateTrajectory(agent);
+    } 
+    // Otherwise just wander
+    else {
       setWanderingTarget(agent);
+      generateTrajectory(agent);
     }
-    
-    // Generate a smooth trajectory
-    generateTrajectory(agent);
   };
   
   // Initialize the simulation
   useEffect(() => {
+    if (!isSimulationActive) return;
+    
     const simulation = simulationRef.current;
-    const canvas = canvasRef.current;
+    const gridSize = 40;
     
-    if (!canvas) return;
+    simulation.width = gridSize;
+    simulation.height = gridSize;
     
-    // Setup canvas size
-    const updateCanvasSize = () => {
-      const container = canvas.parentElement;
-      if (!container) return;
-      
-      const { width } = container.getBoundingClientRect();
-      simulation.width = width;
-      simulation.height = Math.min(500, width * 0.6);
-      
-      canvas.width = simulation.width;
-      canvas.height = simulation.height;
-    };
+    // Helper to generate random positions on the terrain
+    const getRandomPosition = (marginX = 5, marginY = 5) => ({
+      x: -gridSize / 2 + marginX + Math.random() * (gridSize - 2 * marginX),
+      y: -gridSize / 2 + marginY + Math.random() * (gridSize - 2 * marginY)
+    });
     
-    updateCanvasSize();
-    window.addEventListener('resize', updateCanvasSize);
-    
-    // Generate buildings
+    // Create buildings
     const createBuildings = () => {
-      simulation.buildings = [];
+      const buildings: Building[] = [];
       const buildingCount = 5;
-      const margin = 50;
       
-      // Evenly distribute buildings
       for (let i = 0; i < buildingCount; i++) {
         const buildingType = BUILDING_TYPES[i % BUILDING_TYPES.length];
-        const width = 60 + Math.random() * 40;
-        const height = 60 + Math.random() * 40;
+        const buildingSize = 2 + Math.random() * 3;
         
-        const x = margin + (simulation.width - 2 * margin) * (i / (buildingCount - 1));
-        const y = margin + Math.random() * (simulation.height - height - 2 * margin);
-        
-        simulation.buildings.push({
+        buildings.push({
           id: i,
-          position: { x, y },
-          size: { width, height },
+          position: getRandomPosition(10, 10),
+          size: { 
+            width: buildingSize, 
+            height: 2 + Math.random() * 3,
+            depth: buildingSize
+          },
           type: buildingType.type,
           color: buildingType.color
         });
       }
+      
+      return buildings;
     };
     
-    // Generate resources
+    // Create resources
     const createResources = () => {
-      simulation.resources = [];
-      const resourceCount = 8;
+      const resources: Resource[] = [];
+      const resourceCount = 15;
+      const resourceTypes = ['Energy', 'Tokens', 'Materials', 'Data', 'Artifacts'];
+      const resourceColors = ['#FFC107', '#9C27B0', '#E91E63', '#03A9F4', '#4CAF50'];
       
       for (let i = 0; i < resourceCount; i++) {
-        let validPosition = false;
-        let position = { x: 0, y: 0 };
+        const typeIndex = Math.floor(Math.random() * resourceTypes.length);
         
-        // Find a position that doesn't overlap with buildings
-        while (!validPosition) {
-          position = {
-            x: 20 + Math.random() * (simulation.width - 40),
-            y: 20 + Math.random() * (simulation.height - 40)
-          };
-          
-          validPosition = true;
-          
-          // Check for overlap with buildings
-          for (const building of simulation.buildings) {
-            if (
-              position.x > building.position.x - 30 &&
-              position.x < building.position.x + building.size.width + 30 &&
-              position.y > building.position.y - 30 &&
-              position.y < building.position.y + building.size.height + 30
-            ) {
-              validPosition = false;
-              break;
-            }
-          }
-        }
-        
-        const color = ['#FFD700', '#C0C0C0', '#CD7F32', '#50C878'][Math.floor(Math.random() * 4)];
-        
-        simulation.resources.push({
+        resources.push({
           id: i,
-          position,
-          type: ['Energy', 'Minerals', 'Data', 'Components'][Math.floor(Math.random() * 4)],
+          position: getRandomPosition(),
+          type: resourceTypes[typeIndex],
           value: 10 + Math.floor(Math.random() * 90),
-          color
+          color: resourceColors[typeIndex]
         });
       }
+      
+      return resources;
     };
     
-    // Generate agents
+    // Create agents
     const createAgents = () => {
-      simulation.agents = [];
-      const agentCount = 10;
+      const agents: Agent[] = [];
+      const agentCount = 20;
       
       for (let i = 0; i < agentCount; i++) {
         const agentType = AGENT_TYPES[i % AGENT_TYPES.length];
-        
-        const position = {
-          x: 50 + Math.random() * (simulation.width - 100),
-          y: 50 + Math.random() * (simulation.height - 100)
-        };
+        const position = getRandomPosition();
         
         const agent: Agent = {
           id: i,
-          position,
-          targetPosition: { ...position },
+          position: position,
+          targetPosition: position, // Start at the same spot
           type: agentType.type,
           color: agentType.color,
           icon: agentType.icon,
-          speed: 0.5 + Math.random() * 1.5,
+          speed: 0.05 + Math.random() * 0.05,
           state: 'wandering',
           stateTimer: 0,
           trajectory: [],
-          resources: Math.floor(Math.random() * 100)
+          resources: Math.floor(Math.random() * 50)
         };
         
-        // Set initial trajectory
+        // Set initial target
         setNewAgentTarget(agent);
         
-        simulation.agents.push(agent);
+        agents.push(agent);
       }
+      
+      return agents;
     };
     
-    // Create initial simulation state
-    createBuildings();
-    createResources();
-    createAgents();
+    // Initialize the simulation
+    simulation.buildings = createBuildings();
+    simulation.resources = createResources();
+    simulation.agents = createAgents();
+    simulation.interactions = [];
     
-    return () => {
-      window.removeEventListener('resize', updateCanvasSize);
-    };
-  }, []);
-  
-  // Run the simulation loop
-  useEffect(() => {
-    if (!isAnimating) return;
-    
-    const simulation = simulationRef.current;
-    const canvas = canvasRef.current;
-    
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    let lastTimestamp = 0;
-    let animationFrameId: number;
-    
-    // Update simulation state
-    const updateSimulation = (timestamp: number) => {
-      if (!lastTimestamp) lastTimestamp = timestamp;
-      const deltaTime = timestamp - lastTimestamp;
-      lastTimestamp = timestamp;
+    const updateInterval = setInterval(() => {
+      if (!isAnimating) return;
       
       // Update agents
       for (const agent of simulation.agents) {
         // Update state timer
         if (agent.stateTimer > 0) {
-          agent.stateTimer -= deltaTime / 16.7; // Roughly normalize to 60fps
+          agent.stateTimer -= 1;
           
           if (agent.stateTimer <= 0) {
             // State transition
@@ -439,8 +623,8 @@ const GameSimulation = ({ onAgentSelect }: GameSimulationProps) => {
               const building = simulation.buildings.find(b => b.id === agent.targetId);
               if (building) {
                 agent.position = {
-                  x: building.position.x + building.size.width / 2,
-                  y: building.position.y + building.size.height
+                  x: building.position.x,
+                  y: building.position.y + building.size.width / 2
                 };
                 
                 // Go somewhere new
@@ -467,7 +651,7 @@ const GameSimulation = ({ onAgentSelect }: GameSimulationProps) => {
           const distance = Math.sqrt(dx * dx + dy * dy);
           
           // Move towards the next point
-          const stepSize = Math.min(agent.speed * deltaTime / 16.7, distance);
+          const stepSize = Math.min(agent.speed, distance);
           if (stepSize > 0) {
             agent.position.x += (dx / distance) * stepSize;
             agent.position.y += (dy / distance) * stepSize;
@@ -496,8 +680,8 @@ const GameSimulation = ({ onAgentSelect }: GameSimulationProps) => {
                 const building = simulation.buildings.find(b => b.id === agent.targetId);
                 if (building) {
                   agent.position = {
-                    x: building.position.x + building.size.width / 2,
-                    y: building.position.y + building.size.height / 2
+                    x: building.position.x,
+                    y: building.position.y + building.size.width / 2
                   };
                 }
               }
@@ -508,7 +692,7 @@ const GameSimulation = ({ onAgentSelect }: GameSimulationProps) => {
       
       // Update interactions
       simulation.interactions = simulation.interactions.filter(interaction => {
-        interaction.timer -= deltaTime / 16.7;
+        interaction.timer -= 1;
         return interaction.timer > 0;
       });
       
@@ -527,7 +711,7 @@ const GameSimulation = ({ onAgentSelect }: GameSimulationProps) => {
           const dy = agent1.position.y - agent2.position.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
           
-          if (distance < 30 && Math.random() < 0.01) {
+          if (distance < 3 && Math.random() < 0.01) {
             const pairKey = `${agent1.id}-${agent2.id}`;
             if (!agentPairs.has(pairKey)) {
               agentPairs.add(pairKey);
@@ -554,259 +738,42 @@ const GameSimulation = ({ onAgentSelect }: GameSimulationProps) => {
           }
         }
       }
-      
-      // Render the simulation
-      renderSimulation();
-      
-      // Continue the animation loop
-      animationFrameId = requestAnimationFrame(updateSimulation);
-    };
+    }, 50);
     
-    // Render the simulation state
-    const renderSimulation = () => {
-      if (!canvas || !ctx) return;
-      
-      // Clear the canvas
-      ctx.clearRect(0, 0, simulation.width, simulation.height);
-      
-      // Draw grid background
-      ctx.strokeStyle = 'rgba(45, 45, 45, 0.2)';
-      ctx.lineWidth = 1;
-      
-      const gridSize = 40;
-      for (let x = 0; x < simulation.width; x += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, simulation.height);
-        ctx.stroke();
-      }
-      
-      for (let y = 0; y < simulation.height; y += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(simulation.width, y);
-        ctx.stroke();
-      }
-      
-      // Draw buildings
-      for (const building of simulation.buildings) {
-        ctx.fillStyle = building.color;
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        
-        // Main building
-        ctx.beginPath();
-        ctx.rect(
-          building.position.x,
-          building.position.y,
-          building.size.width,
-          building.size.height
-        );
-        ctx.fill();
-        ctx.stroke();
-        
-        // Windows
-        ctx.fillStyle = 'rgba(0, 255, 65, 0.3)';
-        const windowSize = 8;
-        const windowMargin = 14;
-        const windowsPerRow = Math.floor((building.size.width - 2 * windowMargin) / (windowSize + 6));
-        const windowsPerCol = Math.floor((building.size.height - 2 * windowMargin) / (windowSize + 6));
-        
-        for (let row = 0; row < windowsPerCol; row++) {
-          for (let col = 0; col < windowsPerRow; col++) {
-            ctx.beginPath();
-            ctx.rect(
-              building.position.x + windowMargin + col * (windowSize + 6),
-              building.position.y + windowMargin + row * (windowSize + 6),
-              windowSize,
-              windowSize
-            );
-            ctx.fill();
-          }
-        }
-        
-        // Building label
-        ctx.font = '10px Arial';
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.fillText(
-          building.type,
-          building.position.x + building.size.width / 2,
-          building.position.y + building.size.height + 15
-        );
-      }
-      
-      // Draw resources
-      for (const resource of simulation.resources) {
-        // Draw glow
-        const gradient = ctx.createRadialGradient(
-          resource.position.x, resource.position.y, 0,
-          resource.position.x, resource.position.y, 30
-        );
-        
-        gradient.addColorStop(0, resource.color + '80');
-        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        
-        ctx.beginPath();
-        ctx.fillStyle = gradient;
-        ctx.arc(resource.position.x, resource.position.y, 30, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Draw resource
-        ctx.beginPath();
-        ctx.fillStyle = resource.color;
-        ctx.arc(resource.position.x, resource.position.y, 8, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        
-        // Resource value
-        ctx.font = '10px Arial';
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.fillText(
-          `${resource.type}: ${resource.value}`,
-          resource.position.x,
-          resource.position.y - 15
-        );
-      }
-      
-      // Draw interactions
-      for (const interaction of simulation.interactions) {
-        if (interaction.type === 'trading') {
-          // Trading animation
-          const alpha = Math.min(1, interaction.timer / 30);
-          
-          ctx.beginPath();
-          ctx.fillStyle = `rgba(0, 255, 65, ${alpha * 0.3})`;
-          ctx.arc(interaction.position.x, interaction.position.y, 25, 0, Math.PI * 2);
-          ctx.fill();
-          
-          // Draw money symbol floating up
-          ctx.font = '14px Arial';
-          ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-          ctx.textAlign = 'center';
-          ctx.fillText(
-            '💱',
-            interaction.position.x,
-            interaction.position.y - (50 - interaction.timer / 2)
-          );
-        } else if (interaction.type === 'gathering') {
-          // Gathering animation
-          const alpha = Math.min(1, interaction.timer / 30);
-          
-          ctx.beginPath();
-          ctx.fillStyle = `rgba(255, 215, 0, ${alpha * 0.3})`;
-          ctx.arc(interaction.position.x, interaction.position.y, 20, 0, Math.PI * 2);
-          ctx.fill();
-          
-          // Draw resource symbol floating up
-          ctx.font = '14px Arial';
-          ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-          ctx.textAlign = 'center';
-          ctx.fillText(
-            '⚡',
-            interaction.position.x,
-            interaction.position.y - (50 - interaction.timer / 2)
-          );
-        }
-      }
-      
-      // Draw agents (if not inside a building)
-      for (const agent of simulation.agents) {
-        if (agent.state !== 'inside') {
-          // Draw agent glow/aura
-          const gradient = ctx.createRadialGradient(
-            agent.position.x, agent.position.y, 0,
-            agent.position.x, agent.position.y, 20
-          );
-          
-          gradient.addColorStop(0, agent.color + '50');
-          gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-          
-          ctx.beginPath();
-          ctx.fillStyle = gradient;
-          ctx.arc(agent.position.x, agent.position.y, 20, 0, Math.PI * 2);
-          ctx.fill();
-          
-          // Draw agent icon
-          ctx.font = '16px Arial';
-          ctx.fillStyle = '#ffffff';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(
-            agent.icon,
-            agent.position.x,
-            agent.position.y
-          );
-          
-          // Show resources
-          ctx.font = '10px Arial';
-          ctx.fillStyle = '#ffffff';
-          ctx.fillText(
-            `${agent.resources}`,
-            agent.position.x,
-            agent.position.y + 20
-          );
-        }
-      }
-      
-      // Highlight selected agent
-      if (simulation.selectedAgentId !== null) {
-        const selectedAgent = simulation.agents.find(a => a.id === simulation.selectedAgentId);
-        if (selectedAgent) {
-          ctx.strokeStyle = 'white';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.arc(selectedAgent.position.x, selectedAgent.position.y, 20, 0, Math.PI * 2);
-          ctx.stroke();
-        }
-      }
-    };
-    
-    // Start the animation loop
-    animationFrameId = requestAnimationFrame(updateSimulation);
-    
-    // Cleanup
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      clearInterval(updateInterval);
     };
-  }, [isAnimating]);
+  }, [isSimulationActive, isAnimating]);
   
   // Handle agent clicks
-  const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    
-    // Check if any agent was clicked
+  const handleAgentClick = (agentId: number) => {
     const sim = simulationRef.current;
-    const clickedAgent = sim.agents.find(agent => {
-      const dx = agent.position.x - x;
-      const dy = agent.position.y - y;
-      return Math.sqrt(dx * dx + dy * dy) < 20; // 20px radius for click detection
-    });
+    sim.selectedAgentId = agentId;
     
-    if (clickedAgent) {
-      sim.selectedAgentId = clickedAgent.id;
-      if (onAgentSelect) {
-        onAgentSelect(clickedAgent.type);
+    if (onAgentSelect) {
+      const agent = sim.agents.find(a => a.id === agentId);
+      if (agent) {
+        onAgentSelect(agent.type);
       }
     }
   };
   
   return (
     <>
-      <canvas
-        ref={canvasRef}
-        className="w-full h-full rounded-lg"
-        onClick={handleCanvasClick}
-      />
+      <div className="w-full h-full rounded-lg overflow-hidden">
+        <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-agent-black">Loading simulation...</div>}>
+          <Canvas shadows style={{ background: '#121212' }}>
+            <SimulationScene 
+              agents={simulationRef.current.agents}
+              buildings={simulationRef.current.buildings}
+              resources={simulationRef.current.resources}
+              interactions={simulationRef.current.interactions}
+              selectedAgentId={simulationRef.current.selectedAgentId}
+              onAgentClick={handleAgentClick}
+            />
+          </Canvas>
+        </Suspense>
+      </div>
       <div className="absolute bottom-4 right-4 flex space-x-2">
         <button
           onClick={toggleSimulation}

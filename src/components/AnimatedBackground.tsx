@@ -1,16 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-interface Particle {
-  x: number;
-  y: number;
-  size: number;
-  speedX: number;
-  speedY: number;
-  glowIntensity: number;
-  color: string;
-}
-
-export const AnimatedBackground = () => {
+const AnimatedBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
   useEffect(() => {
@@ -20,123 +10,191 @@ export const AnimatedBackground = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
-    // Setup
-    let animationFrameId: number;
-    let particles: Particle[] = [];
-    const particleCount = 70;
-    
-    // Resize handler
+    // Set canvas dimensions to match window
     const handleResize = () => {
-      if (!canvas) return;
-      
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
-      
-      // Recreate particles when resizing
-      initParticles();
     };
     
     window.addEventListener('resize', handleResize);
     handleResize();
     
-    // Initialize particles
-    function initParticles() {
-      particles = [];
-      
-      if (!canvas) return;
-      
-      const greenShades = [
-        'rgba(0, 255, 65, 0.6)',
-        'rgba(0, 235, 65, 0.5)',
-        'rgba(0, 215, 65, 0.4)',
-        'rgba(0, 195, 65, 0.3)',
-        'rgba(0, 175, 65, 0.2)',
-      ];
-      
-      const blueAccents = [
-        'rgba(13, 211, 255, 0.5)',
-        'rgba(13, 211, 255, 0.3)',
-      ];
-      
-      const colors = [...greenShades, ...blueAccents];
-      
-      for (let i = 0; i < particleCount; i++) {
-        particles.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
-          size: Math.random() * 5 + 1,
-          speedX: (Math.random() - 0.5) * 0.5,
-          speedY: (Math.random() - 0.5) * 0.5,
-          glowIntensity: Math.random() * 10 + 5,
-          color: colors[Math.floor(Math.random() * colors.length)]
-        });
-      }
+    // Matrix-like particle parameters
+    const particleCount = Math.floor(canvas.width / 15);
+    const particles: Particle[] = [];
+    
+    // Create particles
+    interface Particle {
+      x: number;
+      y: number;
+      speed: number;
+      size: number;
+      color: string;
+      character: string;
+      alpha: number;
     }
     
-    // Animation loop
-    const animate = () => {
-      if (!canvas || !ctx) return;
+    // Random matrix-like character
+    const getMatrixCharacter = () => {
+      const characters = '01010101ABCXYZ'.split('');
+      return characters[Math.floor(Math.random() * characters.length)];
+    };
+    
+    // Create particles
+    for (let i = 0; i < particleCount; i++) {
+      const isGreenParticle = Math.random() < 0.7; // 70% green particles
       
-      // Clear canvas with slight opacity to create trail effect
-      ctx.fillStyle = 'rgba(18, 18, 18, 0.05)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // Draw and update particles
-      particles.forEach((particle, index) => {
-        // Create glow effect
-        const gradient = ctx.createRadialGradient(
-          particle.x, particle.y, 0,
-          particle.x, particle.y, particle.size * particle.glowIntensity
-        );
-        
-        gradient.addColorStop(0, particle.color);
-        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        
-        ctx.beginPath();
-        ctx.fillStyle = gradient;
-        ctx.arc(particle.x, particle.y, particle.size * particle.glowIntensity, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Draw particle core
-        ctx.beginPath();
-        ctx.fillStyle = particle.color.replace('rgba', 'rgb').replace(/,[^,]*\)/, ')');
-        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Update position with subtle sine wave movement
-        particle.x += particle.speedX + Math.sin(Date.now() * 0.001 + index) * 0.2;
-        particle.y += particle.speedY + Math.cos(Date.now() * 0.002 + index) * 0.1;
-        
-        // Wrap around edges
-        if (particle.x < 0) particle.x = canvas.width;
-        if (particle.x > canvas.width) particle.x = 0;
-        if (particle.y < 0) particle.y = canvas.height;
-        if (particle.y > canvas.height) particle.y = 0;
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        speed: 0.5 + Math.random() * 1.5,
+        size: isGreenParticle ? 10 + Math.random() * 5 : 6 + Math.random() * 4,
+        color: isGreenParticle 
+          ? `rgba(29, 185, 84, ${0.3 + Math.random() * 0.7})` 
+          : `rgba(13, 157, 255, ${0.2 + Math.random() * 0.4})`,
+        character: getMatrixCharacter(),
+        alpha: 0.1 + Math.random() * 0.4
       });
-      
-      // Connect nearby particles with lines
-      ctx.strokeStyle = 'rgba(0, 255, 65, 0.15)';
+    }
+    
+    // Network connections
+    const maxDistance = 150;
+    const drawNetworkConnections = () => {
+      ctx.beginPath();
       ctx.lineWidth = 0.5;
       
       for (let i = 0; i < particles.length; i++) {
         for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
+          const particle1 = particles[i];
+          const particle2 = particles[j];
+          
+          const dx = particle1.x - particle2.x;
+          const dy = particle1.y - particle2.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
           
-          if (distance < 150) {
+          if (distance < maxDistance) {
+            // Calculate opacity based on distance
+            const opacity = 1 - (distance / maxDistance);
+            
+            // Draw connection with gradient
+            const gradient = ctx.createLinearGradient(
+              particle1.x, particle1.y, 
+              particle2.x, particle2.y
+            );
+            
+            gradient.addColorStop(0, `rgba(29, 185, 84, ${opacity * 0.15})`);
+            gradient.addColorStop(1, `rgba(13, 157, 255, ${opacity * 0.15})`);
+            
+            ctx.strokeStyle = gradient;
             ctx.beginPath();
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.moveTo(particle1.x, particle1.y);
+            ctx.lineTo(particle2.x, particle2.y);
             ctx.stroke();
           }
         }
       }
-      
-      animationFrameId = requestAnimationFrame(animate);
     };
     
-    animate();
+    // Draw matrix effect
+    const drawParticles = () => {
+      for (const particle of particles) {
+        ctx.font = `${particle.size}px monospace`;
+        ctx.fillStyle = particle.color;
+        ctx.globalAlpha = particle.alpha;
+        
+        // Draw matrix-like character
+        ctx.fillText(
+          particle.character,
+          particle.x,
+          particle.y
+        );
+        
+        // Reset global alpha
+        ctx.globalAlpha = 1;
+      }
+    };
+    
+    // Move particles
+    const updateParticles = () => {
+      for (const particle of particles) {
+        // Move downward
+        particle.y += particle.speed;
+        
+        // Reset when particle goes off screen
+        if (particle.y > canvas.height) {
+          particle.y = -20;
+          particle.x = Math.random() * canvas.width;
+          particle.character = getMatrixCharacter();
+        }
+      }
+    };
+    
+    // Draw grid lines
+    const drawGrid = () => {
+      const gridSize = 50;
+      
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(40, 40, 40, 0.3)';
+      ctx.lineWidth = 0.5;
+      
+      // Vertical lines
+      for (let x = 0; x < canvas.width; x += gridSize) {
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+      }
+      
+      // Horizontal lines
+      for (let y = 0; y < canvas.height; y += gridSize) {
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+      }
+      
+      ctx.stroke();
+    };
+    
+    // Draw glowing orbs
+    const drawGlowingOrbs = () => {
+      // Draw central orb
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      
+      // Create radial gradient for the glow
+      const gradient = ctx.createRadialGradient(
+        centerX, centerY, 0,
+        centerX, centerY, canvas.height / 1.5
+      );
+      
+      gradient.addColorStop(0, 'rgba(29, 185, 84, 0.15)');
+      gradient.addColorStop(0.5, 'rgba(13, 157, 255, 0.05)');
+      gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    };
+    
+    // Animation frame
+    let animationFrameId: number;
+    
+    const render = () => {
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw background elements
+      drawGlowingOrbs();
+      drawGrid();
+      
+      // Draw network and particles
+      drawNetworkConnections();
+      drawParticles();
+      
+      // Update particle positions
+      updateParticles();
+      
+      // Continue animation loop
+      animationFrameId = requestAnimationFrame(render);
+    };
+    
+    render();
     
     // Cleanup
     return () => {
@@ -148,8 +206,11 @@ export const AnimatedBackground = () => {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 z-0"
-      style={{ background: '#121212' }}
+      className="absolute inset-0 z-0"
+      style={{ 
+        background: 'linear-gradient(to bottom, #121212, #1E1E1E)',
+        opacity: 0.8 
+      }}
     />
   );
 };

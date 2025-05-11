@@ -1,93 +1,112 @@
-import { motion } from 'framer-motion';
-import React, { ButtonHTMLAttributes, ReactNode } from 'react';
+import React, { useState } from 'react';
 
-interface GlowButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  children: ReactNode;
+interface GlowButtonProps {
+  children: React.ReactNode;
+  onClick?: () => void;
   variant?: 'primary' | 'secondary' | 'outline';
   size?: 'sm' | 'md' | 'lg';
-  icon?: ReactNode;
-  iconPosition?: 'left' | 'right';
+  icon?: React.ReactNode;
+  disabled?: boolean;
   className?: string;
+  fullWidth?: boolean;
 }
 
-const GlowButton = ({
+const GlowButton: React.FC<GlowButtonProps> = ({
   children,
+  onClick,
   variant = 'primary',
   size = 'md',
   icon,
-  iconPosition = 'right',
+  disabled = false,
   className = '',
-  ...props
-}: GlowButtonProps) => {
+  fullWidth = false
+}) => {
+  const [isHovered, setIsHovered] = useState(false);
+  
+  // Base classes
+  const baseClasses = `
+    relative font-medium rounded-md inline-flex items-center justify-center
+    transition-all duration-300 ease-in-out focus:outline-none
+    ${fullWidth ? 'w-full' : ''}
+    ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+  `;
+  
   // Size classes
   const sizeClasses = {
-    sm: 'text-xs py-2 px-4',
-    md: 'text-sm py-2.5 px-5',
-    lg: 'text-base py-3 px-6',
+    sm: 'text-xs px-3 py-1.5 space-x-1.5',
+    md: 'text-sm px-4 py-2 space-x-2',
+    lg: 'text-base px-5 py-2.5 space-x-2.5'
   };
   
   // Variant classes
   const variantClasses = {
     primary: `
-      bg-gradient-to-r from-agent-green/90 to-agent-green/80
+      bg-gradient-to-r from-agent-green-muted to-agent-green
+      text-black font-semibold
       hover:from-agent-green hover:to-agent-green
-      text-black font-medium
-      shadow-[0_0_15px_rgba(0,255,65,0.5)]
-      hover:shadow-[0_0_25px_rgba(0,255,65,0.7)]
-      border border-agent-green/50
+      active:from-agent-green-dark active:to-agent-green-muted
     `,
     secondary: `
-      bg-black/50 backdrop-blur-sm
-      text-agent-green font-medium
-      shadow-[0_0_10px_rgba(0,255,65,0.2)]
-      hover:shadow-[0_0_15px_rgba(0,255,65,0.3)]
-      border border-agent-green/30
-      hover:border-agent-green/60
+      bg-agent-black/70 backdrop-blur-sm
+      text-agent-green border border-agent-green-muted/40
+      hover:bg-agent-black hover:border-agent-green-muted/70
+      active:bg-agent-gray
     `,
     outline: `
       bg-transparent
-      text-agent-green font-medium
-      shadow-none
-      hover:shadow-[0_0_10px_rgba(0,255,65,0.2)]
-      border border-agent-green/40
-      hover:border-agent-green/70
-      hover:bg-agent-green/5
-    `,
+      text-agent-green-muted border border-agent-green-muted/40
+      hover:bg-agent-green-muted/5 hover:border-agent-green-muted/70
+      active:bg-agent-green-muted/10
+    `
   };
   
-  // Motion button animation props
-  const motionProps = {
-    whileHover: { scale: 1.03 },
-    whileTap: { scale: 0.98 },
-    initial: { opacity: 0 },
-    animate: { opacity: 1 },
-    transition: {
-      duration: 0.3,
-      ease: "easeOut"
-    }
+  // Handle hover effects
+  const handleMouseEnter = () => {
+    if (!disabled) setIsHovered(true);
+  };
+  
+  const handleMouseLeave = () => {
+    if (!disabled) setIsHovered(false);
   };
   
   return (
-    <motion.button
+    <button
+      onClick={disabled ? undefined : onClick}
       className={`
+        ${baseClasses}
         ${sizeClasses[size]}
         ${variantClasses[variant]}
-        rounded-md
-        transition-all duration-300
-        flex items-center justify-center gap-2
         ${className}
       `}
-      {...motionProps}
-      {...props as any}
+      disabled={disabled}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
-      {icon && iconPosition === 'left' && (
-        <span className="relative -ml-1">{icon}</span>
+      {/* Glow effect for primary */}
+      {variant === 'primary' && (
+        <div 
+          className={`absolute inset-0 rounded-md transition-opacity duration-500 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
+          style={{
+            boxShadow: '0 0 20px rgba(29, 185, 84, 0.7)',
+            zIndex: -1
+          }}
+        />
       )}
-      {children}
-      {icon && iconPosition === 'right' && (
-        <span className="relative -mr-1">{icon}</span>
+      
+      {/* Content with icon */}
+      <div className="flex items-center justify-center">
+        {icon && <span className="flex-shrink-0">{icon}</span>}
+        <span>{children}</span>
+      </div>
+      
+      {/* Subtle highlight effect for top edge */}
+      {variant === 'primary' && (
+        <div 
+          className="absolute inset-x-0 top-0 h-[1px] rounded-t-md bg-white/30"
+          style={{ opacity: 0.7 }}
+        />
       )}
-    </motion.button>
+    </button>
   );
 };
 

@@ -1,51 +1,68 @@
-import { motion } from 'framer-motion';
-import React, { ReactNode } from 'react';
+import React from 'react';
 
-type GlassCardProps = {
-  children: ReactNode;
+interface GlassCardProps {
+  children: React.ReactNode;
   className?: string;
   glowColor?: string;
-  animationDelay?: number;
-  hoverable?: boolean;
   borderGlow?: boolean;
-};
+  intensity?: 'low' | 'medium' | 'high';
+}
 
-const GlassCard = ({
+const GlassCard: React.FC<GlassCardProps> = ({
   children,
   className = '',
-  glowColor = 'rgba(0, 255, 65, 0.3)',
-  animationDelay = 0,
-  hoverable = false,
-  borderGlow = false
-}: GlassCardProps) => {
+  glowColor = 'rgba(29, 185, 84, 0.3)',
+  borderGlow = false,
+  intensity = 'medium'
+}) => {
+  // Define glow intensities
+  const glowIntensity = {
+    low: {
+      backdrop: 'backdrop-blur-sm',
+      shadow: 'shadow-md',
+      borderOpacity: 'border-opacity-20'
+    },
+    medium: {
+      backdrop: 'backdrop-blur-md',
+      shadow: 'shadow-lg',
+      borderOpacity: 'border-opacity-30'
+    },
+    high: {
+      backdrop: 'backdrop-blur-lg',
+      shadow: 'shadow-xl',
+      borderOpacity: 'border-opacity-40'
+    }
+  };
+
+  const { backdrop, shadow, borderOpacity } = glowIntensity[intensity];
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ 
-        duration: 0.6, 
-        delay: animationDelay,
-        ease: [0.22, 1, 0.36, 1]
-      }}
-      whileHover={hoverable ? { 
-        y: -5,
-        boxShadow: `0 10px 25px -5px ${glowColor}`
-      } : undefined}
-      className={`
-        relative backdrop-blur-md bg-black/40 
-        border border-white/10
-        ${borderGlow ? `before:absolute before:inset-0 before:p-[1px] before:rounded-[inherit] before:bg-gradient-to-b before:from-agent-green/50 before:to-transparent before:-z-10` : ''}
-        ${hoverable ? 'transition-all duration-300 cursor-pointer' : ''}
-        ${className}
-      `}
+    <div
+      className={`relative bg-gradient-to-br from-white/10 to-white/5 ${backdrop} ${shadow} border border-white/10 rounded-xl overflow-hidden ${className}`}
       style={{
-        boxShadow: `0 0 15px -5px ${glowColor}`,
+        boxShadow: borderGlow ? `0 0 20px ${glowColor}` : 'none',
       }}
     >
-      <div className="relative z-10">
-        {children}
-      </div>
-    </motion.div>
+      {/* Glow effect */}
+      {borderGlow && (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: `radial-gradient(circle at 50% 50%, ${glowColor}, transparent 70%)`,
+            opacity: 0.6
+          }}
+        />
+      )}
+      
+      {/* Inner border for additional depth */}
+      <div className="absolute inset-[1px] rounded-[10px] bg-agent-black/30 pointer-events-none" />
+
+      {/* Content */}
+      <div className="relative z-10">{children}</div>
+      
+      {/* Scanline effect for futuristic look */}
+      <div className="scanline absolute inset-0 pointer-events-none opacity-30" />
+    </div>
   );
 };
 
