@@ -1,7 +1,7 @@
 'use client';
 
 // GameSimulation.tsx - Enhanced 3D simulation component
-import { useState, useEffect, Component } from 'react';
+import { useState, useEffect, Component, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import React from 'react';
@@ -320,6 +320,7 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
   const [webGLAvailable, setWebGLAvailable] = useState(true);
   const [loadingFailed, setLoadingFailed] = useState(false);
   const [loadAttempts, setLoadAttempts] = useState(0);
+  const loadTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Check for WebGL support
   useEffect(() => {
@@ -328,14 +329,24 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
     // Try to fix any black screen issues
     fixBlackScreen();
     
-    // Set up loading timeout detection
-    const loadingTimeout = setTimeout(() => {
+    // Set up loading timeout detection - more robust with progressive timeouts
+    loadTimerRef.current = setTimeout(() => {
       if (loadAttempts === 0) {
-        setLoadingFailed(true);
+        console.warn("Loading taking longer than expected, waiting a bit longer...");
+        
+        // Give it a bit more time before showing the error
+        loadTimerRef.current = setTimeout(() => {
+          console.error("Loading timeout reached, showing recovery options");
+          setLoadingFailed(true);
+        }, 8000); // Additional 8 seconds
       }
-    }, 15000); // 15 second timeout
+    }, 10000); // Initial 10 second timeout
     
-    return () => clearTimeout(loadingTimeout);
+    return () => {
+      if (loadTimerRef.current) {
+        clearTimeout(loadTimerRef.current);
+      }
+    };
   }, [loadAttempts]);
   
   // Hide intro after 2 seconds
@@ -363,15 +374,42 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
   };
   
   const handleReload = () => {
+    // Clear previous timeout
+    if (loadTimerRef.current) {
+      clearTimeout(loadTimerRef.current);
+    }
+    
     setLoadingFailed(false);
     setLoadAttempts(prev => prev + 1);
+    
     // Force a reload of the dynamic component
     const canvas = document.querySelector('canvas');
     if (canvas) {
       canvas.remove();
     }
+    
     // Also try fixing WebGL context
     fixBlackScreen();
+    
+    // Set up a new timeout for this attempt
+    loadTimerRef.current = setTimeout(() => {
+      if (!loadingFailed) {
+        console.error("Reload attempt failed, showing recovery options again");
+        setLoadingFailed(true);
+      }
+    }, 15000); // 15 second timeout for reload attempts
+  };
+  
+  // Function to force a page refresh
+  const handlePageRefresh = () => {
+    window.location.reload();
+  };
+  
+  // Function to try with reduced quality
+  const handleReducedQuality = () => {
+    // Set a localStorage flag for reduced quality mode
+    localStorage.setItem('agentarium_reduced_quality', 'true');
+    handlePageRefresh();
   };
   
   return (
@@ -400,7 +438,7 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
               transition={{ delay: 1, duration: 0.8 }}
               className="text-white/80 max-w-lg"
             >
-              Explore the city where AI agents live, work, and earn $AGENT autonomously.
+              Explore the city where 10 AI agents live, work, and earn $AGENT autonomously.
               <span className="block mt-2 text-agent-green">Click on any agent to learn more about them.</span>
             </motion.p>
             
@@ -447,12 +485,20 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
             <p className="text-white/60 text-sm mb-6">
               Try using a modern browser with WebGL support or check if hardware acceleration is enabled.
             </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-agent-green/20 text-agent-green border border-agent-green/30 rounded-md hover:bg-agent-green/30 transition-colors"
-            >
-              Refresh Page
-            </button>
+            <div className="flex justify-center space-x-3">
+              <button
+                onClick={handlePageRefresh}
+                className="px-4 py-2 bg-agent-green/20 text-agent-green border border-agent-green/30 rounded-md hover:bg-agent-green/30 transition-colors"
+              >
+                Refresh Page
+              </button>
+              <button
+                onClick={handleReducedQuality}
+                className="px-4 py-2 bg-white/10 text-white/80 border border-white/20 rounded-md hover:bg-white/20 transition-colors"
+              >
+                Try Low Quality Mode
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -465,7 +511,7 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
             <p className="text-white/80 mb-4">
               The 3D city simulation is taking longer than expected to load.
             </p>
-            <div className="flex justify-center space-x-4">
+            <div className="flex flex-wrap justify-center gap-3">
               <button
                 onClick={handleReload}
                 className="px-4 py-2 bg-agent-green/20 text-agent-green border border-agent-green/30 rounded-md hover:bg-agent-green/30 transition-colors"
@@ -473,12 +519,21 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
                 Try Again
               </button>
               <button
-                onClick={() => window.location.reload()}
+                onClick={handlePageRefresh}
                 className="px-4 py-2 bg-white/10 text-white/80 border border-white/20 rounded-md hover:bg-white/20 transition-colors"
               >
                 Refresh Page
               </button>
+              <button
+                onClick={handleReducedQuality}
+                className="px-4 py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-md hover:bg-blue-500/30 transition-colors"
+              >
+                Try Low Quality Mode
+              </button>
             </div>
+            <p className="text-white/60 text-xs mt-4">
+              Note: You may need to enable hardware acceleration in your browser settings for the 3D simulation to work properly.
+            </p>
           </div>
         </div>
       )}
@@ -583,6 +638,20 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
               <h3 className="text-xl font-bold mb-2">Agentarium City</h3>
               <p>Interactive 3D simulation temporarily unavailable.</p>
               <p className="text-xs mt-4 text-agent-green">Try refreshing the page.</p>
+              <div className="mt-4 flex justify-center space-x-4">
+                <button
+                  onClick={handlePageRefresh}
+                  className="px-4 py-2 bg-agent-green/20 text-agent-green border border-agent-green/30 rounded-md hover:bg-agent-green/30 transition-colors"
+                >
+                  Refresh Page
+                </button>
+                <button
+                  onClick={handleReducedQuality}
+                  className="px-4 py-2 bg-white/10 text-white/80 border border-white/20 rounded-md hover:bg-white/20 transition-colors"
+                >
+                  Try Low Quality
+                </button>
+              </div>
             </div>
           </div>
         }>
@@ -592,6 +661,7 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
                 <h3 className="text-xl font-bold mb-2">Loading Agentarium City...</h3>
                 <p>The 3D simulation is initializing...</p>
                 <div className="mt-4 w-16 h-16 border-t-2 border-agent-green rounded-full animate-spin mx-auto"></div>
+                <p className="text-xs mt-6 text-agent-green/80">If loading takes too long, try refreshing the page.</p>
               </div>
             </div>
           }>
