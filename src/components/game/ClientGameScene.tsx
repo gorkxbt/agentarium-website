@@ -65,10 +65,26 @@ interface ClientGameSceneProps {
 }
 
 // City configuration
-const CITY_SIZE = 180;
+const CITY_SIZE = 240; // Larger city
 const ROAD_WIDTH = 12;
-const BLOCK_SIZE = 35;
+const BLOCK_SIZE = 40; // Larger blocks
 const SIDEWALK_WIDTH = 3;
+const BUILDING_TYPES = {
+  BANK: 'bank',
+  POLICE: 'police',
+  MARKET: 'market',
+  HOTEL: 'hotel',
+  GAS: 'gas',
+  OFFICE: 'office',
+  HOUSE: 'house',
+  NIGHTCLUB: 'nightclub',
+  SHOPPING_MALL: 'mall',
+  FACTORY: 'factory',
+  TECH_HUB: 'tech_hub',
+  RESTAURANT: 'restaurant',
+  HOSPITAL: 'hospital',
+  CASINO: 'casino'
+};
 
 // Agent component with animation
 const Agent: React.FC<AgentProps> = ({ position, color, speed, agentData, onAgentClick }) => {
@@ -1889,30 +1905,6 @@ const SceneContent: React.FC<{ onAgentClick: (agent: any) => void, timeOfDay: st
   );
 };
 
-// Main wrapper component 
-const ClientGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}, onTimeChange = () => {} }) => {
-  // Control day/night cycle - state moved to parent to avoid hooks outside Canvas
-  const [timeOfDay, setTimeOfDay] = useState('day');
-  
-  return (
-    <Canvas 
-      shadows
-      className="w-full h-full"
-      camera={{ position: [100, 100, 100], fov: 45 }}
-      gl={{ antialias: true, alpha: false }}
-      dpr={[1, 2]} // Dynamic pixel ratio for better performance
-    >
-      <SceneContent 
-        onAgentClick={onAgentClick} 
-        timeOfDay={timeOfDay} 
-        setTimeOfDay={setTimeOfDay} 
-        onTimeChange={onTimeChange}
-      />
-    </Canvas>
-  );
-};
-
-// Replace with:
 // Fallback component if Three.js fails
 const FallbackScene = () => {
   return (
@@ -1939,7 +1931,7 @@ const FallbackScene = () => {
 };
 
 // Main wrapper component with error handling
-const ClientGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}, onTimeChange = () => {} }) => {
+const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}, onTimeChange = () => {} }) => {
   // Control day/night cycle - state moved to parent to avoid hooks outside Canvas
   const [timeOfDay, setTimeOfDay] = useState('day');
   const [hasError, setHasError] = useState(false);
@@ -2003,4 +1995,4 @@ const ClientGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => 
   }
 };
 
-export default ClientGameScene;
+export default MainGameScene;
