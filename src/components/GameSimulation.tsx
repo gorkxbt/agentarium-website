@@ -1,6 +1,6 @@
 // GameSimulation.tsx - Enhanced 3D simulation component
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 
 // Import the client component with no SSR
@@ -9,6 +9,16 @@ const ClientGameScene = dynamic(() => import('./game/ClientGameScene'), { ssr: f
 // Agent details panel component
 function AgentDetailsPanel({ agent, onClose }: { agent: any | null, onClose: () => void }) {
   if (!agent) return null;
+
+  // Format currency with dollar sign
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(value).replace('$', '');
+  };
   
   return (
     <motion.div 
@@ -16,20 +26,23 @@ function AgentDetailsPanel({ agent, onClose }: { agent: any | null, onClose: () 
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 20, scale: 0.95 }}
       transition={{ duration: 0.2 }}
-      className="absolute bottom-4 left-4 right-4 md:left-auto md:right-4 md:bottom-4 md:w-80 bg-agent-black/90 backdrop-blur-lg rounded-lg border border-white/10 shadow-xl overflow-hidden"
+      className="absolute bottom-4 left-4 right-4 md:left-auto md:right-4 md:bottom-4 md:w-96 bg-agent-black/90 backdrop-blur-lg rounded-lg border border-white/10 shadow-xl overflow-hidden"
     >
       <div className="p-4">
         <div className="flex justify-between items-start mb-3">
           <div className="flex items-center">
             <div 
-              className="w-10 h-10 rounded-full flex items-center justify-center mr-3"
-              style={{ backgroundColor: `${agent.color}30`, color: agent.color }}
+              className="w-12 h-12 rounded-full flex items-center justify-center mr-3"
+              style={{ backgroundColor: `${agent.color}20`, color: agent.color }}
             >
-              <span className="text-xl">{agent.icon}</span>
+              <span className="text-2xl">{agent.icon}</span>
             </div>
             <div>
-              <h3 className="text-white font-bold">Agent #{agent.id}</h3>
-              <p className="text-white/70 text-sm">{agent.type}</p>
+              <h3 className="text-white font-bold text-lg">{agent.name}</h3>
+              <div className="flex items-center">
+                <p className="text-white/70 text-sm">{agent.role}</p>
+                <span className="text-agent-green ml-2 text-xs bg-agent-green/20 px-2 py-0.5 rounded-full">Lvl {agent.level}</span>
+              </div>
             </div>
           </div>
           <button 
@@ -42,14 +55,29 @@ function AgentDetailsPanel({ agent, onClose }: { agent: any | null, onClose: () 
           </button>
         </div>
         
-        <div className="space-y-3 max-h-60 overflow-y-auto pr-2 scrollbar-thin">
-          <div>
-            <h4 className="text-white/80 text-xs uppercase tracking-wider mb-1">Status</h4>
-            <p className="text-white text-sm capitalize">{agent.state}</p>
+        <div className="space-y-4 max-h-80 overflow-y-auto pr-2 scrollbar-thin">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-agent-dark-gray/40 rounded-lg p-3">
+              <h4 className="text-white/80 text-xs uppercase tracking-wider mb-1">Status</h4>
+              <div className="flex items-center">
+                <span 
+                  className={`inline-block h-2 w-2 rounded-full mr-2 ${
+                    agent.state === 'working' ? 'bg-agent-green' : 
+                    agent.state === 'idle' ? 'bg-yellow-500' : 'bg-blue-500'
+                  }`}
+                ></span>
+                <p className="text-white text-sm capitalize">{agent.state}</p>
+              </div>
+            </div>
+            
+            <div className="bg-agent-dark-gray/40 rounded-lg p-3">
+              <h4 className="text-white/80 text-xs uppercase tracking-wider mb-1">Location</h4>
+              <p className="text-white text-sm">{agent.location}</p>
+            </div>
           </div>
           
-          <div>
-            <h4 className="text-white/80 text-xs uppercase tracking-wider mb-1">Resources</h4>
+          <div className="bg-agent-dark-gray/20 rounded-lg p-3">
+            <h4 className="text-white/80 text-xs uppercase tracking-wider mb-2">Current Resources</h4>
             <div className="flex items-center">
               <div className="h-2 bg-agent-light-gray rounded-full w-full overflow-hidden">
                 <div 
@@ -63,6 +91,36 @@ function AgentDetailsPanel({ agent, onClose }: { agent: any | null, onClose: () 
               <span className="text-white ml-2 text-sm">{agent.resources}</span>
             </div>
           </div>
+          
+          <div className="bg-agent-dark-gray/20 rounded-lg p-4">
+            <div className="flex justify-between items-center mb-2">
+              <h4 className="text-white/80 text-xs uppercase tracking-wider">Total Earnings</h4>
+              <span className="text-agent-green font-mono font-bold">
+                {formatCurrency(agent.earnings)} $AGENT
+              </span>
+            </div>
+            
+            <div className="flex justify-between items-center text-xs text-white/50">
+              <span>Daily Rate</span>
+              <span className="font-mono">+{formatCurrency(agent.earnings * 0.01)} $AGENT</span>
+            </div>
+          </div>
+          
+          <div>
+            <h4 className="text-white/80 text-xs uppercase tracking-wider mb-2">Agent Information</h4>
+            <p className="text-white/70 text-sm">
+              {agent.role === 'Trader' && "Specializes in trading resources at optimal prices. Has developed a network of contacts in the virtual marketplace."}
+              {agent.role === 'Scientist' && "Focuses on research and development of new technologies. Can unlock unique resource processing methods."}
+              {agent.role === 'Builder' && "Expert in construction and infrastructure development. Creates more efficient resource gathering stations."}
+              {agent.role === 'Explorer' && "Specializes in discovering new resource nodes and territories. High chance of finding rare resources."}
+              {agent.role === 'Farmer' && "Expert in cultivating and harvesting renewable resources. Creates sustainable resource production."}
+              {agent.role === 'Engineer' && "Focuses on creating and improving tools and machines. Increases resource processing efficiency."}
+              {agent.role === 'Hacker' && "Specializes in technology and data systems. Can find opportunities in the digital realm."}
+              {agent.role === 'Diplomat' && "Expert in forging alliances with other agents. Can secure favorable trading deals and collaborations."}
+              {agent.role === 'Courier' && "Specializes in rapid resource transportation. Increases the speed of resource transfers between locations."}
+              {agent.role === 'Mystic' && "Has unusual abilities to predict market changes and resource fluctuations. Thrives during special events."}
+            </p>
+          </div>
         </div>
       </div>
     </motion.div>
@@ -72,11 +130,21 @@ function AgentDetailsPanel({ agent, onClose }: { agent: any | null, onClose: () 
 // Main component
 const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string) => void }) => {
   const [selectedAgent, setSelectedAgent] = useState<any | null>(null);
+  const [showIntro, setShowIntro] = useState(true);
+  
+  // Hide intro after 5 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowIntro(false);
+    }, 5000);
+    
+    return () => clearTimeout(timer);
+  }, []);
   
   const handleAgentClick = (agent: any) => {
     setSelectedAgent(agent);
     if (onAgentSelect && agent) {
-      onAgentSelect(agent.type);
+      onAgentSelect(agent.role);
     }
   };
   
@@ -85,14 +153,52 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
   };
   
   return (
-    <div className="w-full h-[500px] relative bg-agent-black overflow-hidden rounded-xl border border-white/5 shadow-2xl">
+    <div className="relative mx-auto my-4 w-full max-w-[1400px] aspect-[16/9] bg-agent-black rounded-xl border border-white/5 shadow-2xl overflow-hidden">
+      {/* Intro overlay */}
+      <AnimatePresence>
+        {showIntro && (
+          <motion.div 
+            initial={{ opacity: 1 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1 }}
+            className="absolute inset-0 z-20 bg-agent-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center"
+          >
+            <motion.h2 
+              initial={{ y: -20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.5, duration: 0.8 }}
+              className="text-3xl md:text-4xl font-bold text-white mb-4"
+            >
+              Welcome to Agentarium City
+            </motion.h2>
+            <motion.p 
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 1, duration: 0.8 }}
+              className="text-white/80 max-w-lg"
+            >
+              Explore the city where AI agents live, work, and earn $AGENT autonomously.
+              <span className="block mt-2 text-agent-green">Click on any agent to learn more about them.</span>
+            </motion.p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      {/* Game overlay UI elements */}
+      <div className="absolute top-4 left-4 z-10 flex items-center space-x-4">
+        <div className="px-3 py-1.5 bg-agent-black/60 backdrop-blur-sm rounded-lg border border-white/10 flex items-center">
+          <span className="text-agent-green text-xs font-bold">AGENTARIUM CITY</span>
+        </div>
+      </div>
+      
       {/* Social links */}
-      <div className="absolute top-4 left-4 z-10 flex space-x-4">
+      <div className="absolute top-4 right-4 z-10 flex space-x-2">
         <a 
           href="https://t.me/agentarium" 
           target="_blank"
           rel="noopener noreferrer" 
-          className="flex items-center justify-center w-8 h-8 rounded-full bg-agent-dark-gray hover:bg-agent-gray transition-colors"
+          className="flex items-center justify-center w-8 h-8 rounded-full bg-agent-dark-gray/60 backdrop-blur-sm hover:bg-agent-gray transition-colors"
         >
           <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
             <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
@@ -102,7 +208,7 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
           href="https://github.com/gorkxbt/agentarium-website" 
           target="_blank"
           rel="noopener noreferrer" 
-          className="flex items-center justify-center w-8 h-8 rounded-full bg-agent-dark-gray hover:bg-agent-gray transition-colors"
+          className="flex items-center justify-center w-8 h-8 rounded-full bg-agent-dark-gray/60 backdrop-blur-sm hover:bg-agent-gray transition-colors"
         >
           <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
             <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
@@ -112,12 +218,19 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
           href="https://twitter.com/agentarium" 
           target="_blank"
           rel="noopener noreferrer" 
-          className="flex items-center justify-center w-8 h-8 rounded-full bg-agent-dark-gray hover:bg-agent-gray transition-colors"
+          className="flex items-center justify-center w-8 h-8 rounded-full bg-agent-dark-gray/60 backdrop-blur-sm hover:bg-agent-gray transition-colors"
         >
           <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
             <path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84" />
           </svg>
         </a>
+      </div>
+      
+      {/* Help text */}
+      <div className="absolute bottom-4 left-4 z-10">
+        <div className="px-3 py-2 bg-agent-black/60 backdrop-blur-sm rounded-lg border border-white/10">
+          <p className="text-white/80 text-xs">Click on any agent to view details</p>
+        </div>
       </div>
       
       {/* 3D Canvas */}

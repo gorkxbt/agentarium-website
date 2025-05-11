@@ -1,15 +1,15 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { 
   OrbitControls, 
   Sky, 
   Environment, 
-  useGLTF, 
   Text,
   Trail,
-  Float
+  Float,
+  Cloud
 } from '@react-three/drei';
 import * as THREE from 'three';
 
@@ -18,225 +18,977 @@ interface AgentProps {
   position: [number, number, number];
   color: string;
   speed: number;
-  onAgentClick: (agent: any) => void;
+  agentData: AgentData;
+  onAgentClick: (agent: AgentData) => void;
 }
 
 interface BuildingProps {
   position: [number, number, number];
+  rotation?: [number, number, number];
   height: number;
   width: number;
   depth: number;
   color: string;
-  onBuildingClick: (building: any) => void;
+  type: string;
+  name: string;
+}
+
+interface AgentData {
+  id: number;
+  name: string;
+  role: string;
+  icon: string;
+  color: string;
+  state: string;
+  location: string;
+  resources: number;
+  earnings: number;
+  level: number;
 }
 
 interface ClientGameSceneProps {
   onAgentClick?: (agent: any) => void;
 }
 
+// City configuration
+const CITY_SIZE = 150;
+const ROAD_WIDTH = 10;
+const BLOCK_SIZE = 30;
+const SIDEWALK_WIDTH = 2;
+
 // Agent component with animation
-const Agent: React.FC<AgentProps> = ({ position, color, speed, onAgentClick }) => {
-  const meshRef = useRef<THREE.Mesh>(null);
+const Agent: React.FC<AgentProps> = ({ position, color, speed, agentData, onAgentClick }) => {
+  const meshRef = useRef<THREE.Group>(null);
   const targetRef = useRef(new THREE.Vector3(
-    position[0] + (Math.random() * 20 - 10),
+    position[0] + (Math.random() * 40 - 20),
     position[1],
-    position[2] + (Math.random() * 20 - 10)
+    position[2] + (Math.random() * 40 - 20)
   ));
+  
+  // List of possible destinations
+  const destinations = useMemo(() => {
+    const points = [
+      // Bank
+      new THREE.Vector3(-BLOCK_SIZE, 0, -BLOCK_SIZE),
+      // Police
+      new THREE.Vector3(BLOCK_SIZE, 0, -BLOCK_SIZE),
+      // Market
+      new THREE.Vector3(-BLOCK_SIZE, 0, BLOCK_SIZE),
+      // Hotel
+      new THREE.Vector3(BLOCK_SIZE, 0, BLOCK_SIZE),
+      // Gas station
+      new THREE.Vector3(0, 0, -2 * BLOCK_SIZE),
+      // Office buildings
+      new THREE.Vector3(-2 * BLOCK_SIZE, 0, 0),
+      new THREE.Vector3(2 * BLOCK_SIZE, 0, 0),
+      // Houses
+      new THREE.Vector3(0, 0, 2 * BLOCK_SIZE),
+      // Random road points
+      new THREE.Vector3(-BLOCK_SIZE, 0, 0),
+      new THREE.Vector3(0, 0, -BLOCK_SIZE),
+      new THREE.Vector3(0, 0, BLOCK_SIZE),
+      new THREE.Vector3(BLOCK_SIZE, 0, 0)
+    ];
+    return points;
+  }, []);
   
   // Create a new target when agent reaches current target
   const updateTarget = () => {
+    // Pick a random destination from the list
+    const randomDestination = destinations[Math.floor(Math.random() * destinations.length)];
+    
+    // Add some randomness to the exact position
     targetRef.current.set(
-      Math.random() * 40 - 20,
+      randomDestination.x + (Math.random() * 10 - 5),
       position[1],
-      Math.random() * 40 - 20
+      randomDestination.z + (Math.random() * 10 - 5)
     );
   };
+  
+  // Agent state
+  const [currentState, setCurrentState] = React.useState('walking');
+  const [stateTimer, setStateTimer] = React.useState(0);
+  
+  // Update agent state periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Random state change
+      const rand = Math.random();
+      if (rand < 0.2) {
+        setCurrentState('idle');
+        setStateTimer(Math.random() * 5 + 2); // Idle for 2-7 seconds
+      } else if (rand < 0.5) {
+        setCurrentState('working');
+        setStateTimer(Math.random() * 10 + 5); // Work for 5-15 seconds
+      } else {
+        setCurrentState('walking');
+        updateTarget(); // Get a new destination
+      }
+    }, stateTimer * 1000);
+    
+    return () => clearInterval(interval);
+  }, [stateTimer]);
   
   useFrame((state, delta) => {
     if (!meshRef.current) return;
     
-    // Move towards target
-    const direction = new THREE.Vector3().subVectors(targetRef.current, meshRef.current.position);
-    
-    // If close to target, get a new target
-    if (direction.length() < 0.5) {
-      updateTarget();
-      return;
+    // Only move if in walking state
+    if (currentState === 'walking') {
+      // Move towards target
+      const direction = new THREE.Vector3().subVectors(targetRef.current, meshRef.current.position);
+      
+      // If close to target, update state
+      if (direction.length() < 0.5) {
+        setCurrentState('idle');
+        setStateTimer(Math.random() * 3 + 1); // Idle for 1-4 seconds
+        return;
+      }
+      
+      // Normalize and scale by speed
+      direction.normalize().multiplyScalar(delta * speed);
+      meshRef.current.position.add(direction);
+      
+      // Rotate to face direction of movement
+      if (direction.length() > 0.01) {
+        const lookAtPos = new THREE.Vector3().addVectors(
+          meshRef.current.position,
+          new THREE.Vector3(direction.x, 0, direction.z).normalize()
+        );
+        meshRef.current.lookAt(lookAtPos);
+      }
     }
     
-    // Normalize and scale by speed
-    direction.normalize().multiplyScalar(delta * speed);
-    meshRef.current.position.add(direction);
-    
-    // Rotate to face direction of movement
-    if (direction.length() > 0.01) {
-      const lookAtPos = new THREE.Vector3().addVectors(
-        meshRef.current.position,
-        new THREE.Vector3(direction.x, 0, direction.z).normalize()
-      );
-      meshRef.current.lookAt(lookAtPos);
+    // Bobbing animation based on state
+    if (currentState === 'walking') {
+      meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 5) * 0.1;
+    } else if (currentState === 'working') {
+      meshRef.current.rotation.y += delta * 2; // Spin when working
     }
   });
   
+  // Get location name based on position
+  const getLocationName = () => {
+    const pos = meshRef.current?.position;
+    if (!pos) return "Unknown";
+    
+    // Check proximity to key locations
+    const distToBank = new THREE.Vector3(pos.x, 0, pos.z).distanceTo(new THREE.Vector3(-BLOCK_SIZE, 0, -BLOCK_SIZE));
+    if (distToBank < 15) return "Bank";
+    
+    const distToPolice = new THREE.Vector3(pos.x, 0, pos.z).distanceTo(new THREE.Vector3(BLOCK_SIZE, 0, -BLOCK_SIZE));
+    if (distToPolice < 15) return "Police Station";
+    
+    const distToMarket = new THREE.Vector3(pos.x, 0, pos.z).distanceTo(new THREE.Vector3(-BLOCK_SIZE, 0, BLOCK_SIZE));
+    if (distToMarket < 15) return "Supermarket";
+    
+    const distToHotel = new THREE.Vector3(pos.x, 0, pos.z).distanceTo(new THREE.Vector3(BLOCK_SIZE, 0, BLOCK_SIZE));
+    if (distToHotel < 15) return "Hotel";
+    
+    const distToGas = new THREE.Vector3(pos.x, 0, pos.z).distanceTo(new THREE.Vector3(0, 0, -2 * BLOCK_SIZE));
+    if (distToGas < 15) return "Gas Station";
+    
+    // Check if on road
+    if (
+      Math.abs(pos.x) % BLOCK_SIZE < ROAD_WIDTH/2 || 
+      Math.abs(pos.z) % BLOCK_SIZE < ROAD_WIDTH/2
+    ) {
+      return "On the Road";
+    }
+    
+    return "Downtown";
+  };
+  
+  // Calculate agent data to pass when clicked
+  const handleClick = () => {
+    const updatedAgentData = {
+      ...agentData,
+      state: currentState,
+      location: getLocationName(),
+      // Simulate earning resources based on state and location
+      resources: agentData.resources + (currentState === 'working' ? 5 : 1),
+      earnings: agentData.earnings + (currentState === 'working' ? 2 : 0.2)
+    };
+    
+    onAgentClick(updatedAgentData);
+  };
+  
   return (
-    <group>
+    <group ref={meshRef} position={position} onClick={handleClick}>
       <Trail
         width={0.5}
         color={color}
         length={5}
         decay={1}
         attenuation={(width) => width}
+        visible={currentState === 'walking'}
       >
-        <mesh 
-          ref={meshRef} 
-          position={position} 
-          castShadow
-          onClick={() => onAgentClick({ 
-            id: Math.floor(Math.random() * 1000), 
-            type: 'Agent', 
-            color: color,
-            icon: '🤖',
-            state: 'active',
-            resources: Math.floor(Math.random() * 50)
-          })}
-        >
-          <capsuleGeometry args={[0.3, 0.5, 2, 8]} />
-          <meshStandardMaterial color={color} />
-          <mesh position={[0, 0.5, 0.2]} rotation={[0, 0, 0]}>
-            <sphereGeometry args={[0.2, 8, 8]} />
-            <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.5} />
+        <group>
+          {/* Agent body */}
+          <mesh castShadow>
+            <capsuleGeometry args={[0.5, 1, 8, 8]} />
+            <meshStandardMaterial color={color} />
           </mesh>
-        </mesh>
+          
+          {/* Agent head */}
+          <mesh position={[0, 1.2, 0]} castShadow>
+            <sphereGeometry args={[0.4, 16, 16]} />
+            <meshStandardMaterial color={color} />
+          </mesh>
+          
+          {/* Status indicator */}
+          <mesh 
+            position={[0, 2, 0]} 
+            rotation={[0, 0, 0]}
+          >
+            <sphereGeometry args={[0.2, 8, 8]} />
+            <meshStandardMaterial 
+              color={
+                currentState === 'working' ? '#FFD700' : 
+                currentState === 'idle' ? '#CCCCCC' : '#00FF00'
+              } 
+              emissive={
+                currentState === 'working' ? '#FFD700' : 
+                currentState === 'idle' ? '#CCCCCC' : '#00FF00'
+              }
+              emissiveIntensity={0.5} 
+            />
+          </mesh>
+          
+          {/* Name tag */}
+          <Text
+            position={[0, 2.5, 0]}
+            fontSize={0.5}
+            color="#FFFFFF"
+            anchorX="center"
+            anchorY="middle"
+            backgroundOpacity={0.8}
+            backgroundColor="#000000"
+            padding={0.1}
+          >
+            {agentData.name}
+          </Text>
+        </group>
       </Trail>
     </group>
   );
 };
 
-// Building component
-const Building: React.FC<BuildingProps> = ({ position, height, width, depth, color, onBuildingClick }) => {
+// Ground plane component
+const Ground: React.FC = () => {
+  // Use colors instead of textures for compatibility
   return (
-    <group position={position}>
-      <mesh 
-        position={[0, height/2, 0]} 
-        castShadow 
-        receiveShadow
-        onClick={() => onBuildingClick({ 
-          id: Math.floor(Math.random() * 1000), 
-          type: 'Building', 
-          color: color,
-          icon: '🏢',
-          state: 'operational',
-          resources: Math.floor(Math.random() * 100)
-        })}
-      >
-        <boxGeometry args={[width, height, depth]} />
-        <meshStandardMaterial 
-          color={color} 
-          roughness={0.7}
-          metalness={0.2}
-        />
-        
-        {/* Windows */}
-        {Array.from({ length: Math.floor(height) }).map((_, i) => (
-          <React.Fragment key={`windows-row-${i}`}>
-            {Array.from({ length: 3 }).map((_, j) => (
-              <mesh 
-                key={`window-${i}-${j}`} 
-                position={[
-                  width/2 * 0.8, 
-                  -height/2 + (i + 0.5), 
-                  depth/4 - j * depth/2
-                ]}
-              >
-                <planeGeometry args={[0.3, 0.3]} />
-                <meshStandardMaterial 
-                  color="#80FFFF" 
-                  emissive="#80FFFF"
-                  emissiveIntensity={Math.random() > 0.3 ? 0.5 : 0}
-                />
-              </mesh>
-            ))}
-          </React.Fragment>
-        ))}
-      </mesh>
-    </group>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.1, 0]} receiveShadow>
+      <planeGeometry args={[CITY_SIZE * 2, CITY_SIZE * 2]} />
+      <meshStandardMaterial 
+        color="#4B9560" 
+        roughness={0.8}
+      />
+    </mesh>
   );
 };
 
 // Road component
 const Road: React.FC = () => {
-  return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]} receiveShadow>
-      <planeGeometry args={[40, 40]} />
-      <meshStandardMaterial color="#1a1a1a" />
+  const positions = useMemo(() => {
+    const roadPositions = [];
+    // Create a grid of roads
+    for (let i = -2; i <= 2; i++) {
+      // Horizontal roads
+      roadPositions.push({
+        position: [0, 0, i * BLOCK_SIZE] as [number, number, number],
+        scale: [CITY_SIZE, 1, ROAD_WIDTH] as [number, number, number],
+        rotation: [0, 0, 0] as [number, number, number]
+      });
       
-      {/* Road markings */}
-      <mesh position={[0, 0, 0.01]}>
-        <planeGeometry args={[0.5, 40]} />
-        <meshStandardMaterial color="#FFFF00" />
-      </mesh>
-      <mesh position={[0, 0, 0.01]} rotation={[0, 0, Math.PI/2]}>
-        <planeGeometry args={[0.5, 40]} />
-        <meshStandardMaterial color="#FFFF00" />
-      </mesh>
-    </mesh>
+      // Vertical roads
+      roadPositions.push({
+        position: [i * BLOCK_SIZE, 0, 0] as [number, number, number],
+        scale: [ROAD_WIDTH, 1, CITY_SIZE] as [number, number, number], 
+        rotation: [0, 0, 0] as [number, number, number]
+      });
+    }
+    return roadPositions;
+  }, []);
+  
+  return (
+    <group>
+      {positions.map((road, i) => (
+        <mesh 
+          key={`road-${i}`}
+          position={road.position}
+          rotation={road.rotation}
+          receiveShadow
+        >
+          <boxGeometry args={[road.scale[0], 0.1, road.scale[2]]} />
+          <meshStandardMaterial 
+            color="#333333" 
+            roughness={0.9}
+          />
+          
+          {/* Road markings */}
+          {road.scale[0] > road.scale[2] && (
+            <mesh position={[0, 0.05, 0]} rotation={[0, 0, 0]}>
+              <planeGeometry args={[road.scale[0], 0.5]} />
+              <meshStandardMaterial color="#FFFFFF" roughness={0.5} />
+            </mesh>
+          )}
+          
+          {road.scale[2] > road.scale[0] && (
+            <mesh position={[0, 0.05, 0]} rotation={[0, Math.PI/2, 0]}>
+              <planeGeometry args={[road.scale[2], 0.5]} />
+              <meshStandardMaterial color="#FFFFFF" roughness={0.5} />
+            </mesh>
+          )}
+        </mesh>
+      ))}
+    </group>
   );
 };
 
-// City component with animated elements
-const City: React.FC<{ onAgentClick: (agent: any) => void }> = ({ onAgentClick }) => {
-  // Generate buildings
-  const buildings = Array.from({ length: 30 }).map((_, i) => {
-    const gridSize = 5;
-    const gridX = Math.floor(i / gridSize) - Math.floor(gridSize / 2);
-    const gridZ = (i % gridSize) - Math.floor(gridSize / 2);
-    
-    // Add some randomness to grid positions
-    const x = gridX * 8 + (Math.random() * 2 - 1);
-    const z = gridZ * 8 + (Math.random() * 2 - 1);
-    
-    const height = 3 + Math.random() * 10;
-    const width = 2 + Math.random() * 3;
-    const depth = 2 + Math.random() * 3;
-    
-    // Generate a building color (mostly grays with occasional color)
-    const color = Math.random() > 0.8 
-      ? `hsl(${Math.random() * 360}, 50%, 50%)` 
-      : `hsl(220, ${Math.random() * 10 + 5}%, ${Math.random() * 30 + 40}%)`;
-    
-    return {
-      position: [x, 0, z] as [number, number, number],
-      height,
-      width,
-      depth,
-      color
-    };
-  });
+// Building base component
+const Building: React.FC<BuildingProps> = ({ 
+  position, 
+  rotation = [0, 0, 0], 
+  height, 
+  width, 
+  depth, 
+  color, 
+  type,
+  name
+}) => {
+  const ref = useRef<THREE.Group>(null);
   
-  // Generate agents
-  const agents = Array.from({ length: 20 }).map((_, i) => {
-    const x = Math.random() * 40 - 20;
-    const z = Math.random() * 40 - 20;
-    const colors = ['#2196F3', '#FF5722', '#4CAF50', '#9C27B0', '#FFEB3B'];
-    const color = colors[Math.floor(Math.random() * colors.length)];
-    const speed = 1 + Math.random() * 2;
-    
-    return {
-      position: [x, 0.5, z] as [number, number, number],
-      color,
-      speed
-    };
-  });
+  // Different building types
+  const renderBuildingContent = () => {
+    switch (type) {
+      case 'bank':
+        return (
+          <>
+            <mesh position={[0, height/2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[width, height, depth]} />
+              <meshStandardMaterial color="#8a9ea0" roughness={0.7} metalness={0.4} />
+              
+              {/* Pillars */}
+              {Array.from({ length: 4 }).map((_, i) => {
+                const xPos = width/2 - 2;
+                const zPos = depth/2 - 2;
+                const x = i % 2 === 0 ? -xPos : xPos;
+                const z = i < 2 ? -zPos : zPos;
+                return (
+                  <mesh key={`pillar-${i}`} position={[x, -height/2 + 5, z]} castShadow>
+                    <cylinderGeometry args={[1, 1, 10, 8]} />
+                    <meshStandardMaterial color="#FFFFFF" />
+                  </mesh>
+                );
+              })}
+              
+              {/* Steps */}
+              <mesh position={[0, -height/2 + 0.5, depth/2 + 3]} receiveShadow>
+                <boxGeometry args={[width - 4, 1, 6]} />
+                <meshStandardMaterial color="#CCCCCC" />
+              </mesh>
+              
+              {/* Bank Sign */}
+              <Float speed={0.2} rotationIntensity={0} floatIntensity={0.3}>
+                <Text
+                  position={[0, height/2 + 2, 0]}
+                  fontSize={3}
+                  color="#FFD700"
+                  anchorX="center"
+                  anchorY="middle"
+                >
+                  $AGENT BANK
+                </Text>
+              </Float>
+            </mesh>
+          </>
+        );
+      
+      case 'police':
+        return (
+          <>
+            <mesh position={[0, height/2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[width, height, depth]} />
+              <meshStandardMaterial color="#3c5e8a" roughness={0.5} />
+              
+              {/* Windows */}
+              {Array.from({ length: Math.floor(height/3) }).map((_, i) => (
+                <React.Fragment key={`police-windows-row-${i}`}>
+                  {Array.from({ length: 3 }).map((_, j) => (
+                    <mesh 
+                      key={`police-window-${i}-${j}`} 
+                      position={[
+                        width/2 * 0.8, 
+                        -height/2 + (i * 3 + 1.5), 
+                        depth/4 - j * depth/2
+                      ]}
+                    >
+                      <planeGeometry args={[2, 1.5]} />
+                      <meshStandardMaterial 
+                        color="#a0c8e0" 
+                        emissive="#a0c8e0"
+                        emissiveIntensity={0.3}
+                      />
+                    </mesh>
+                  ))}
+                </React.Fragment>
+              ))}
+              
+              {/* Police Sign */}
+              <mesh position={[0, height/2 + 1.5, depth/2 + 0.1]} castShadow>
+                <boxGeometry args={[width - 4, 3, 0.5]} />
+                <meshStandardMaterial color="#1a3c6d" />
+                <Text
+                  position={[0, 0, 0.3]}
+                  fontSize={1.5}
+                  color="#FFFFFF"
+                  anchorX="center"
+                  anchorY="middle"
+                >
+                  POLICE
+                </Text>
+              </mesh>
+            </mesh>
+          </>
+        );
+      
+      case 'market':
+        return (
+          <>
+            <mesh position={[0, height/2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[width, height, depth]} />
+              <meshStandardMaterial color="#74cc8a" roughness={0.6} />
+              
+              {/* Entrance */}
+              <mesh position={[0, -height/2 + 2, depth/2 + 0.1]} castShadow>
+                <boxGeometry args={[width/2, 4, 0.5]} />
+                <meshStandardMaterial color="#55a868" />
+              </mesh>
+              
+              {/* Market Sign */}
+              <mesh position={[0, height/2 - 1, depth/2 + 0.1]} castShadow>
+                <boxGeometry args={[width - 2, 2, 0.5]} />
+                <meshStandardMaterial color="#4a8c5a" />
+                <Text
+                  position={[0, 0, 0.3]}
+                  fontSize={1.2}
+                  color="#FFFFFF"
+                  anchorX="center"
+                  anchorY="middle"
+                >
+                  SUPERMARKET
+                </Text>
+              </mesh>
+            </mesh>
+          </>
+        );
+      
+      case 'hotel':
+        return (
+          <>
+            <mesh position={[0, height/2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[width, height, depth]} />
+              <meshStandardMaterial color="#cd9a5b" roughness={0.7} />
+              
+              {/* Windows grid */}
+              {Array.from({ length: Math.floor(height/3) }).map((_, i) => (
+                <React.Fragment key={`hotel-windows-row-${i}`}>
+                  {Array.from({ length: Math.floor(width/3) }).map((_, j) => (
+                    <React.Fragment key={`hotel-windows-col-${j}`}>
+                      {/* Front windows */}
+                      <mesh 
+                        position={[
+                          -width/2 + 3 + j * 3, 
+                          -height/2 + (i * 3 + 1.5), 
+                          depth/2 - 0.1
+                        ]}
+                      >
+                        <planeGeometry args={[2, 1.5]} />
+                        <meshStandardMaterial 
+                          color="#f8e8d0" 
+                          emissive="#f8e8d0"
+                          emissiveIntensity={Math.random() > 0.6 ? 0.5 : 0}
+                        />
+                      </mesh>
+                      
+                      {/* Back windows */}
+                      <mesh 
+                        position={[
+                          -width/2 + 3 + j * 3, 
+                          -height/2 + (i * 3 + 1.5), 
+                          -depth/2 + 0.1
+                        ]}
+                        rotation={[0, Math.PI, 0]}
+                      >
+                        <planeGeometry args={[2, 1.5]} />
+                        <meshStandardMaterial 
+                          color="#f8e8d0" 
+                          emissive="#f8e8d0"
+                          emissiveIntensity={Math.random() > 0.6 ? 0.5 : 0}
+                        />
+                      </mesh>
+                    </React.Fragment>
+                  ))}
+                </React.Fragment>
+              ))}
+              
+              {/* Hotel Sign */}
+              <mesh position={[0, height/2 + 2, 0]} castShadow>
+                <boxGeometry args={[width - 2, 4, 2]} />
+                <meshStandardMaterial color="#a67c45" />
+                <Text
+                  position={[0, 0, depth/2 + 0.1]}
+                  fontSize={2}
+                  color="#FFD700"
+                  anchorX="center"
+                  anchorY="middle"
+                >
+                  HOTEL
+                </Text>
+                <Text
+                  position={[0, 0, -depth/2 - 0.1]}
+                  fontSize={2}
+                  color="#FFD700"
+                  anchorX="center"
+                  anchorY="middle"
+                  rotation={[0, Math.PI, 0]}
+                >
+                  HOTEL
+                </Text>
+              </mesh>
+            </mesh>
+          </>
+        );
+      
+      case 'gas':
+        return (
+          <>
+            <mesh position={[0, height/2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[width, height, depth]} />
+              <meshStandardMaterial color="#d8362a" roughness={0.7} />
+              
+              {/* Gas station roof */}
+              <mesh position={[0, height, -depth/2 - 5]} castShadow>
+                <boxGeometry args={[width + 5, 1, 10]} />
+                <meshStandardMaterial color="#b32a22" />
+              </mesh>
+              
+              {/* Gas pumps */}
+              {Array.from({ length: 3 }).map((_, i) => (
+                <group key={`pump-${i}`} position={[
+                  (i-1) * 5,
+                  -height/2 + 1.5,
+                  -depth/2 - 5
+                ]}>
+                  <mesh castShadow>
+                    <boxGeometry args={[2, 3, 1]} />
+                    <meshStandardMaterial color="#333333" />
+                  </mesh>
+                  <mesh position={[0, 1, 0.6]} castShadow>
+                    <boxGeometry args={[1.5, 0.8, 0.2]} />
+                    <meshStandardMaterial color="#CCCCCC" />
+                  </mesh>
+                </group>
+              ))}
+              
+              {/* Gas Station Sign */}
+              <Float speed={0.3} rotationIntensity={0} floatIntensity={0.5}>
+                <mesh position={[0, height + 6, 0]} castShadow>
+                  <boxGeometry args={[8, 4, 1]} />
+                  <meshStandardMaterial color="#ffffff" />
+                  <Text
+                    position={[0, 0, 0.6]}
+                    fontSize={1.5}
+                    color="#d8362a"
+                    anchorX="center"
+                    anchorY="middle"
+                  >
+                    GAS
+                  </Text>
+                </mesh>
+              </Float>
+            </mesh>
+          </>
+        );
+      
+      case 'office':
+        return (
+          <>
+            <mesh position={[0, height/2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[width, height, depth]} />
+              <meshStandardMaterial color={color} roughness={0.5} metalness={0.2} />
+              
+              {/* Windows grid */}
+              {Array.from({ length: Math.floor(height/2.5) }).map((_, i) => (
+                <React.Fragment key={`office-windows-row-${i}`}>
+                  {Array.from({ length: Math.floor(width/2.5) }).map((_, j) => (
+                    <React.Fragment key={`office-windows-col-${j}`}>
+                      {/* Front windows */}
+                      <mesh 
+                        position={[
+                          -width/2 + 1.25 + j * 2.5, 
+                          -height/2 + (i * 2.5 + 1.25), 
+                          depth/2 - 0.1
+                        ]}
+                      >
+                        <planeGeometry args={[2, 2]} />
+                        <meshStandardMaterial 
+                          color="#a5c7e0" 
+                          emissive="#a5c7e0"
+                          emissiveIntensity={Math.random() > 0.4 ? 0.3 : 0}
+                        />
+                      </mesh>
+                      
+                      {/* Side windows */}
+                      <mesh 
+                        position={[
+                          width/2 - 0.1,
+                          -height/2 + (i * 2.5 + 1.25),
+                          -depth/2 + 1.25 + j * 2.5
+                        ]}
+                        rotation={[0, Math.PI/2, 0]}
+                      >
+                        <planeGeometry args={[2, 2]} />
+                        <meshStandardMaterial 
+                          color="#a5c7e0" 
+                          emissive="#a5c7e0"
+                          emissiveIntensity={Math.random() > 0.4 ? 0.3 : 0}
+                        />
+                      </mesh>
+                    </React.Fragment>
+                  ))}
+                </React.Fragment>
+              ))}
+              
+              {/* Building name */}
+              <Text
+                position={[0, height/2 + 1, depth/2 + 0.1]}
+                fontSize={1.2}
+                color="#FFFFFF"
+                anchorX="center"
+                anchorY="middle"
+              >
+                {name}
+              </Text>
+            </mesh>
+          </>
+        );
+        
+      case 'house':
+        return (
+          <>
+            <mesh position={[0, height/2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[width, height, depth]} />
+              <meshStandardMaterial color={color} roughness={0.8} />
+              
+              {/* Roof */}
+              <mesh position={[0, height/2 + 2, 0]} castShadow receiveShadow>
+                <coneGeometry args={[Math.max(width, depth)/1.5, 4, 4]} />
+                <meshStandardMaterial color="#703030" roughness={0.8} />
+              </mesh>
+              
+              {/* Door */}
+              <mesh position={[0, -height/2 + 1, depth/2 + 0.1]} castShadow>
+                <boxGeometry args={[1.5, 2, 0.1]} />
+                <meshStandardMaterial color="#5c3c20" />
+              </mesh>
+              
+              {/* Windows */}
+              <mesh position={[-2, 0, depth/2 + 0.1]} castShadow>
+                <boxGeometry args={[1.5, 1.5, 0.1]} />
+                <meshStandardMaterial 
+                  color="#a5c7e0" 
+                  emissive="#a5c7e0"
+                  emissiveIntensity={Math.random() > 0.5 ? 0.5 : 0}
+                />
+              </mesh>
+              <mesh position={[2, 0, depth/2 + 0.1]} castShadow>
+                <boxGeometry args={[1.5, 1.5, 0.1]} />
+                <meshStandardMaterial 
+                  color="#a5c7e0" 
+                  emissive="#a5c7e0"
+                  emissiveIntensity={Math.random() > 0.5 ? 0.5 : 0}
+                />
+              </mesh>
+            </mesh>
+          </>
+        );
+      
+      default:
+        return (
+          <mesh position={[0, height/2, 0]} castShadow receiveShadow>
+            <boxGeometry args={[width, height, depth]} />
+            <meshStandardMaterial color={color} roughness={0.7} />
+            
+            {/* Windows */}
+            {Array.from({ length: Math.floor(height/3) }).map((_, i) => (
+              <React.Fragment key={`windows-row-${i}`}>
+                {Array.from({ length: 3 }).map((_, j) => (
+                  <mesh 
+                    key={`window-${i}-${j}`} 
+                    position={[
+                      width/2 - 0.1, 
+                      -height/2 + (i * 3 + 1.5), 
+                      depth/4 - j * depth/2
+                    ]}
+                    rotation={[0, Math.PI/2, 0]}
+                  >
+                    <planeGeometry args={[2, 1.5]} />
+                    <meshStandardMaterial 
+                      color="#80FFFF" 
+                      emissive="#80FFFF"
+                      emissiveIntensity={Math.random() > 0.3 ? 0.5 : 0}
+                    />
+                  </mesh>
+                ))}
+              </React.Fragment>
+            ))}
+          </mesh>
+        );
+    }
+  };
+  
+  return (
+    <group position={position} rotation={rotation as any} ref={ref}>
+      {renderBuildingContent()}
+    </group>
+  );
+};
+
+// City component with buildings and agents
+const City: React.FC<{ onAgentClick: (agent: any) => void }> = ({ onAgentClick }) => {
+  // Define buildings
+  const buildings = useMemo(() => [
+    // Bank
+    {
+      position: [-BLOCK_SIZE, 0, -BLOCK_SIZE] as [number, number, number],
+      height: 20,
+      width: 25,
+      depth: 25,
+      color: '#8a9ea0',
+      type: 'bank',
+      name: '$AGENT Bank'
+    },
+    // Police Station
+    {
+      position: [BLOCK_SIZE, 0, -BLOCK_SIZE] as [number, number, number],
+      height: 15,
+      width: 20,
+      depth: 20,
+      color: '#3c5e8a',
+      type: 'police',
+      name: 'Police Station'
+    },
+    // Supermarket
+    {
+      position: [-BLOCK_SIZE, 0, BLOCK_SIZE] as [number, number, number],
+      height: 12,
+      width: 25,
+      depth: 25,
+      color: '#74cc8a',
+      type: 'market',
+      name: 'Supermarket'
+    },
+    // Hotel
+    {
+      position: [BLOCK_SIZE, 0, BLOCK_SIZE] as [number, number, number],
+      height: 30,
+      width: 20,
+      depth: 20,
+      color: '#cd9a5b',
+      type: 'hotel',
+      name: 'Grand Hotel'
+    },
+    // Gas Station
+    {
+      position: [0, 0, -2 * BLOCK_SIZE] as [number, number, number],
+      height: 6,
+      width: 15,
+      depth: 10,
+      color: '#d8362a',
+      type: 'gas',
+      name: 'Gas Station'
+    },
+    // Office Buildings
+    {
+      position: [-2 * BLOCK_SIZE, 0, 0] as [number, number, number],
+      height: 40,
+      width: 15,
+      depth: 15,
+      color: '#607d8b',
+      type: 'office',
+      name: 'Tech Hub'
+    },
+    {
+      position: [2 * BLOCK_SIZE, 0, 0] as [number, number, number],
+      height: 35,
+      width: 18,
+      depth: 18,
+      color: '#455a64',
+      type: 'office',
+      name: 'Finance Center'
+    },
+    // Houses - residential area
+    ...[...Array(6)].map((_, i) => {
+      const row = Math.floor(i / 3);
+      const col = i % 3;
+      const colors = ['#e8c090', '#d9b38c', '#c19a78', '#b08968', '#a67c58', '#8c6239'];
+      
+      return {
+        position: [
+          -10 + col * 10, 
+          0, 
+          2 * BLOCK_SIZE + (row * 12 - 6)
+        ] as [number, number, number],
+        height: 6 + Math.random() * 2,
+        width: 8,
+        depth: 8,
+        color: colors[i],
+        type: 'house',
+        name: `House ${i+1}`
+      };
+    })
+  ], []);
+  
+  // Define agent data
+  const agentData = useMemo(() => [
+    {
+      id: 1,
+      name: "Alex",
+      role: "Trader",
+      icon: "👨‍💼",
+      color: "#2196F3",
+      state: "walking",
+      location: "Bank",
+      resources: 87,
+      earnings: 1245,
+      level: 5
+    },
+    {
+      id: 2,
+      name: "Nova",
+      role: "Scientist",
+      icon: "👩‍🔬",
+      color: "#9C27B0",
+      state: "working",
+      location: "Tech Hub",
+      resources: 92,
+      earnings: 1870,
+      level: 7
+    },
+    {
+      id: 3,
+      name: "Orion",
+      role: "Builder",
+      icon: "👷",
+      color: "#FF9800",
+      state: "walking",
+      location: "Downtown",
+      resources: 95,
+      earnings: 1560,
+      level: 6
+    },
+    {
+      id: 4,
+      name: "Luna",
+      role: "Explorer",
+      icon: "🧭",
+      color: "#4CAF50",
+      state: "idle",
+      location: "Supermarket",
+      resources: 84,
+      earnings: 1320,
+      level: 4
+    },
+    {
+      id: 5,
+      name: "Max",
+      role: "Farmer",
+      icon: "👨‍🌾",
+      color: "#8BC34A",
+      state: "working",
+      location: "House 3",
+      resources: 89,
+      earnings: 1480,
+      level: 5
+    },
+    {
+      id: 6,
+      name: "Zara",
+      role: "Engineer",
+      icon: "👩‍🔧",
+      color: "#FF5722",
+      state: "walking",
+      location: "On the Road",
+      resources: 91,
+      earnings: 1690,
+      level: 6
+    },
+    {
+      id: 7,
+      name: "Neo",
+      role: "Hacker",
+      icon: "👨‍💻",
+      color: "#607D8B",
+      state: "working",
+      location: "Finance Center",
+      resources: 86,
+      earnings: 1920,
+      level: 7
+    },
+    {
+      id: 8,
+      name: "Astra",
+      role: "Diplomat",
+      icon: "🧝‍♀️",
+      color: "#E91E63",
+      state: "idle",
+      location: "Hotel",
+      resources: 88,
+      earnings: 1530,
+      level: 5
+    },
+    {
+      id: 9,
+      name: "Bolt",
+      role: "Courier",
+      icon: "🏃",
+      color: "#00BCD4",
+      state: "walking",
+      location: "Gas Station",
+      resources: 94,
+      earnings: 1380,
+      level: 4
+    },
+    {
+      id: 10,
+      name: "Echo",
+      role: "Mystic",
+      icon: "🧙",
+      color: "#9575CD",
+      state: "working",
+      location: "Police Station",
+      resources: 90,
+      earnings: 2100,
+      level: 8
+    }
+  ], []);
+  
+  // Generate random starting positions for agents
+  const agentStartPositions = useMemo(() => {
+    return agentData.map(() => {
+      const x = (Math.random() * 80 - 40);
+      const z = (Math.random() * 80 - 40);
+      return [x, 1, z] as [number, number, number];
+    });
+  }, []);
   
   return (
     <group>
       {/* Ground */}
-      <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[100, 100]} />
-        <meshStandardMaterial color="#2a4858" />
-      </mesh>
+      <Ground />
       
-      {/* Road system */}
+      {/* Roads */}
       <Road />
       
       {/* Buildings */}
@@ -244,29 +996,32 @@ const City: React.FC<{ onAgentClick: (agent: any) => void }> = ({ onAgentClick }
         <Building 
           key={`building-${i}`} 
           {...building}
-          onBuildingClick={onAgentClick}
         />
       ))}
       
       {/* Agents */}
-      {agents.map((agent, i) => (
+      {agentData.map((agent, i) => (
         <Agent 
           key={`agent-${i}`} 
-          {...agent}
+          position={agentStartPositions[i]}
+          color={agent.color}
+          speed={1 + Math.random() * 2}
+          agentData={agent}
           onAgentClick={onAgentClick}
         />
       ))}
       
-      {/* Floating city name */}
-      <Float speed={2} rotationIntensity={0.2} floatIntensity={0.5}>
+      {/* City name */}
+      <Float speed={1} rotationIntensity={0.1} floatIntensity={0.5}>
         <Text
-          position={[0, 15, 0]}
-          fontSize={5}
-          color="#ffffff"
+          position={[0, 60, 0]}
+          fontSize={15}
+          color="#FFFFFF"
           anchorX="center"
           anchorY="middle"
+          fillOpacity={0.8}
         >
-          AGENTARIUM
+          AGENTARIUM CITY
         </Text>
       </Float>
     </group>
@@ -279,33 +1034,48 @@ const ClientGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => 
     <Canvas 
       shadows 
       className="w-full h-full"
-      camera={{ position: [30, 30, 30], fov: 50 }}
+      camera={{ position: [80, 80, 80], fov: 45 }}
     >
-      <fog attach="fog" args={['#1a2e3b', 30, 100]} />
-      <color attach="background" args={['#1a2e3b']} />
+      <fog attach="fog" args={['#1a2e3b', 100, 300]} />
+      <color attach="background" args={['#87ceeb']} />
       
       <ambientLight intensity={0.5} />
       <directionalLight
         castShadow
-        position={[10, 20, 15]}
-        intensity={1.5}
+        position={[100, 100, 50]}
+        intensity={1}
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
+        shadow-camera-far={300}
+        shadow-camera-left={-100}
+        shadow-camera-right={100}
+        shadow-camera-top={100}
+        shadow-camera-bottom={-100}
       />
+      
+      <hemisphereLight args={['#87ceeb', '#3f3f3f', 0.7]} />
       <Sky distance={450000} sunPosition={[1, 0.5, 0]} />
+      
+      {/* Clouds */}
+      <group position={[0, 60, 0]}>
+        <Cloud position={[-40, 20, -20]} speed={0.2} opacity={0.7} />
+        <Cloud position={[40, 10, 30]} speed={0.1} opacity={0.6} />
+        <Cloud position={[-60, 0, 40]} speed={0.3} opacity={0.5} />
+      </group>
       
       <City onAgentClick={onAgentClick} />
       
-      <Environment preset="night" />
+      <Environment preset="city" />
       <OrbitControls 
         enablePan={false}
         enableZoom={true}
         enableRotate={true}
-        maxPolarAngle={Math.PI / 2 - 0.1}
-        minDistance={10}
-        maxDistance={50}
-        autoRotate
-        autoRotateSpeed={0.5}
+        maxPolarAngle={Math.PI / 2.5}
+        minPolarAngle={Math.PI / 8}
+        minDistance={40}
+        maxDistance={150}
+        target={[0, 0, 0]}
+        autoRotate={false}
       />
     </Canvas>
   );

@@ -340,7 +340,7 @@ const DappPage = () => {
           <div className="flex-1 overflow-y-auto">
             {/* Game Simulation - Full height */}
             {activeTab === 'game' && (
-              <div className="h-full">
+              <div className="flex-1 overflow-y-auto">
                 <GameSimulation onAgentSelect={handleAgentSelect} />
               </div>
             )}
