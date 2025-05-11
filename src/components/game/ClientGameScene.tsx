@@ -421,50 +421,190 @@ const Agent: React.FC<AgentProps> = ({ position, color, speed, agentData, onAgen
   
   // Calculate agent data to pass when clicked
   const handleClick = () => {
-    const location = getLocationName();
-    
-    // Determine earnings multiplier based on location and agent role
-    let earningMultiplier = 1.0;
-    
-    // Each agent earns more in their specialized locations
-    if (agentData.role === 'Trader' && (location === 'Bank' || location === 'Shopping Mall')) {
-      earningMultiplier = 2.5;
-    } else if (agentData.role === 'Scientist' && (location === 'Tech Hub' || location === 'City Hospital')) {
-      earningMultiplier = 2.5;
-    } else if (agentData.role === 'Builder' && (location === 'Factory')) {
-      earningMultiplier = 2.2;
-    } else if (agentData.role === 'Explorer' && (location === 'On the Road')) {
-      earningMultiplier = 1.8;
-    } else if (agentData.role === 'Farmer' && (location === 'Fine Dining Restaurant')) {
-      earningMultiplier = 2.0;
-    } else if (agentData.role === 'Engineer' && (location === 'Factory' || location === 'Tech Hub')) {
-      earningMultiplier = 2.3;
-    } else if (agentData.role === 'Hacker' && (location === 'Tech Hub' || location === 'Bank')) {
-      earningMultiplier = 2.4;
-    } else if (agentData.role === 'Diplomat' && (location === 'Hotel' || location === 'Police Station')) {
-      earningMultiplier = 2.1;
-    } else if (agentData.role === 'Courier' && (location === 'On the Road' || location === 'Shopping Mall')) {
-      earningMultiplier = 1.9;
-    } else if (agentData.role === 'Mystic' && (location === 'Lucky Star Casino' || location === 'Pulse Nightclub')) {
-      earningMultiplier = 2.6;
-    }
-    
-    const baseEarnings = currentState === 'working' ? 2 : 0.2;
-    const locationBonus = location === 'Bank' ? 0.5 : 
-                         location === 'Lucky Star Casino' ? 0.8 : 
-                         location === 'Factory' ? 0.4 : 
-                         location === 'Pulse Nightclub' ? 0.6 : 0;
-    
+    // Create updated agent data with current state and earnings
     const updatedAgentData = {
       ...agentData,
-      state: currentState,
-      location: location,
-      // Simulate earning resources based on state, location and role
-      resources: agentData.resources + (currentState === 'working' ? 5 : 1),
-      earnings: agentData.earnings + (baseEarnings + locationBonus) * earningMultiplier
+      state: state.state,
+      location: state.location,
+      resources: state.resources,
+      earnings: state.earnings
     };
     
+    // Pass the updated data to the click handler
     onAgentClick(updatedAgentData);
+  };
+  
+  // State for agent earnings and behavior
+  const [state, setState] = useState({
+    state: agentData.state,
+    location: agentData.location,
+    resources: agentData.resources,
+    earnings: agentData.earnings,
+    lastEarningTime: Date.now()
+  });
+  
+  // Role-specific earning multipliers at different locations
+  const roleMultipliers = useMemo(() => ({
+    Trader: {
+      "Bank": 2.5,
+      "Shopping Mall": 2.2, 
+      "Downtown": 1.8
+    },
+    Scientist: {
+      "Tech Hub": 2.6,
+      "City Hospital": 2.3,
+      "Factory": 1.9
+    },
+    Builder: {
+      "Factory": 2.5,
+      "House 1": 2.2,
+      "House 2": 2.2,
+      "House 3": 2.2,
+      "House 4": 2.2,
+      "House 5": 2.2,
+      "House 6": 2.2
+    },
+    Explorer: {
+      "Downtown": 2.4,
+      "Gas Station": 1.8,
+      "On the Road": 2.1
+    },
+    Farmer: {
+      "House 1": 2.3,
+      "House 2": 2.3,
+      "House 3": 2.3,
+      "House 4": 2.3,
+      "House 5": 2.3,
+      "House 6": 2.3,
+      "Supermarket": 2.0
+    }, 
+    Engineer: {
+      "Factory": 2.6,
+      "Tech Hub": 2.4,
+      "City Hospital": 1.9
+    },
+    Hacker: {
+      "Tech Hub": 2.5,
+      "Finance Center": 2.3,
+      "Bank": 2.0
+    },
+    Diplomat: {
+      "Hotel": 2.2,
+      "Finance Center": 2.0,
+      "Police Station": 1.8
+    },
+    Courier: {
+      "On the Road": 2.4,
+      "Gas Station": 2.1,
+      "Downtown": 1.9
+    },
+    Mystic: {
+      "Lucky Star Casino": 2.6,
+      "Pulse Nightclub": 2.3,
+      "Fine Dining Restaurant": 2.0
+    }
+  }), []);
+  
+  // Add earning calculation logic
+  useEffect(() => {
+    const earningInterval = setInterval(() => {
+      if (state.state === 'working') {
+        const now = Date.now();
+        const timeDiff = (now - state.lastEarningTime) / 1000; // in seconds
+        
+        // Base earning rate
+        let baseEarning = agentData.level * 0.5 * timeDiff;
+        
+        // Apply location multipliers based on agent role
+        const roleMultiplierMap = roleMultipliers[agentData.role as keyof typeof roleMultipliers];
+        const locationMultiplier = roleMultiplierMap && roleMultiplierMap[state.location as keyof typeof roleMultiplierMap];
+        
+        if (locationMultiplier) {
+          baseEarning *= locationMultiplier;
+        }
+        
+        // Building-specific bonuses
+        if (state.location === "Lucky Star Casino" || state.location === "Pulse Nightclub") {
+          baseEarning *= 1.2; // 20% bonus at entertainment venues
+        }
+        
+        // Update earnings and distribute to stakers (simulated)
+        setState(prev => ({
+          ...prev,
+          earnings: prev.earnings + baseEarning,
+          resources: Math.min(100, prev.resources + baseEarning * 0.1),
+          lastEarningTime: now
+        }));
+      }
+    }, 3000);
+    
+    return () => clearInterval(earningInterval);
+  }, [state.state, state.location, agentData.level, agentData.role, roleMultipliers]);
+  
+  // Update updateState function to make agents more focused on earning $AGENT
+  const updateState = () => {
+    // Agents have a higher chance to work at profitable locations
+    const currentPosition = meshRef.current?.position || new THREE.Vector3();
+    const locationName = getLocationName();
+    
+    // Check if we're at a high-value location for our role
+    const roleMultiplierMap = roleMultipliers[agentData.role as keyof typeof roleMultipliers];
+    const locationMultiplier = roleMultiplierMap && roleMultiplierMap[locationName as keyof typeof roleMultiplierMap];
+    
+    if (locationMultiplier && locationMultiplier > 1.5) {
+      // Higher chance to work at valuable locations
+      const workProbability = 0.7 + (locationMultiplier - 1.5) * 0.2;
+      if (Math.random() < workProbability) {
+        setState(prev => ({
+          ...prev,
+          state: 'working',
+          location: locationName
+        }));
+        
+        // Update agent data for displaying to users
+        agentData.state = 'working';
+        agentData.location = locationName;
+        
+        return;
+      }
+    }
+    
+    // Regular state switching logic
+    const rand = Math.random();
+    if (rand < 0.2) {
+      setState(prev => ({
+        ...prev,
+        state: 'idle',
+        location: locationName
+      }));
+      
+      // Update agent data
+      agentData.state = 'idle';
+      agentData.location = locationName;
+      
+    } else if (rand < 0.6) {
+      setState(prev => ({
+        ...prev,
+        state: 'walking',
+        location: locationName
+      }));
+      
+      // Update agent data
+      agentData.state = 'walking';
+      agentData.location = locationName;
+      
+      updateTarget();
+    } else {
+      setState(prev => ({
+        ...prev,
+        state: 'working',
+        location: locationName
+      }));
+      
+      // Update agent data
+      agentData.state = 'working';
+      agentData.location = locationName;
+    }
   };
   
   return (
@@ -2562,7 +2702,8 @@ const City: React.FC<{ onAgentClick: (agent: any) => void }> = ({ onAgentClick }
     const npcs = [];
     const npcColors = ['#F5DEB3', '#D2B48C', '#BC8F8F', '#A0522D', '#8B4513', '#FFDEAD', '#FFE4C4', '#CD853F', '#DEB887'];
     
-    for (let i = 0; i < 40; i++) {  // Increased from 25 to 40
+    // Increase NPC count to 45
+    for (let i = 0; i < 45; i++) {  // Increased from 40 to 45
       npcs.push({
         color: npcColors[Math.floor(Math.random() * npcColors.length)],
         position: [
