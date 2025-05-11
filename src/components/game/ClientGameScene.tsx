@@ -1461,6 +1461,9 @@ const Vehicle: React.FC<VehicleProps> = ({ position, color, type, speed }) => {
     Array.isArray(position) && position.length >= 3 ? position[1] : 0,
     Array.isArray(position) && position.length >= 3 ? position[2] + (Math.random() * 100 - 50) : 0
   ));
+  const [isParked, setIsParked] = useState(Math.random() > 0.7); // 30% chance to start parked
+  const [parkingTimer, setParkingTimer] = useState(0);
+  const [currentLane, setCurrentLane] = useState(Math.random() > 0.5 ? 1 : -1); // Left or right lane
   
   // List of possible destinations (road points)
   const roadPoints = useMemo(() => {
@@ -1482,36 +1485,175 @@ const Vehicle: React.FC<VehicleProps> = ({ position, color, type, speed }) => {
     return points;
   }, []);
   
-  // Update target when vehicle reaches current target
-  const updateTarget = () => {
-    const possibleTargets = roadPoints.filter(point => {
-      // Only consider road points (not inside blocks)
-      const isOnRoadX = Math.abs(point.x % BLOCK_SIZE) < ROAD_WIDTH/2;
-      const isOnRoadZ = Math.abs(point.z % BLOCK_SIZE) < ROAD_WIDTH/2;
-      return isOnRoadX || isOnRoadZ;
+  // Parking spots
+  const parkingSpots = useMemo(() => {
+    const spots = [];
+    
+    // Generate parking spots near buildings
+    // Bank parking
+    for (let i = 0; i < 3; i++) {
+      spots.push(new THREE.Vector3(-BLOCK_SIZE - 6 - i * 4, 0, -BLOCK_SIZE + 15));
+    }
+    
+    // Police parking
+    for (let i = 0; i < 3; i++) {
+      spots.push(new THREE.Vector3(BLOCK_SIZE + 6 + i * 4, 0, -BLOCK_SIZE + 15));
+    }
+    
+    // Market parking
+    for (let i = 0; i < 4; i++) {
+      spots.push(new THREE.Vector3(-BLOCK_SIZE - 6 - i * 4, 0, BLOCK_SIZE - 15));
+    }
+    
+    // Hotel parking
+    for (let i = 0; i < 3; i++) {
+      spots.push(new THREE.Vector3(BLOCK_SIZE + 6 + i * 4, 0, BLOCK_SIZE - 15));
+    }
+    
+    // Nightclub parking
+    for (let i = 0; i < 5; i++) {
+      spots.push(new THREE.Vector3(-2 * BLOCK_SIZE + 15, 0, -2 * BLOCK_SIZE - 6 - i * 4));
+    }
+    
+    // Shopping mall parking lot (larger)
+    for (let i = 0; i < 5; i++) {
+      for (let j = 0; j < 2; j++) {
+        spots.push(new THREE.Vector3(2 * BLOCK_SIZE - 15 - j * 5, 0, 2 * BLOCK_SIZE + 8 + i * 5));
+      }
+    }
+    
+    return spots;
+  }, []);
+  
+  // Function to check if a position is on a road
+  const isOnRoad = (position: THREE.Vector3): boolean => {
+    // Check if on horizontal road
+    const onHorizontalRoad = Math.abs(position.z % BLOCK_SIZE) < ROAD_WIDTH/2;
+    // Check if on vertical road
+    const onVerticalRoad = Math.abs(position.x % BLOCK_SIZE) < ROAD_WIDTH/2;
+    
+    return onHorizontalRoad || onVerticalRoad;
+  };
+  
+  // Find nearest road point for when off-road
+  const findNearestRoadPoint = (position: THREE.Vector3): THREE.Vector3 => {
+    let nearest = roadPoints[0];
+    let minDistance = position.distanceTo(roadPoints[0]);
+    
+    roadPoints.forEach(point => {
+      const distance = position.distanceTo(point);
+      if (distance < minDistance) {
+        nearest = point;
+        minDistance = distance;
+      }
     });
     
-    // Choose a random valid road point
-    const newTarget = possibleTargets[Math.floor(Math.random() * possibleTargets.length)];
-    targetRef.current.copy(newTarget);
+    return nearest;
+  };
+  
+  // Update target when vehicle reaches current target or needs to park/unpark
+  const updateTarget = () => {
+    // Determine if vehicle should park or continue driving
+    if (!isParked && Math.random() < 0.05) { // 5% chance to decide to park when driving
+      // Choose a random parking spot
+      const parkingSpot = parkingSpots[Math.floor(Math.random() * parkingSpots.length)];
+      targetRef.current.copy(parkingSpot);
+      setParkingTimer(Math.random() * 60 + 30); // Park for 30-90 seconds
+      return;
+    }
+    
+    if (isParked) {
+      // Vehicle is already parked, don't change target
+      return;
+    }
+    
+    // Choose a road point for continued driving
+    const validRoadPoints = roadPoints.filter(point => isOnRoad(point));
+    
+    // Select points that would maintain the current direction if possible
+    const currentPos = meshRef.current?.position || new THREE.Vector3();
+    const direction = new THREE.Vector3().subVectors(targetRef.current, currentPos).normalize();
+    
+    // Find points that continue in a similar direction
+    const sameDirectionPoints = validRoadPoints.filter(point => {
+      const newDirection = new THREE.Vector3().subVectors(point, currentPos).normalize();
+      return newDirection.dot(direction) > 0.7; // Points in similar direction
+    });
+    
+    let nextTarget;
+    
+    if (sameDirectionPoints.length > 0 && Math.random() > 0.2) { // 80% chance to continue same direction
+      nextTarget = sameDirectionPoints[Math.floor(Math.random() * sameDirectionPoints.length)];
+    } else {
+      // Sometimes change direction at intersections
+      nextTarget = validRoadPoints[Math.floor(Math.random() * validRoadPoints.length)];
+    }
+    
+    // Adjust for driving on the correct side of the road (right side)
+    if (Math.abs(nextTarget.x % BLOCK_SIZE) < 0.1) { // On vertical road
+      nextTarget.x += ROAD_WIDTH * 0.3 * currentLane;
+    } else if (Math.abs(nextTarget.z % BLOCK_SIZE) < 0.1) { // On horizontal road
+      nextTarget.z += ROAD_WIDTH * 0.3 * currentLane;
+    }
+    
+    targetRef.current.copy(nextTarget);
   };
   
   // Initial target update
   useEffect(() => {
-    updateTarget();
+    if (!isParked) {
+      updateTarget();
+    } else {
+      // If starting parked, pick a parking spot
+      const parkingSpot = parkingSpots[Math.floor(Math.random() * parkingSpots.length)];
+      meshRef.current?.position.copy(parkingSpot);
+      targetRef.current.copy(parkingSpot);
+      setParkingTimer(Math.random() * 30 + 15); // Parked for 15-45 seconds initially
+    }
   }, []);
   
   useFrame((state, delta) => {
     try {
       if (!meshRef.current) return;
       
-      // Move towards target
+      // Handle parking timer countdown
+      if (isParked) {
+        setParkingTimer(prev => {
+          const newTimer = prev - delta;
+          if (newTimer <= 0) {
+            setIsParked(false);
+            updateTarget();
+            return 0;
+          }
+          return newTimer;
+        });
+        return;
+      }
+      
+      // Check if reached parking spot
+      const distanceToTarget = meshRef.current.position.distanceTo(targetRef.current);
+      if (!isParked && distanceToTarget < 1 && parkingTimer > 0) {
+        setIsParked(true);
+        return;
+      }
+      
+      // Move towards target when not parked
       const direction = new THREE.Vector3().subVectors(targetRef.current, meshRef.current.position);
       
-      // If close to target, update target
-      if (direction.length() < 1) {
+      // If close to target, update target unless parking
+      if (direction.length() < 1 && parkingTimer <= 0) {
+        // Chance to change lanes at intersections
+        if (Math.random() < 0.1) {
+          setCurrentLane(prev => prev * -1);
+        }
         updateTarget();
         return;
+      }
+      
+      // Check if we're off-road and need to get back
+      if (!isOnRoad(meshRef.current.position) && parkingTimer <= 0) {
+        const nearestRoadPoint = findNearestRoadPoint(meshRef.current.position);
+        targetRef.current.copy(nearestRoadPoint);
       }
       
       // Calculate next position
@@ -1697,8 +1839,13 @@ const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
     Array.isArray(position) && position.length >= 3 ? position[1] : 0,
     Array.isArray(position) && position.length >= 3 ? position[2] : 0
   ));
-  const [state, setState] = useState('idle');
+  const [state, setState] = useState<'idle' | 'walking' | 'sitting' | 'talking' | 'shopping'>(
+    Math.random() > 0.7 ? 'idle' : 'walking'
+  );
   const [stateTimer, setStateTimer] = useState(Math.random() * 3);
+  const [activityLocation, setActivityLocation] = useState<THREE.Vector3 | null>(null);
+  const [groupMember, setGroupMember] = useState(Math.random() > 0.7); // 30% chance to be in a group
+  const [groupLeader, setGroupLeader] = useState(Math.random() > 0.5); // 50% chance to be the leader in a group
   
   // List of possible sidewalk destinations
   const sidewalkPoints = useMemo(() => {
@@ -1717,6 +1864,33 @@ const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
       }
     }
     
+    return points;
+  }, []);
+  
+  // Points of interest where NPCs might gather
+  const gatheringPoints = useMemo(() => {
+    const points = [
+      // Bank entrance
+      { position: new THREE.Vector3(-BLOCK_SIZE, 0, -BLOCK_SIZE + 10), type: 'bank' },
+      // Shopping mall entrance
+      { position: new THREE.Vector3(2 * BLOCK_SIZE, 0, 2 * BLOCK_SIZE - 10), type: 'shopping' },
+      // Restaurant outdoor seating
+      { position: new THREE.Vector3(-BLOCK_SIZE/2, 0, -2 * BLOCK_SIZE + 8), type: 'dining' },
+      // Nightclub entrance
+      { position: new THREE.Vector3(-2 * BLOCK_SIZE + 10, 0, -2 * BLOCK_SIZE), type: 'nightclub' },
+      // Park bench 1
+      { position: new THREE.Vector3(10, 0, 10), type: 'sitting' },
+      // Park bench 2
+      { position: new THREE.Vector3(-10, 0, 10), type: 'sitting' },
+      // Bus stop 1
+      { position: new THREE.Vector3(BLOCK_SIZE - 15, 0, 0), type: 'waiting' },
+      // Bus stop 2
+      { position: new THREE.Vector3(0, 0, BLOCK_SIZE - 15), type: 'waiting' },
+      // Street vendor 1
+      { position: new THREE.Vector3(BLOCK_SIZE/2, 0, BLOCK_SIZE/2), type: 'shopping' },
+      // Street vendor 2
+      { position: new THREE.Vector3(-BLOCK_SIZE/2, 0, -BLOCK_SIZE/2), type: 'shopping' },
+    ];
     return points;
   }, []);
   
@@ -1760,6 +1934,37 @@ const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
     {
       center: new THREE.Vector2(0, 2 * BLOCK_SIZE),
       size: new THREE.Vector2(30, 15)
+    },
+    // New buildings to avoid
+    // Nightclub
+    {
+      center: new THREE.Vector2(-2 * BLOCK_SIZE, -2 * BLOCK_SIZE),
+      size: new THREE.Vector2(18, 18)
+    },
+    // Shopping Mall
+    {
+      center: new THREE.Vector2(2 * BLOCK_SIZE, 2 * BLOCK_SIZE),
+      size: new THREE.Vector2(35, 25)
+    },
+    // Restaurant
+    {
+      center: new THREE.Vector2(-BLOCK_SIZE/2, -2 * BLOCK_SIZE),
+      size: new THREE.Vector2(12, 12)
+    },
+    // Hospital
+    {
+      center: new THREE.Vector2(2 * BLOCK_SIZE, -2 * BLOCK_SIZE),
+      size: new THREE.Vector2(25, 20)
+    },
+    // Factory
+    {
+      center: new THREE.Vector2(-2 * BLOCK_SIZE, 2 * BLOCK_SIZE),
+      size: new THREE.Vector2(30, 20)
+    },
+    // Casino
+    {
+      center: new THREE.Vector2(BLOCK_SIZE/2, -2 * BLOCK_SIZE),
+      size: new THREE.Vector2(15, 15)
     }
   ], []);
   
@@ -1780,29 +1985,96 @@ const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
     // Only get new target if walking
     if (state !== 'walking') return;
     
-    // Get valid sidewalk points (not inside buildings)
-    const validPoints = sidewalkPoints.filter(point => 
-      !isInsideBuilding(point.x, point.z)
-    );
+    // Decide if heading to a gathering point or random sidewalk
+    const goToGatheringPoint = Math.random() > 0.6; // 40% chance to head to a gathering point
     
-    // Pick a random valid point
-    const newTarget = validPoints[Math.floor(Math.random() * validPoints.length)];
-    targetRef.current.copy(newTarget);
+    if (goToGatheringPoint) {
+      // Pick a random gathering point
+      const gatheringPoint = gatheringPoints[Math.floor(Math.random() * gatheringPoints.length)];
+      targetRef.current.copy(gatheringPoint.position);
+      setActivityLocation(gatheringPoint.position.clone());
+      
+      // Set appropriate state based on gathering point type
+      const nextStateTimer = Math.random() * 10 + 5; // 5-15 seconds
+      setStateTimer(nextStateTimer);
+      
+      // Set next state based on destination type, but will only apply once they arrive
+      if (gatheringPoint.type === 'sitting') {
+        // Will sit once they arrive
+      } else if (gatheringPoint.type === 'shopping') {
+        // Will shop once they arrive
+      } else if (gatheringPoint.type === 'dining') {
+        // Will sit/talk once they arrive
+      } else if (gatheringPoint.type === 'waiting') {
+        // Will idle once they arrive
+      } else if (gatheringPoint.type === 'nightclub') {
+        // Will talk/dance once they arrive
+      }
+    } else {
+      // Get valid sidewalk points (not inside buildings)
+      const validPoints = sidewalkPoints.filter(point => 
+        !isInsideBuilding(point.x, point.z)
+      );
+      
+      // Pick a random valid point
+      const newTarget = validPoints[Math.floor(Math.random() * validPoints.length)];
+      targetRef.current.copy(newTarget);
+      setActivityLocation(null);
+    }
+  };
+  
+  // Update NPC state based on current location and time spent
+  const updateState = () => {
+    // If at a gathering point, set state based on location type
+    if (activityLocation && meshRef.current) {
+      const distanceToActivity = meshRef.current.position.distanceTo(activityLocation);
+      
+      if (distanceToActivity < 1.5) {
+        // We've reached the activity location
+        const gatheringPoint = gatheringPoints.find(point => 
+          point.position.distanceTo(activityLocation) < 0.5
+        );
+        
+        if (gatheringPoint) {
+          if (gatheringPoint.type === 'sitting') {
+            setState('sitting');
+            setStateTimer(Math.random() * 20 + 10); // Sit for 10-30 seconds
+          } else if (gatheringPoint.type === 'shopping') {
+            setState('shopping');
+            setStateTimer(Math.random() * 15 + 5); // Shop for 5-20 seconds
+          } else if (gatheringPoint.type === 'dining' || gatheringPoint.type === 'nightclub') {
+            // Either sit or talk at these locations
+            setState(Math.random() > 0.5 ? 'sitting' : 'talking');
+            setStateTimer(Math.random() * 25 + 15); // Stay for 15-40 seconds
+          } else {
+            // Default to idle
+            setState('idle');
+            setStateTimer(Math.random() * 8 + 2); // Idle for 2-10 seconds
+          }
+          return;
+        }
+      }
+    }
+    
+    // Not at an activity location, choose a new random state
+    const rand = Math.random();
+    if (rand < 0.7) { // 70% chance to walk
+      setState('walking');
+      setStateTimer(Math.random() * 10 + 5); // Walk for 5-15 seconds
+      updateTarget(); // Get a new destination
+    } else if (rand < 0.9) { // 20% chance to idle
+      setState('idle');
+      setStateTimer(Math.random() * 3 + 2); // Idle for 2-5 seconds
+    } else { // 10% chance to talk (simulate phone call or talking to someone)
+      setState('talking');
+      setStateTimer(Math.random() * 5 + 3); // Talk for 3-8 seconds
+    }
   };
   
   // Update NPC state periodically
   useEffect(() => {
     const interval = setInterval(() => {
-      // Random state change
-      const rand = Math.random();
-      if (rand < 0.3) {
-        setState('idle');
-        setStateTimer(Math.random() * 3 + 2); // Idle for 2-5 seconds
-      } else {
-        setState('walking');
-        setStateTimer(Math.random() * 10 + 5); // Walk for 5-15 seconds
-        updateTarget(); // Get a new destination
-      }
+      updateState();
     }, stateTimer * 1000);
     
     return () => clearInterval(interval);
@@ -1813,21 +2085,59 @@ const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
       if (!meshRef.current) return;
       
       // Only move if in walking state
-      if (state !== 'walking') return;
+      if (state !== 'walking') {
+        // Animations for other states
+        if (state === 'talking') {
+          // Subtle swaying for talking
+          meshRef.current.rotation.y += Math.sin(frameState.clock.getElapsedTime() * 2) * 0.02;
+        } else if (state === 'sitting') {
+          // Adjust height for sitting
+          meshRef.current.position.y = position[1] - 0.3;
+        } else if (state === 'shopping') {
+          // Look around animation for shopping
+          meshRef.current.rotation.y = Math.sin(frameState.clock.getElapsedTime()) * 0.5;
+        }
+        return;
+      }
+      
+      // Reset height if was sitting
+      meshRef.current.position.y = position[1] + Math.sin(frameState.clock.getElapsedTime() * 5) * 0.05;
       
       // Move towards target
       const direction = new THREE.Vector3().subVectors(targetRef.current, meshRef.current.position);
       
       // If close to target, become idle
       if (direction.length() < 0.5) {
-        setState('idle');
-        setStateTimer(Math.random() * 3 + 2); // Idle for 2-5 seconds
-        return;
+        if (activityLocation) {
+          // We've reached an activity destination
+          const distanceToActivity = meshRef.current.position.distanceTo(activityLocation);
+          if (distanceToActivity < 1.5) {
+            // Update state based on the activity
+            updateState();
+            return;
+          }
+        } else {
+          // Just reached a regular sidewalk point
+          setState('idle');
+          setStateTimer(Math.random() * 3 + 2); // Idle for 2-5 seconds
+          return;
+        }
       }
       
       // Calculate next position
       direction.normalize().multiplyScalar(delta * speed);
-      meshRef.current.position.add(direction);
+      
+      // Calculate next position
+      const nextPosition = new THREE.Vector3().copy(meshRef.current.position).add(direction);
+      
+      // Only move if not going into a building
+      if (!isInsideBuilding(nextPosition.x, nextPosition.z)) {
+        meshRef.current.position.copy(nextPosition);
+      } else {
+        // Get a new target if we would hit a building
+        updateTarget();
+        return;
+      }
       
       // Rotate to face direction of movement
       if (direction.length() > 0.01) {
@@ -1837,9 +2147,6 @@ const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
         );
         meshRef.current.lookAt(lookAtPos);
       }
-      
-      // Bobbing animation when walking
-      meshRef.current.position.y = position[1] + Math.sin(frameState.clock.elapsedTime * 5) * 0.05;
     } catch (error) {
       console.error("Error in NPC animation frame:", error);
     }
@@ -1858,6 +2165,21 @@ const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
         <sphereGeometry args={[0.2, 16, 16]} />
         <meshStandardMaterial color={color} />
       </mesh>
+      
+      {/* State indicators */}
+      {state === 'talking' && (
+        <mesh position={[0, 1.1, 0]} castShadow>
+          <sphereGeometry args={[0.08, 8, 8]} />
+          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.5} />
+        </mesh>
+      )}
+      
+      {state === 'shopping' && (
+        <mesh position={[0.3, 0.4, 0.1]} castShadow rotation={[0, 0, Math.PI/4]}>
+          <boxGeometry args={[0.2, 0.3, 0.1]} />
+          <meshStandardMaterial color="#f0f0f0" />
+        </mesh>
+      )}
     </group>
   );
 };
@@ -2299,9 +2621,9 @@ const City: React.FC<{ onAgentClick: (agent: any) => void }> = ({ onAgentClick }
   // Define NPCs data
   const npcsData = useMemo(() => {
     const npcs = [];
-    const npcColors = ['#F5DEB3', '#D2B48C', '#BC8F8F', '#A0522D', '#8B4513', '#FFDEAD', '#FFE4C4'];
+    const npcColors = ['#F5DEB3', '#D2B48C', '#BC8F8F', '#A0522D', '#8B4513', '#FFDEAD', '#FFE4C4', '#CD853F', '#DEB887'];
     
-    for (let i = 0; i < 25; i++) {  // Increased from 15 to 25
+    for (let i = 0; i < 40; i++) {  // Increased from 25 to 40
       npcs.push({
         color: npcColors[Math.floor(Math.random() * npcColors.length)],
         position: [

@@ -307,7 +307,7 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowIntro(false);
-    }, 5000);
+    }, 2000);
     
     return () => clearTimeout(timer);
   }, []);
@@ -356,6 +356,16 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
               Explore the city where AI agents live, work, and earn $AGENT autonomously.
               <span className="block mt-2 text-agent-green">Click on any agent to learn more about them.</span>
             </motion.p>
+            
+            <motion.button
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.5, duration: 0.5 }}
+              onClick={() => setShowIntro(false)}
+              className="mt-6 px-4 py-2 bg-agent-green/20 text-agent-green border border-agent-green/30 rounded-md hover:bg-agent-green/30 transition-colors"
+            >
+              Enter City Simulation
+            </motion.button>
           </motion.div>
         )}
       </AnimatePresence>
