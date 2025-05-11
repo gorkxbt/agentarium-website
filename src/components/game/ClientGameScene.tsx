@@ -1732,13 +1732,13 @@ const City: React.FC<{ onAgentClick: (agent: any) => void }> = ({ onAgentClick }
   );
 };
 
-// Main component
-const ClientGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}, onTimeChange = () => {} }) => {
-  // Control day/night cycle
-  const [timeOfDay, setTimeOfDay] = useState('day');
+// Main component - split into scene content and wrapper
+const SceneContent: React.FC<{ onAgentClick: (agent: any) => void, timeOfDay: string, setTimeOfDay: (time: string) => void, onTimeChange: (time: string) => void }> = 
+    ({ onAgentClick, timeOfDay, setTimeOfDay, onTimeChange }) => {
+  // For time cycle tracking
   const timeRef = useRef({ time: 0, cycleLength: 300 }); // 5-minute cycle
   
-  // Update time of day
+  // Update time of day - this is safe inside Canvas
   useFrame((state) => {
     try {
       timeRef.current.time += state.clock.elapsedTime * 0.001;
@@ -1819,13 +1819,7 @@ const ClientGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => 
   const settings = getLightingSettings();
   
   return (
-    <Canvas 
-      shadows
-      className="w-full h-full"
-      camera={{ position: [100, 100, 100], fov: 45 }}
-      gl={{ antialias: true, alpha: false }}
-      dpr={[1, 2]} // Dynamic pixel ratio for better performance
-    >
+    <>
       <fog attach="fog" args={[settings.fogColor, 120, 350]} />
       <color attach="background" args={[settings.skyColor]} />
       
@@ -1891,8 +1885,122 @@ const ClientGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => 
         enableDamping={true}
         dampingFactor={0.05}
       />
+    </>
+  );
+};
+
+// Main wrapper component 
+const ClientGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}, onTimeChange = () => {} }) => {
+  // Control day/night cycle - state moved to parent to avoid hooks outside Canvas
+  const [timeOfDay, setTimeOfDay] = useState('day');
+  
+  return (
+    <Canvas 
+      shadows
+      className="w-full h-full"
+      camera={{ position: [100, 100, 100], fov: 45 }}
+      gl={{ antialias: true, alpha: false }}
+      dpr={[1, 2]} // Dynamic pixel ratio for better performance
+    >
+      <SceneContent 
+        onAgentClick={onAgentClick} 
+        timeOfDay={timeOfDay} 
+        setTimeOfDay={setTimeOfDay} 
+        onTimeChange={onTimeChange}
+      />
     </Canvas>
   );
+};
+
+// Replace with:
+// Fallback component if Three.js fails
+const FallbackScene = () => {
+  return (
+    <div className="w-full h-full bg-gray-900 flex items-center justify-center">
+      <div className="text-center p-6 max-w-md bg-black/50 rounded-lg backdrop-blur-sm border border-white/10">
+        <h3 className="text-2xl font-bold text-white mb-3">Agentarium City</h3>
+        <p className="text-white/80 mb-4">
+          The 3D simulation requires a modern browser with WebGL support.
+        </p>
+        <div className="flex justify-center space-x-4 mt-6">
+          <div className="bg-blue-500/20 px-3 py-2 rounded-md">
+            <span className="text-blue-300 text-xs">AI Agents</span>
+          </div>
+          <div className="bg-green-500/20 px-3 py-2 rounded-md">
+            <span className="text-green-300 text-xs">Virtual Economy</span>
+          </div>
+          <div className="bg-amber-500/20 px-3 py-2 rounded-md">
+            <span className="text-amber-300 text-xs">Earn $AGENT</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Main wrapper component with error handling
+const ClientGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}, onTimeChange = () => {} }) => {
+  // Control day/night cycle - state moved to parent to avoid hooks outside Canvas
+  const [timeOfDay, setTimeOfDay] = useState('day');
+  const [hasError, setHasError] = useState(false);
+  
+  // Handle WebGL and Three.js initialization errors
+  useEffect(() => {
+    const handleError = () => {
+      console.error("WebGL/Three.js initialization error detected");
+      setHasError(true);
+    };
+    
+    // Check for WebGL support
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (!gl) {
+        handleError();
+      }
+    } catch (e) {
+      handleError();
+    }
+    
+    // Listen for error events that might indicate Three.js failures
+    window.addEventListener('error', (e) => {
+      if (e.message && (
+        e.message.includes('WebGL') || 
+        e.message.includes('three') || 
+        e.message.includes('R3F') ||
+        e.message.includes('Canvas')
+      )) {
+        handleError();
+      }
+    });
+  }, []);
+  
+  if (hasError) {
+    return <FallbackScene />;
+  }
+  
+  // Wrap the Canvas in a try-catch during rendering
+  try {
+    return (
+      <Canvas 
+        shadows
+        className="w-full h-full"
+        camera={{ position: [100, 100, 100], fov: 45 }}
+        gl={{ antialias: true, alpha: false }}
+        dpr={[1, 2]} // Dynamic pixel ratio for better performance
+      >
+        <SceneContent 
+          onAgentClick={onAgentClick} 
+          timeOfDay={timeOfDay} 
+          setTimeOfDay={setTimeOfDay} 
+          onTimeChange={onTimeChange}
+        />
+      </Canvas>
+    );
+  } catch (error) {
+    console.error("Error rendering Three.js Canvas:", error);
+    return <FallbackScene />;
+  }
 };
 
 export default ClientGameScene;

@@ -1,10 +1,20 @@
 // GameSimulation.tsx - Enhanced 3D simulation component
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Component } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 
-// Import the client component with no SSR
-const ClientGameScene = dynamic(() => import('./game/ClientGameScene'), { ssr: false });
+// Import the client component with no SSR and a fallback
+const ClientGameScene = dynamic(() => import('./game/ClientGameScene').catch(err => {
+  console.error("Error loading ClientGameScene:", err);
+  // Return a simplified component that won't crash
+  return () => <div className="w-full h-full bg-agent-dark-gray flex items-center justify-center">
+    <div className="text-white text-center p-4">
+      <h3 className="text-xl font-bold mb-2">Agentarium City</h3>
+      <p>Interactive 3D simulation coming soon.</p>
+      <p className="text-xs mt-4 text-agent-green">Optimizing for your device...</p>
+    </div>
+  </div>;
+}), { ssr: false });
 
 // Guide component
 function SimulationGuide({ onClose }: { onClose: () => void }) {
@@ -242,6 +252,27 @@ function AgentDetailsPanel({ agent, onClose }: { agent: any | null, onClose: () 
   );
 }
 
+// Error boundary to catch rendering errors
+class ErrorBoundary extends Component<{children: React.ReactNode, fallback: React.ReactNode}> {
+  state = { hasError: false, error: null };
+  
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+  
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("Error in 3D scene:", error, errorInfo);
+  }
+  
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    
+    return this.props.children;
+  }
+}
+
 // Main component
 const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string) => void }) => {
   const [selectedAgent, setSelectedAgent] = useState<any | null>(null);
@@ -325,7 +356,7 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
         </button>
       </div>
       
-      {/* Social links */}
+      {/* Social links - restored */}
       <div className="absolute top-4 right-4 z-10 flex space-x-2">
         <a 
           href="https://t.me/agentarium" 
@@ -419,10 +450,20 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
       
       {/* 3D Canvas */}
       <div className="w-full h-full">
-        <ClientGameScene 
-          onAgentClick={handleAgentClick}
-          onTimeChange={handleTimeChange}
-        />
+        <ErrorBoundary fallback={
+          <div className="w-full h-full bg-agent-dark-gray flex items-center justify-center">
+            <div className="text-white text-center p-4">
+              <h3 className="text-xl font-bold mb-2">Agentarium City</h3>
+              <p>Interactive 3D simulation temporarily unavailable.</p>
+              <p className="text-xs mt-4 text-agent-green">Try refreshing the page.</p>
+            </div>
+          </div>
+        }>
+          <ClientGameScene 
+            onAgentClick={handleAgentClick}
+            onTimeChange={handleTimeChange}
+          />
+        </ErrorBoundary>
       </div>
       
       {/* Selected Agent Details Panel */}
