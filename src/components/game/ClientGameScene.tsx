@@ -3014,6 +3014,27 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
   const [hasError, setHasError] = useState(false);
   const [canvasLoaded, setCanvasLoaded] = useState(false);
   const [renderAttempts, setRenderAttempts] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Add loading timeout and auto-recovery
+  useEffect(() => {
+    // Set a timeout to detect loading hangs
+    const loadingTimeout = setTimeout(() => {
+      if (isLoading && !hasError) {
+        console.warn("Loading timeout reached, attempting recovery...");
+        // Try to force re-render the scene
+        setRenderAttempts(prev => prev + 1);
+        
+        // If we've tried multiple times, flag as error
+        if (renderAttempts >= 2) {
+          console.error("Multiple rendering attempts failed, showing fallback");
+          setHasError(true);
+        }
+      }
+    }, 8000); // 8 second timeout
+    
+    return () => clearTimeout(loadingTimeout);
+  }, [isLoading, hasError, renderAttempts]);
   
   // Handle WebGL and Three.js initialization errors
   useEffect(() => {
@@ -3022,25 +3043,34 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
       setHasError(true);
     };
     
-    // Check for WebGL support
+    // Check for WebGL support more thoroughly
     try {
       const canvas = document.createElement('canvas');
       const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      
       if (!gl) {
+        console.error("WebGL not supported by browser");
         handleError();
         return;
+      }
+      
+      // Check for minimal WebGL capabilities
+      const extensions = gl.getSupportedExtensions();
+      if (!extensions || extensions.length < 5) {
+        console.warn("Limited WebGL support detected");
       }
       
       // Force a re-render attempt if the canvas hasn't loaded yet
       if (!canvasLoaded && renderAttempts < 3) {
         const timer = setTimeout(() => {
-          console.log("Attempting to re-render the canvas...");
+          console.log(`Attempt ${renderAttempts + 1} to render the canvas...`);
           setRenderAttempts(prev => prev + 1);
         }, 1000);
         
         return () => clearTimeout(timer);
       }
     } catch (e) {
+      console.error("Error checking WebGL support:", e);
       handleError();
     }
     
@@ -3050,7 +3080,8 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
         e.message.includes('WebGL') || 
         e.message.includes('three') || 
         e.message.includes('R3F') ||
-        e.message.includes('Canvas')
+        e.message.includes('Canvas') ||
+        e.message.includes('INVALID_OPERATION')
       )) {
         console.error("WebGL error detected:", e.message);
         handleError();
@@ -3065,60 +3096,64 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
     return <FallbackScene />;
   }
   
-  // Wrap the Canvas in a try-catch during rendering
-  try {
-    return (
-      <Canvas 
-        shadows
-        className="w-full h-full"
-        camera={{ position: [80, 80, 80], fov: 50 }}
-        gl={{ 
-          antialias: true, 
-          alpha: false,
-          powerPreference: "high-performance",
-          failIfMajorPerformanceCaveat: false // Allow lower performance
-        }}
-        dpr={window.devicePixelRatio > 2 ? 1 : window.devicePixelRatio} // Limit DPR for better performance
-        onCreated={state => {
-          console.log("Canvas initialized");
-          // Force an initial render
-          state.gl.render(state.scene, state.camera);
-          // Mark as loaded after a short delay to ensure everything is rendered
-          setTimeout(() => {
-            setCanvasLoaded(true);
-          }, 100);
-        }}
-        style={{ background: "#87ceeb" }} // Default sky blue background
-        linear
-        flat // Use flat shading for better performance
-      >
-        {/* Fallback content while loading */}
-        {!canvasLoaded && (
-          <>
-            <ambientLight intensity={1} />
-            <pointLight position={[10, 10, 10]} />
-            <mesh>
-              <boxGeometry args={[1, 1, 1]} />
-              <meshStandardMaterial color="hotpink" />
-            </mesh>
-          </>
-        )}
+  // Simplified Canvas configuration for better compatibility
+  return (
+    <Canvas 
+      shadows={false} // Disable shadows initially for better performance
+      className="w-full h-full"
+      camera={{ position: [80, 80, 80], fov: 50 }}
+      gl={{ 
+        antialias: false, // Disable antialiasing for better performance
+        alpha: false,
+        powerPreference: "default", // Try default first
+        failIfMajorPerformanceCaveat: false, // Allow lower performance
+        precision: "lowp", // Use lower precision for better performance
+      }}
+      dpr={[1, 1.5]} // Limit DPR for better performance
+      onCreated={state => {
+        console.log("Canvas initialized");
         
-        {/* Actual scene content */}
-        {canvasLoaded && (
-          <SceneContent 
-            onAgentClick={onAgentClick} 
-            timeOfDay={timeOfDay} 
-            setTimeOfDay={setTimeOfDay} 
-            onTimeChange={onTimeChange}
-          />
-        )}
+        // Enable shadow mapping only if device seems capable
+        if (state.gl.capabilities.maxVertexUniforms > 4096) {
+          state.gl.shadowMap.enabled = true;
+        }
+        
+        // Force an initial render
+        state.gl.render(state.scene, state.camera);
+        
+        // Mark as loaded after a short delay to ensure everything is rendered
+        setTimeout(() => {
+          setCanvasLoaded(true);
+          setIsLoading(false);
+        }, 1000);
+      }}
+      style={{ background: "#87ceeb" }} // Default sky blue background
+      linear
+      flat // Use flat shading for better performance
+    >
+      {/* Fallback content while loading */}
+      {!canvasLoaded && (
+        <>
+          <ambientLight intensity={1} />
+          <pointLight position={[10, 10, 10]} />
+          <mesh>
+            <boxGeometry args={[1, 1, 1]} />
+            <meshStandardMaterial color="hotpink" />
+          </mesh>
+        </>
+      )}
+      
+      {/* Actual scene content */}
+      {canvasLoaded && (
+        <SceneContent 
+          onAgentClick={onAgentClick} 
+          timeOfDay={timeOfDay} 
+          setTimeOfDay={setTimeOfDay} 
+          onTimeChange={onTimeChange}
+        />
+      )}
     </Canvas>
   );
-  } catch (error) {
-    console.error("Error rendering Three.js Canvas:", error);
-    return <FallbackScene />;
-  }
 };
 
 export default MainGameScene;
