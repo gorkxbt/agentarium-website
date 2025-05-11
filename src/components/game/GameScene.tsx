@@ -40,7 +40,7 @@ function SimulationScene({ agents, buildings, resources, interactions, selectedA
   useFrame(() => {
     camera.position.set(20, 20, 20);
     camera.lookAt(0, 0, 0);
-  }, []);
+  });
 
   return (
     <>
