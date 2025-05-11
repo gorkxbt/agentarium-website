@@ -14,6 +14,26 @@ import {
 } from '@react-three/drei';
 import * as THREE from 'three';
 
+// Force a better initialization of WebGL context
+if (typeof window !== 'undefined') {
+  try {
+    // Create a canvas element to pre-initialize WebGL context
+    const preInitCanvas = document.createElement('canvas');
+    const preInitContext = preInitCanvas.getContext('webgl', { 
+      failIfMajorPerformanceCaveat: false,
+      powerPreference: 'default'
+    });
+    
+    // Force the context to initialize
+    if (preInitContext) {
+      preInitContext.clearColor(0, 0, 0, 1);
+      preInitContext.clear(preInitContext.COLOR_BUFFER_BIT);
+    }
+  } catch (e) {
+    console.warn('Failed pre-initialization of WebGL context', e);
+  }
+}
+
 // Define types for components
 interface AgentProps {
   position: [number, number, number];
@@ -3053,9 +3073,24 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
       console.log("Detected potentially low-performance environment, using simple renderer");
       setUseSimpleRenderer(true);
     }
+    
+    // Fix for black screen in some cases by adding a forced GPU style fix
+    const fixGPUStyle = document.createElement('style');
+    fixGPUStyle.textContent = `
+      canvas {
+        transform: translateZ(0);
+        backface-visibility: hidden;
+        perspective: 1000px;
+      }
+    `;
+    document.head.appendChild(fixGPUStyle);
+    
+    return () => {
+      fixGPUStyle.remove();
+    };
   }, []);
   
-  // Add loading timeout and auto-recovery
+  // Add loading timeout and auto-recovery with shorter timeout
   useEffect(() => {
     // Set a timeout to detect loading hangs
     const loadingTimeout = setTimeout(() => {
@@ -3075,7 +3110,7 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
         setIsLoading(true);
         setRenderAttempts(prev => prev + 1);
       }
-    }, 6000); // Reduced from 8 seconds to 6 seconds
+    }, 5000); // Reduced to 5 seconds to detect hangs faster
     
     return () => clearTimeout(loadingTimeout);
   }, [isLoading, hasError, renderAttempts, useSimpleRenderer]);
@@ -3091,14 +3126,18 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
     try {
       const canvas = document.createElement('canvas');
       // Explicitly type the WebGL context
-      const gl = canvas.getContext('webgl') as WebGLRenderingContext | null || 
-                 canvas.getContext('experimental-webgl') as WebGLRenderingContext | null;
+      const gl = canvas.getContext('webgl', { failIfMajorPerformanceCaveat: false }) as WebGLRenderingContext | null || 
+                 canvas.getContext('experimental-webgl', { failIfMajorPerformanceCaveat: false }) as WebGLRenderingContext | null;
       
       if (!gl) {
         console.error("WebGL not supported by browser");
         handleError();
         return;
       }
+      
+      // Force initialize the WebGL context to detect any startup issues
+      gl.clearColor(0.0, 0.0, 0.0, 1.0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
       
       // Check for minimal WebGL capabilities with proper typing
       try {
@@ -3140,8 +3179,19 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
       }
     };
     
+    // Handle Promise rejection errors too
+    const rejectionHandler = () => {
+      console.error("Unhandled promise rejection - possible WebGL initialization error");
+      handleError();
+    };
+    
     window.addEventListener('error', errorHandler);
-    return () => window.removeEventListener('error', errorHandler);
+    window.addEventListener('unhandledrejection', rejectionHandler);
+    
+    return () => {
+      window.removeEventListener('error', errorHandler);
+      window.removeEventListener('unhandledrejection', rejectionHandler);
+    };
   }, [canvasLoaded, renderAttempts]);
   
   // Use simple static fallback if there are errors
@@ -3183,14 +3233,12 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
         console.log("Canvas initialized with renderer:", 
           useSimpleRenderer ? "simple mode" : "standard mode");
         
-        // Enable shadow mapping only if device seems capable and not using simple renderer
-        if (!useSimpleRenderer && state.gl.capabilities.maxVertexUniforms > 4096) {
-          state.gl.shadowMap.enabled = true;
-        }
+        // Force disable shadow mapping for performance
+        state.gl.shadowMap.enabled = false;
         
-        // Reduce the scene complexity for simple renderer
+        // Reduce scene complexity to improve performance
+        state.gl.setClearColor(new THREE.Color("#121212"));
         if (useSimpleRenderer) {
-          state.gl.setClearColor(new THREE.Color("#121212"));
           state.scene.fog = null; // Remove fog in simple mode
           
           // Reduce the pixel ratio even further if it seems to be a low-end device
@@ -3199,14 +3247,19 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
           }
         }
         
-        // Force an initial render
-        state.gl.render(state.scene, state.camera);
-        
-        // Mark as loaded after a short delay to ensure everything is rendered
-        setTimeout(() => {
-          setCanvasLoaded(true);
-          setIsLoading(false);
-        }, 1000);
+        // Force an initial render to detect any immediate issues
+        try {
+          state.gl.render(state.scene, state.camera);
+          
+          // Mark as loaded after a short delay to ensure everything is rendered
+          setTimeout(() => {
+            setCanvasLoaded(true);
+            setIsLoading(false);
+          }, 1000);
+        } catch (err) {
+          console.error("Error during initial render:", err);
+          setHasError(true);
+        }
       }}
       style={{ background: "#121212" }} // Dark background
       linear
@@ -3246,18 +3299,18 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
       {/* Debug controls that appear after loading timeout */}
       {isLoading && renderAttempts > 1 && (
         <Html position={[0, 20, 0]} center>
-          <div className="bg-black/80 text-white p-4 rounded-lg" style={{ width: '200px' }}>
-            <div className="text-center">Loading taking too long</div>
-            <div className="flex mt-2">
+          <div className="bg-black/80 text-white p-4 rounded-lg text-center" style={{ width: '200px' }}>
+            <p className="text-sm mb-2">Loading taking longer than expected</p>
+            <div className="flex justify-center space-x-2 mt-2">
               <button 
                 onClick={handleRefresh}
-                className="bg-green-800 text-white px-2 py-1 rounded mr-1 text-xs"
+                className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
               >
                 Refresh
               </button>
               <button 
                 onClick={handleSimpleMode}
-                className="bg-blue-800 text-white px-2 py-1 rounded ml-1 text-xs"
+                className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
               >
                 Simple Mode
               </button>
