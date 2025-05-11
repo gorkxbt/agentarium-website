@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agentarium - Loading...</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      background-color: #121212;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+    .logo {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+    .message {
+      font-size: 1.2rem;
+      margin-bottom: 2rem;
+    }
+    .loading {
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(29, 185, 84, 0.3);
+      border-radius: 50%;
+      border-top-color: #1DB954;
+      animation: spin 1s infinite linear;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .highlight {
+      color: #1DB954;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="logo">🤖 <span class="highlight">Agentarium</span></div>
+  <div class="message">Loading the decentralized AI simulation game...</div>
+  <div class="loading"></div>
+  <p>If you continue to see this page, please visit <a href="/" style="color: #1DB954;">the homepage</a>.</p>
+</body>
+</html> 
