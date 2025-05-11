@@ -388,37 +388,24 @@ function SimulationScene({ agents, buildings, resources, interactions, selectedA
 
 // Main component
 const GameSimulation = ({ onAgentSelect }: GameSimulationProps) => {
-  const [isSimulationActive, setIsSimulationActive] = useState(true);
-  const simulationRef = useRef<{
-    agents: Agent[];
-    buildings: Building[];
-    resources: Resource[];
-    interactions: Interaction[];
-    width: number;
-    height: number;
-    selectedAgentId: number | null;
-  }>({
-    agents: [],
-    buildings: [],
-    resources: [],
-    interactions: [],
-    width: 40,
-    height: 40,
-    selectedAgentId: null
-  });
-  
-  // Animation controls
-  const [isAnimating, setIsAnimating] = useState(true);
-  
-  // Toggle simulation
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [buildings, setBuildings] = useState<Building[]>([]);
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [interactions, setInteractions] = useState<Interaction[]>([]);
+  const [isRunning, setIsRunning] = useState(true);
+  const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
+  const [showAgentDetails, setShowAgentDetails] = useState(false);
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+
   const toggleSimulation = () => {
-    setIsAnimating(!isAnimating);
+    setIsRunning(!isRunning);
   };
   
   // Helper to set a wandering target
   const setWanderingTarget = (agent: Agent) => {
     const margin = 5;
-    const simulation = simulationRef.current;
+    const simulation = { agents, buildings, resources, interactions, width: 40, height: 40 };
     agent.targetPosition = {
       x: margin + Math.random() * (simulation.width - 2 * margin),
       y: margin + Math.random() * (simulation.height - 2 * margin)
@@ -460,7 +447,7 @@ const GameSimulation = ({ onAgentSelect }: GameSimulationProps) => {
   
   // Set a new target for an agent
   const setNewAgentTarget = (agent: Agent) => {
-    const simulation = simulationRef.current;
+    const simulation = { agents, buildings, resources, interactions, width: 40, height: 40 };
     
     // Sometimes go to a resource
     if (Math.random() < 0.4 && simulation.resources.length > 0) {
@@ -495,303 +482,254 @@ const GameSimulation = ({ onAgentSelect }: GameSimulationProps) => {
     }
   };
   
-  // Initialize the simulation
-  useEffect(() => {
-    if (!isSimulationActive) return;
+  // Helper functions to generate simulation elements
+  const getRandomPosition = (marginX = 5, marginY = 5) => ({
+    x: -20 + marginX + Math.random() * (40 - 2 * marginX),
+    y: -20 + marginY + Math.random() * (40 - 2 * marginY)
+  });
+  
+  const createBuildings = () => {
+    const buildings: Building[] = [];
+    const buildingCount = 5;
     
-    const simulation = simulationRef.current;
-    const gridSize = 40;
-    
-    simulation.width = gridSize;
-    simulation.height = gridSize;
-    
-    // Helper to generate random positions on the terrain
-    const getRandomPosition = (marginX = 5, marginY = 5) => ({
-      x: -gridSize / 2 + marginX + Math.random() * (gridSize - 2 * marginX),
-      y: -gridSize / 2 + marginY + Math.random() * (gridSize - 2 * marginY)
-    });
-    
-    // Create buildings
-    const createBuildings = () => {
-      const buildings: Building[] = [];
-      const buildingCount = 5;
+    for (let i = 0; i < buildingCount; i++) {
+      const buildingType = BUILDING_TYPES[i % BUILDING_TYPES.length];
+      const buildingSize = 2 + Math.random() * 3;
       
-      for (let i = 0; i < buildingCount; i++) {
-        const buildingType = BUILDING_TYPES[i % BUILDING_TYPES.length];
-        const buildingSize = 2 + Math.random() * 3;
-        
-        buildings.push({
-          id: i,
-          position: getRandomPosition(10, 10),
-          size: { 
-            width: buildingSize, 
-            height: 2 + Math.random() * 3,
-            depth: buildingSize
-          },
-          type: buildingType.type,
-          color: buildingType.color
-        });
-      }
-      
-      return buildings;
-    };
-    
-    // Create resources
-    const createResources = () => {
-      const resources: Resource[] = [];
-      const resourceCount = 15;
-      const resourceTypes = ['Energy', 'Tokens', 'Materials', 'Data', 'Artifacts'];
-      const resourceColors = ['#FFC107', '#9C27B0', '#E91E63', '#03A9F4', '#4CAF50'];
-      
-      for (let i = 0; i < resourceCount; i++) {
-        const typeIndex = Math.floor(Math.random() * resourceTypes.length);
-        
-        resources.push({
-          id: i,
-          position: getRandomPosition(),
-          type: resourceTypes[typeIndex],
-          value: 10 + Math.floor(Math.random() * 90),
-          color: resourceColors[typeIndex]
-        });
-      }
-      
-      return resources;
-    };
-    
-    // Create agents
-    const createAgents = () => {
-      const agents: Agent[] = [];
-      const agentCount = 20;
-      
-      for (let i = 0; i < agentCount; i++) {
-        const agentType = AGENT_TYPES[i % AGENT_TYPES.length];
-        const position = getRandomPosition();
-        
-        const agent: Agent = {
-          id: i,
-          position: position,
-          targetPosition: position, // Start at the same spot
-          type: agentType.type,
-          color: agentType.color,
-          icon: agentType.icon,
-          speed: 0.05 + Math.random() * 0.05,
-          state: 'wandering',
-          stateTimer: 0,
-          trajectory: [],
-          resources: Math.floor(Math.random() * 50)
-        };
-        
-        // Set initial target
-        setNewAgentTarget(agent);
-        
-        agents.push(agent);
-      }
-      
-      return agents;
-    };
-    
-    // Initialize the simulation
-    simulation.buildings = createBuildings();
-    simulation.resources = createResources();
-    simulation.agents = createAgents();
-    simulation.interactions = [];
-    
-    const updateInterval = setInterval(() => {
-      if (!isAnimating) return;
-      
-      // Update agents
-      for (const agent of simulation.agents) {
-        // Update state timer
-        if (agent.stateTimer > 0) {
-          agent.stateTimer -= 1;
-          
-          if (agent.stateTimer <= 0) {
-            // State transition
-            if (agent.state === 'gathering') {
-              // Finish gathering, return to wandering
-              agent.resources += 10 + Math.floor(Math.random() * 20);
-              setNewAgentTarget(agent);
-            } else if (agent.state === 'entering') {
-              // Enter the building
-              agent.state = 'inside';
-              agent.stateTimer = 100 + Math.floor(Math.random() * 200);
-            } else if (agent.state === 'inside') {
-              // Exit the building
-              agent.state = 'exiting';
-              
-              // Find the building
-              const building = simulation.buildings.find(b => b.id === agent.targetId);
-              if (building) {
-                agent.position = {
-                  x: building.position.x,
-                  y: building.position.y + building.size.width / 2
-                };
-                
-                // Go somewhere new
-                setNewAgentTarget(agent);
-              } else {
-                setWanderingTarget(agent);
-              }
-            } else if (agent.state === 'trading') {
-              // Finish trading, go somewhere new
-              setNewAgentTarget(agent);
-            } else {
-              // Default: set a new target
-              setNewAgentTarget(agent);
-            }
-          }
-        }
-        
-        // Move the agent along its trajectory if not inside a building
-        if (agent.state !== 'inside' && agent.trajectory.length > 0) {
-          // Calculate distance to the next trajectory point
-          const nextPoint = agent.trajectory[0];
-          const dx = nextPoint.x - agent.position.x;
-          const dy = nextPoint.y - agent.position.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          
-          // Move towards the next point
-          const stepSize = Math.min(agent.speed, distance);
-          if (stepSize > 0) {
-            agent.position.x += (dx / distance) * stepSize;
-            agent.position.y += (dy / distance) * stepSize;
-          }
-          
-          // If we've reached this point, remove it and go to the next one
-          if (stepSize >= distance) {
-            agent.trajectory.shift();
-            
-            // If we've reached the end of the trajectory
-            if (agent.trajectory.length === 0) {
-              // We've reached the target
-              if (agent.state === 'gathering') {
-                // Create a gathering interaction
-                const resource = simulation.resources.find(r => r.id === agent.targetId);
-                if (resource) {
-                  simulation.interactions.push({
-                    position: { ...resource.position },
-                    type: 'gathering',
-                    timer: 60 + Math.floor(Math.random() * 60),
-                    agents: [agent.id]
-                  });
-                }
-              } else if (agent.state === 'entering') {
-                // Agent disappears inside the building
-                const building = simulation.buildings.find(b => b.id === agent.targetId);
-                if (building) {
-                  agent.position = {
-                    x: building.position.x,
-                    y: building.position.y + building.size.width / 2
-                  };
-                }
-              }
-            }
-          }
-        }
-      }
-      
-      // Update interactions
-      simulation.interactions = simulation.interactions.filter(interaction => {
-        interaction.timer -= 1;
-        return interaction.timer > 0;
+      buildings.push({
+        id: i,
+        position: getRandomPosition(10, 10),
+        size: { 
+          width: buildingSize, 
+          height: 2 + Math.random() * 3,
+          depth: buildingSize
+        },
+        type: buildingType.type,
+        color: buildingType.color
       });
-      
-      // Create new interactions
-      const agentPairs = new Set<string>();
-      for (let i = 0; i < simulation.agents.length; i++) {
-        for (let j = i + 1; j < simulation.agents.length; j++) {
-          const agent1 = simulation.agents[i];
-          const agent2 = simulation.agents[j];
-          
-          // Skip if either agent is inside a building
-          if (agent1.state === 'inside' || agent2.state === 'inside') continue;
-          
-          // Check proximity
-          const dx = agent1.position.x - agent2.position.x;
-          const dy = agent1.position.y - agent2.position.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          
-          if (distance < 3 && Math.random() < 0.01) {
-            const pairKey = `${agent1.id}-${agent2.id}`;
-            if (!agentPairs.has(pairKey)) {
-              agentPairs.add(pairKey);
-              
-              // They're close enough - create a trading interaction
-              if (agent1.state === 'wandering' && agent2.state === 'wandering') {
-                agent1.state = 'trading';
-                agent2.state = 'trading';
-                agent1.stateTimer = 50 + Math.floor(Math.random() * 50);
-                agent2.stateTimer = agent1.stateTimer;
-                
-                // Create an interaction
-                simulation.interactions.push({
-                  position: {
-                    x: (agent1.position.x + agent2.position.x) / 2,
-                    y: (agent1.position.y + agent2.position.y) / 2
-                  },
-                  type: 'trading',
-                  timer: agent1.stateTimer,
-                  agents: [agent1.id, agent2.id]
-                });
-              }
-            }
-          }
-        }
-      }
-    }, 50);
+    }
     
-    return () => {
-      clearInterval(updateInterval);
+    return buildings;
+  };
+  
+  const createResources = () => {
+    const resources: Resource[] = [];
+    const resourceCount = 15;
+    const resourceTypes = ['Energy', 'Tokens', 'Materials', 'Data', 'Artifacts'];
+    const resourceColors = ['#FFC107', '#9C27B0', '#E91E63', '#03A9F4', '#4CAF50'];
+    
+    for (let i = 0; i < resourceCount; i++) {
+      const typeIndex = Math.floor(Math.random() * resourceTypes.length);
+      
+      resources.push({
+        id: i,
+        position: getRandomPosition(),
+        type: resourceTypes[typeIndex],
+        value: 10 + Math.floor(Math.random() * 90),
+        color: resourceColors[typeIndex]
+      });
+    }
+    
+    return resources;
+  };
+  
+  const createAgents = () => {
+    const agents: Agent[] = [];
+    const agentCount = 20;
+    
+    for (let i = 0; i < agentCount; i++) {
+      const agentType = AGENT_TYPES[i % AGENT_TYPES.length];
+      const position = getRandomPosition();
+      
+      const agent: Agent = {
+        id: i,
+        position: position,
+        targetPosition: position, // Start at the same spot
+        type: agentType.type,
+        color: agentType.color,
+        icon: agentType.icon,
+        speed: 0.05 + Math.random() * 0.05,
+        state: 'wandering',
+        stateTimer: 0,
+        trajectory: [],
+        resources: Math.floor(Math.random() * 50)
+      };
+      
+      // Set initial target
+      setNewAgentTarget(agent);
+      
+      agents.push(agent);
+    }
+    
+    return agents;
+  };
+
+  useEffect(() => {
+    // Initialize the simulation
+    const initSimulation = () => {
+      setBuildings(createBuildings());
+      setResources(createResources());
+      setAgents(createAgents());
     };
-  }, [isSimulationActive, isAnimating]);
+
+    initSimulation();
+  }, []);
   
   // Handle agent clicks
   const handleAgentClick = (agentId: number) => {
-    const sim = simulationRef.current;
-    sim.selectedAgentId = agentId;
-    
-    if (onAgentSelect) {
-      const agent = sim.agents.find(a => a.id === agentId);
-      if (agent) {
+    const agent = agents.find(a => a.id === agentId);
+    if (agent) {
+      setSelectedAgentId(agentId);
+      setSelectedAgent(agent);
+      setShowAgentDetails(true);
+      if (onAgentSelect) {
         onAgentSelect(agent.type);
       }
     }
   };
   
+  const closeAgentDetails = () => {
+    setShowAgentDetails(false);
+    setSelectedAgentId(null);
+  };
+  
   return (
-    <>
-      <div className="w-full h-full rounded-lg overflow-hidden">
-        <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-agent-black">Loading simulation...</div>}>
-          <Canvas shadows style={{ background: '#121212' }}>
-            <SimulationScene 
-              agents={simulationRef.current.agents}
-              buildings={simulationRef.current.buildings}
-              resources={simulationRef.current.resources}
-              interactions={simulationRef.current.interactions}
-              selectedAgentId={simulationRef.current.selectedAgentId}
-              onAgentClick={handleAgentClick}
-            />
-          </Canvas>
+    <div className="relative w-full h-[600px] md:h-[800px] rounded-lg overflow-hidden" ref={canvasRef}>
+      <Canvas shadows camera={{ position: [15, 15, 15], fov: 50 }}>
+        <Suspense fallback={null}>
+          <ambientLight intensity={0.5} />
+          <directionalLight 
+            position={[10, 10, 10]} 
+            intensity={1} 
+            castShadow 
+            shadow-mapSize-width={2048} 
+            shadow-mapSize-height={2048}
+            shadow-camera-far={50}
+            shadow-camera-left={-20}
+            shadow-camera-right={20}
+            shadow-camera-top={20}
+            shadow-camera-bottom={-20}
+          />
+          <pointLight position={[0, 10, 0]} intensity={0.5} />
+          <fog attach="fog" args={['#121212', 10, 50]} />
+          
+          <Environment preset="night" />
+          <Ground />
+          
+          <SimulationScene 
+            agents={agents} 
+            buildings={buildings} 
+            resources={resources} 
+            interactions={interactions}
+            selectedAgentId={selectedAgentId}
+            onAgentClick={handleAgentClick}
+          />
+          
+          <OrbitControls 
+            maxPolarAngle={Math.PI / 2.2}
+            minDistance={5}
+            maxDistance={30}
+            enablePan={true}
+          />
         </Suspense>
-      </div>
-      <div className="absolute bottom-4 right-4 flex space-x-2">
-        <button
+      </Canvas>
+      
+      <div className="absolute bottom-4 left-4 right-4 flex justify-between">
+        <button 
           onClick={toggleSimulation}
-          className="bg-agent-black/70 backdrop-blur-sm text-white p-2 rounded-md hover:bg-agent-black transition-colors"
+          className="px-4 py-2 bg-agent-green-muted/80 text-white rounded-md hover:bg-agent-green-muted transition"
         >
-          {isAnimating ? (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="6" y="4" width="4" height="16"></rect>
-              <rect x="14" y="4" width="4" height="16"></rect>
-            </svg>
-          ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="5 3 19 12 5 21 5 3"></polygon>
-            </svg>
-          )}
+          {isRunning ? 'Pause' : 'Resume'}
         </button>
+        
+        <div className="flex space-x-2">
+          <button 
+            className="px-4 py-2 bg-agent-green-muted/80 text-white rounded-md hover:bg-agent-green-muted transition"
+            onClick={() => {
+              setBuildings(createBuildings());
+              setResources(createResources());
+              setAgents(createAgents());
+            }}
+          >
+            Reset
+          </button>
+        </div>
       </div>
-    </>
+      
+      {showAgentDetails && selectedAgent && (
+        <div className="absolute top-4 right-4 w-80 bg-black/80 backdrop-blur-lg p-4 rounded-lg border border-agent-green-muted/30">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-lg font-bold text-white">{selectedAgent.type} Agent</h3>
+            <button 
+              onClick={closeAgentDetails}
+              className="text-white/70 hover:text-white"
+            >
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className="h-5 w-5" 
+                viewBox="0 0 20 20" 
+                fill="currentColor"
+              >
+                <path 
+                  fillRule="evenodd" 
+                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" 
+                  clipRule="evenodd" 
+                />
+              </svg>
+            </button>
+          </div>
+          
+          <div className="flex items-center mb-3">
+            <div 
+              className="w-10 h-10 rounded-full flex items-center justify-center text-xl mr-3"
+              style={{ backgroundColor: `${selectedAgent.color}30` }}
+            >
+              {selectedAgent.icon}
+            </div>
+            <div>
+              <div className="text-agent-green font-medium">Agent #{selectedAgent.id}</div>
+              <div className="text-white/70 text-sm">State: {selectedAgent.state}</div>
+            </div>
+          </div>
+          
+          <div className="mb-3">
+            <div className="text-sm text-white/70 mb-1">Resources Collected</div>
+            <div className="h-2 bg-agent-green-muted/30 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-agent-green-muted" 
+                style={{ width: `${Math.min(selectedAgent.resources / 10 * 100, 100)}%` }}
+              ></div>
+            </div>
+            <div className="text-right text-xs text-white/70 mt-1">
+              {selectedAgent.resources} / 10
+            </div>
+          </div>
+          
+          <div>
+            <div className="text-sm text-white/70 mb-2">Current Activity</div>
+            <div className="p-2 bg-agent-black rounded border border-white/10 text-sm text-white/80">
+              {selectedAgent.state === 'wandering' && 'Looking for opportunities in the environment'}
+              {selectedAgent.state === 'gathering' && 'Collecting resources from the environment'}
+              {selectedAgent.state === 'entering' && 'Entering a building for processing'}
+              {selectedAgent.state === 'inside' && 'Inside a building performing tasks'}
+              {selectedAgent.state === 'exiting' && 'Leaving a building after completing tasks'}
+              {selectedAgent.state === 'trading' && 'Trading resources with other agents'}
+            </div>
+          </div>
+          
+          <div className="mt-3 pt-3 border-t border-white/10">
+            <div className="text-sm text-white/70 mb-2">Agent Traits</div>
+            <div className="flex flex-wrap gap-2">
+              {AGENT_TYPES.find(a => a.type === selectedAgent.type)?.traits.map((trait, i) => (
+                <span key={i} className="px-2 py-1 bg-agent-green-muted/20 text-agent-green-muted text-xs rounded">
+                  {trait}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

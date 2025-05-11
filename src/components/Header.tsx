@@ -12,10 +12,7 @@ const Header = () => {
   // Navigation links
   const navLinks = [
     { label: 'Home', href: '/' },
-    { label: 'Agents', href: '/#agents' },
-    { label: 'Gameplay', href: '/#gameplay' },
-    { label: 'Tokenomics', href: '/#tokenomics' },
-    { label: 'Documentation', href: '/docs' }
+    { label: 'Tokenomics', href: '/#tokenomics' }
   ];
   
   // Check if a link is active
