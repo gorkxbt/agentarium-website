@@ -83,31 +83,117 @@ const Agent: React.FC<AgentProps> = ({ position, color, speed, agentData, onAgen
       new THREE.Vector3(2 * BLOCK_SIZE, 0, 0),
       // Houses
       new THREE.Vector3(0, 0, 2 * BLOCK_SIZE),
-      // Random road points
+      // Road points (safer navigation)
       new THREE.Vector3(-BLOCK_SIZE, 0, 0),
       new THREE.Vector3(0, 0, -BLOCK_SIZE),
       new THREE.Vector3(0, 0, BLOCK_SIZE),
-      new THREE.Vector3(BLOCK_SIZE, 0, 0)
+      new THREE.Vector3(BLOCK_SIZE, 0, 0),
+      // Road intersections
+      new THREE.Vector3(-BLOCK_SIZE, 0, -BLOCK_SIZE - ROAD_WIDTH/2), // Near bank
+      new THREE.Vector3(BLOCK_SIZE, 0, -BLOCK_SIZE - ROAD_WIDTH/2),  // Near police
+      new THREE.Vector3(-BLOCK_SIZE, 0, BLOCK_SIZE + ROAD_WIDTH/2),  // Near market
+      new THREE.Vector3(BLOCK_SIZE, 0, BLOCK_SIZE + ROAD_WIDTH/2)    // Near hotel
     ];
     return points;
   }, []);
   
-  // Create a new target when agent reaches current target
-  const updateTarget = () => {
-    // Pick a random destination from the list
+  // Building boundaries to avoid collisions
+  const buildingBoundaries = useMemo(() => [
+    // Bank area
+    {
+      center: new THREE.Vector2(-BLOCK_SIZE, -BLOCK_SIZE),
+      size: new THREE.Vector2(20, 20)
+    },
+    // Police area
+    {
+      center: new THREE.Vector2(BLOCK_SIZE, -BLOCK_SIZE),
+      size: new THREE.Vector2(15, 15)
+    },
+    // Market area
+    {
+      center: new THREE.Vector2(-BLOCK_SIZE, BLOCK_SIZE),
+      size: new THREE.Vector2(20, 20)
+    },
+    // Hotel area
+    {
+      center: new THREE.Vector2(BLOCK_SIZE, BLOCK_SIZE),
+      size: new THREE.Vector2(15, 15)
+    },
+    // Gas station area
+    {
+      center: new THREE.Vector2(0, -2 * BLOCK_SIZE),
+      size: new THREE.Vector2(10, 8)
+    },
+    // Office buildings
+    {
+      center: new THREE.Vector2(-2 * BLOCK_SIZE, 0),
+      size: new THREE.Vector2(12, 12)
+    },
+    {
+      center: new THREE.Vector2(2 * BLOCK_SIZE, 0),
+      size: new THREE.Vector2(15, 15)
+    },
+    // Houses (simplified as one area)
+    {
+      center: new THREE.Vector2(0, 2 * BLOCK_SIZE),
+      size: new THREE.Vector2(30, 15)
+    }
+  ], []);
+  
+  // Check if a position is inside a building
+  const isInsideBuilding = (x: number, z: number): boolean => {
+    return buildingBoundaries.some(boundary => {
+      return (
+        x > boundary.center.x - boundary.size.x/2 &&
+        x < boundary.center.x + boundary.size.x/2 &&
+        z > boundary.center.y - boundary.size.y/2 &&
+        z < boundary.center.y + boundary.size.y/2
+      );
+    });
+  };
+  
+  // Find a valid position on the road
+  const findValidPosition = (): THREE.Vector3 => {
+    // Start with a random destination
     const randomDestination = destinations[Math.floor(Math.random() * destinations.length)];
     
-    // Add some randomness to the exact position
-    targetRef.current.set(
-      randomDestination.x + (Math.random() * 10 - 5),
-      position[1],
-      randomDestination.z + (Math.random() * 10 - 5)
-    );
+    // Try to find a position near the destination that's on a road
+    for (let i = 0; i < 10; i++) { // Try up to 10 times
+      const offsetX = Math.random() * 10 - 5;
+      const offsetZ = Math.random() * 10 - 5;
+      const x = randomDestination.x + offsetX;
+      const z = randomDestination.z + offsetZ;
+      
+      // Check if on a road (near a multiple of BLOCK_SIZE)
+      const isOnRoadX = Math.abs(x % BLOCK_SIZE) < ROAD_WIDTH/2;
+      const isOnRoadZ = Math.abs(z % BLOCK_SIZE) < ROAD_WIDTH/2;
+      
+      if ((isOnRoadX || isOnRoadZ) && !isInsideBuilding(x, z)) {
+        return new THREE.Vector3(x, position[1], z);
+      }
+    }
+    
+    // If we couldn't find a valid position, return a position on a main road
+    const roadIndex = Math.floor(Math.random() * 4);
+    switch (roadIndex) {
+      case 0: return new THREE.Vector3(0, position[1], Math.random() * CITY_SIZE - CITY_SIZE/2);
+      case 1: return new THREE.Vector3(Math.random() * CITY_SIZE - CITY_SIZE/2, position[1], 0);
+      case 2: return new THREE.Vector3(BLOCK_SIZE, position[1], Math.random() * CITY_SIZE - CITY_SIZE/2);
+      case 3: return new THREE.Vector3(Math.random() * CITY_SIZE - CITY_SIZE/2, position[1], BLOCK_SIZE);
+      default: return new THREE.Vector3(0, position[1], 0);
+    }
+  };
+  
+  // Create a new target when agent reaches current target
+  const updateTarget = () => {
+    const newTarget = findValidPosition();
+    targetRef.current.copy(newTarget);
   };
   
   // Agent state
   const [currentState, setCurrentState] = React.useState('walking');
   const [stateTimer, setStateTimer] = React.useState(0);
+  const [showTrail, setShowTrail] = React.useState(true); // Use state for trail visibility
   
   // Update agent state periodically
   useEffect(() => {
@@ -116,12 +202,15 @@ const Agent: React.FC<AgentProps> = ({ position, color, speed, agentData, onAgen
       const rand = Math.random();
       if (rand < 0.2) {
         setCurrentState('idle');
+        setShowTrail(false);
         setStateTimer(Math.random() * 5 + 2); // Idle for 2-7 seconds
       } else if (rand < 0.5) {
         setCurrentState('working');
+        setShowTrail(false);
         setStateTimer(Math.random() * 10 + 5); // Work for 5-15 seconds
       } else {
         setCurrentState('walking');
+        setShowTrail(true);
         updateTarget(); // Get a new destination
       }
     }, stateTimer * 1000);
@@ -140,13 +229,37 @@ const Agent: React.FC<AgentProps> = ({ position, color, speed, agentData, onAgen
       // If close to target, update state
       if (direction.length() < 0.5) {
         setCurrentState('idle');
+        setShowTrail(false);
         setStateTimer(Math.random() * 3 + 1); // Idle for 1-4 seconds
         return;
       }
       
-      // Normalize and scale by speed
+      // Calculate next position
+      const nextPosition = new THREE.Vector3().copy(meshRef.current.position);
       direction.normalize().multiplyScalar(delta * speed);
-      meshRef.current.position.add(direction);
+      nextPosition.add(direction);
+      
+      // Check if next position is valid (not inside a building)
+      if (!isInsideBuilding(nextPosition.x, nextPosition.z)) {
+        meshRef.current.position.copy(nextPosition);
+      } else {
+        // If we'd hit a building, try to move along the building
+        // by preserving one coordinate and only moving along the other
+        const tryX = new THREE.Vector3().copy(meshRef.current.position);
+        tryX.x += direction.x;
+        
+        const tryZ = new THREE.Vector3().copy(meshRef.current.position);
+        tryZ.z += direction.z;
+        
+        if (!isInsideBuilding(tryX.x, meshRef.current.position.z)) {
+          meshRef.current.position.x = tryX.x;
+        } else if (!isInsideBuilding(meshRef.current.position.x, tryZ.z)) {
+          meshRef.current.position.z = tryZ.z;
+        } else {
+          // If both directions would hit a building, get a new target
+          updateTarget();
+        }
+      }
       
       // Rotate to face direction of movement
       if (direction.length() > 0.01) {
@@ -214,61 +327,75 @@ const Agent: React.FC<AgentProps> = ({ position, color, speed, agentData, onAgen
   
   return (
     <group ref={meshRef} position={position} onClick={handleClick}>
-      <Trail
-        width={0.5}
-        color={color}
-        length={5}
-        decay={1}
-        attenuation={(width) => width}
-        visible={currentState === 'walking'}
-      >
-        <group>
-          {/* Agent body */}
-          <mesh castShadow>
-            <capsuleGeometry args={[0.5, 1, 8, 8]} />
-            <meshStandardMaterial color={color} />
+      {showTrail && (
+        <Trail
+          width={0.5}
+          color={color}
+          length={5}
+          decay={1}
+          attenuation={(width) => width}
+        >
+          <group>
+            <mesh castShadow>
+              <capsuleGeometry args={[0.5, 1, 8, 8]} />
+              <meshStandardMaterial color={color} />
+            </mesh>
+          </group>
+        </Trail>
+      )}
+      
+      {/* Agent body - always visible */}
+      <group>
+        {/* Agent body */}
+        <mesh castShadow>
+          <capsuleGeometry args={[0.5, 1, 8, 8]} />
+          <meshStandardMaterial color={color} />
+        </mesh>
+        
+        {/* Agent head */}
+        <mesh position={[0, 1.2, 0]} castShadow>
+          <sphereGeometry args={[0.4, 16, 16]} />
+          <meshStandardMaterial color={color} />
+        </mesh>
+        
+        {/* Status indicator */}
+        <mesh 
+          position={[0, 2, 0]} 
+          rotation={[0, 0, 0]}
+        >
+          <sphereGeometry args={[0.2, 8, 8]} />
+          <meshStandardMaterial 
+            color={
+              currentState === 'working' ? '#FFD700' : 
+              currentState === 'idle' ? '#CCCCCC' : '#00FF00'
+            } 
+            emissive={
+              currentState === 'working' ? '#FFD700' : 
+              currentState === 'idle' ? '#CCCCCC' : '#00FF00'
+            }
+            emissiveIntensity={0.5} 
+          />
+        </mesh>
+        
+        {/* Name tag with background */}
+        <group position={[0, 2.5, 0]}>
+          {/* Background */}
+          <mesh position={[0, 0, -0.05]}>
+            <planeGeometry args={[2, 0.7]} />
+            <meshBasicMaterial color="#000000" opacity={0.7} transparent />
           </mesh>
           
-          {/* Agent head */}
-          <mesh position={[0, 1.2, 0]} castShadow>
-            <sphereGeometry args={[0.4, 16, 16]} />
-            <meshStandardMaterial color={color} />
-          </mesh>
-          
-          {/* Status indicator */}
-          <mesh 
-            position={[0, 2, 0]} 
-            rotation={[0, 0, 0]}
-          >
-            <sphereGeometry args={[0.2, 8, 8]} />
-            <meshStandardMaterial 
-              color={
-                currentState === 'working' ? '#FFD700' : 
-                currentState === 'idle' ? '#CCCCCC' : '#00FF00'
-              } 
-              emissive={
-                currentState === 'working' ? '#FFD700' : 
-                currentState === 'idle' ? '#CCCCCC' : '#00FF00'
-              }
-              emissiveIntensity={0.5} 
-            />
-          </mesh>
-          
-          {/* Name tag */}
+          {/* Text */}
           <Text
-            position={[0, 2.5, 0]}
             fontSize={0.5}
             color="#FFFFFF"
             anchorX="center"
             anchorY="middle"
-            backgroundOpacity={0.8}
-            backgroundColor="#000000"
-            padding={0.1}
           >
             {agentData.name}
           </Text>
         </group>
-      </Trail>
+      </group>
     </group>
   );
 };
@@ -977,11 +1104,40 @@ const City: React.FC<{ onAgentClick: (agent: any) => void }> = ({ onAgentClick }
   // Generate random starting positions for agents
   const agentStartPositions = useMemo(() => {
     return agentData.map(() => {
-      const x = (Math.random() * 80 - 40);
-      const z = (Math.random() * 80 - 40);
+      // Start agents on roads
+      const roadChoice = Math.floor(Math.random() * 4);
+      let x, z;
+      
+      switch(roadChoice) {
+        case 0: // Horizontal road
+          x = Math.random() * CITY_SIZE - CITY_SIZE/2;
+          z = Math.floor(Math.random() * 5 - 2) * BLOCK_SIZE;
+          break;
+        case 1: // Vertical road
+          x = Math.floor(Math.random() * 5 - 2) * BLOCK_SIZE;
+          z = Math.random() * CITY_SIZE - CITY_SIZE/2;
+          break;
+        default:
+          // Intersection
+          x = Math.floor(Math.random() * 5 - 2) * BLOCK_SIZE;
+          z = Math.floor(Math.random() * 5 - 2) * BLOCK_SIZE;
+      }
+      
       return [x, 1, z] as [number, number, number];
     });
   }, []);
+  
+  // City map labels
+  const mapLabels = [
+    { position: [-BLOCK_SIZE, 0, -BLOCK_SIZE], name: "Bank" },
+    { position: [BLOCK_SIZE, 0, -BLOCK_SIZE], name: "Police" },
+    { position: [-BLOCK_SIZE, 0, BLOCK_SIZE], name: "Market" },
+    { position: [BLOCK_SIZE, 0, BLOCK_SIZE], name: "Hotel" },
+    { position: [0, 0, -2 * BLOCK_SIZE], name: "Gas" },
+    { position: [-2 * BLOCK_SIZE, 0, 0], name: "Tech Hub" },
+    { position: [2 * BLOCK_SIZE, 0, 0], name: "Finance" },
+    { position: [0, 0, 2 * BLOCK_SIZE], name: "Houses" }
+  ];
   
   return (
     <group>
@@ -1024,6 +1180,36 @@ const City: React.FC<{ onAgentClick: (agent: any) => void }> = ({ onAgentClick }
           AGENTARIUM CITY
         </Text>
       </Float>
+      
+      {/* City map labels - floating above buildings */}
+      {mapLabels.map((label, i) => (
+        <Float 
+          key={`label-${i}`}
+          speed={0.5} 
+          rotationIntensity={0.2} 
+          floatIntensity={0.3}
+          position={[label.position[0], label.position[1] + 25, label.position[2]]}
+        >
+          <group>
+            {/* Label background */}
+            <mesh position={[0, 0, 0]}>
+              <planeGeometry args={[label.name.length * 0.8 + 1, 1.5]} />
+              <meshBasicMaterial color="#000000" opacity={0.5} transparent />
+            </mesh>
+            
+            {/* Label text */}
+            <Text
+              position={[0, 0, 0.1]}
+              fontSize={1}
+              color="#FFFFFF"
+              anchorX="center"
+              anchorY="middle"
+            >
+              {label.name}
+            </Text>
+          </group>
+        </Float>
+      ))}
     </group>
   );
 };

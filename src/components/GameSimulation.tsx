@@ -6,6 +6,104 @@ import dynamic from 'next/dynamic';
 // Import the client component with no SSR
 const ClientGameScene = dynamic(() => import('./game/ClientGameScene'), { ssr: false });
 
+// Guide component
+function SimulationGuide({ onClose }: { onClose: () => void }) {
+  return (
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.2 }}
+      className="absolute inset-0 z-30 bg-agent-black/90 backdrop-blur-md flex items-center justify-center p-4"
+    >
+      <div className="relative bg-agent-dark-gray/60 rounded-lg border border-white/10 max-w-2xl max-h-[80vh] overflow-y-auto">
+        <button 
+          onClick={onClose}
+          className="absolute top-3 right-3 text-white/50 hover:text-white transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
+        </button>
+        
+        <div className="p-6">
+          <h2 className="text-2xl font-bold text-white mb-4">Agentarium City Guide</h2>
+          
+          <div className="space-y-4 text-white/80">
+            <div>
+              <h3 className="text-lg font-medium text-white mb-2">Welcome to Agentarium City</h3>
+              <p>
+                This is a virtual city where AI agents autonomously live, work, and earn $AGENT tokens.
+                These tokens are then distributed to users who have staked their own $AGENT in the agents.
+              </p>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-medium text-white mb-2">City Layout</h3>
+              <p className="mb-2">
+                The city is organized in a grid with various key locations:
+              </p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li><span className="text-agent-green font-medium">$AGENT Bank</span> - Where agents store and manage their earnings</li>
+                <li><span className="text-blue-400 font-medium">Police Station</span> - Maintains order in the city</li>
+                <li><span className="text-green-400 font-medium">Supermarket</span> - Where resources are traded</li>
+                <li><span className="text-amber-400 font-medium">Grand Hotel</span> - A place for agents to rest and socialize</li>
+                <li><span className="text-red-400 font-medium">Gas Station</span> - For resource replenishment</li>
+                <li><span className="text-gray-400 font-medium">Tech Hub & Finance Center</span> - Office buildings for specialized work</li>
+                <li><span className="text-amber-700 font-medium">Residential Area</span> - Houses where some agents live</li>
+              </ul>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-medium text-white mb-2">Agent Behavior</h3>
+              <p className="mb-2">
+                Agents autonomously navigate the city and transition between three states:
+              </p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li><span className="text-green-500 font-medium">Walking</span> - Moving between locations</li>
+                <li><span className="text-yellow-500 font-medium">Idle</span> - Temporarily resting or waiting</li>
+                <li><span className="text-amber-400 font-medium">Working</span> - Actively earning $AGENT tokens</li>
+              </ul>
+              <p className="mt-2">
+                Agents use roads for navigation and cannot walk through buildings. Their behavior is determined
+                by their role, current state, and location in the city.
+              </p>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-medium text-white mb-2">Agent Roles</h3>
+              <p className="mb-2">
+                There are 10 unique agent roles in the simulation:
+              </p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-2">
+                <div><span className="text-blue-400">👨‍💼 Trader</span> - Trading resources</div>
+                <div><span className="text-purple-400">👩‍🔬 Scientist</span> - Research and development</div>
+                <div><span className="text-orange-400">👷 Builder</span> - Construction specialist</div>
+                <div><span className="text-green-400">🧭 Explorer</span> - Discovers resources</div>
+                <div><span className="text-lime-400">👨‍🌾 Farmer</span> - Renewable resources</div>
+                <div><span className="text-red-400">👩‍🔧 Engineer</span> - Improves efficiency</div>
+                <div><span className="text-gray-400">👨‍💻 Hacker</span> - Digital opportunities</div>
+                <div><span className="text-pink-400">🧝‍♀️ Diplomat</span> - Forms alliances</div>
+                <div><span className="text-cyan-400">🏃 Courier</span> - Fast transport</div>
+                <div><span className="text-indigo-400">🧙 Mystic</span> - Predicts trends</div>
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-medium text-white mb-2">Interaction</h3>
+              <p>
+                You can click on any agent to view detailed information about them, including their
+                current status, earnings, and resources. The simulation runs continuously and is synchronized
+                for all users.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 // Agent details panel component
 function AgentDetailsPanel({ agent, onClose }: { agent: any | null, onClose: () => void }) {
   if (!agent) return null;
@@ -224,6 +322,27 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
             <path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84" />
           </svg>
         </a>
+      </div>
+      
+      {/* Legend */}
+      <div className="absolute bottom-4 right-4 z-10">
+        <div className="px-3 py-2 bg-agent-black/60 backdrop-blur-sm rounded-lg border border-white/10">
+          <h4 className="text-white/90 text-xs font-medium mb-1.5">Agent States</h4>
+          <div className="space-y-1">
+            <div className="flex items-center">
+              <span className="inline-block h-2 w-2 rounded-full bg-green-500 mr-2"></span>
+              <p className="text-white/80 text-xs">Walking</p>
+            </div>
+            <div className="flex items-center">
+              <span className="inline-block h-2 w-2 rounded-full bg-yellow-500 mr-2"></span>
+              <p className="text-white/80 text-xs">Idle</p>
+            </div>
+            <div className="flex items-center">
+              <span className="inline-block h-2 w-2 rounded-full bg-amber-400 mr-2"></span>
+              <p className="text-white/80 text-xs">Working (Earning $AGENT)</p>
+            </div>
+          </div>
+        </div>
       </div>
       
       {/* Help text */}
