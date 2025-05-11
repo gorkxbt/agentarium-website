@@ -65,9 +65,9 @@ interface ClientGameSceneProps {
 }
 
 // City configuration
-const CITY_SIZE = 240; // Larger city
+const CITY_SIZE = 300; // Larger city (was 240)
 const ROAD_WIDTH = 12;
-const BLOCK_SIZE = 40; // Larger blocks
+const BLOCK_SIZE = 50; // Larger blocks (was 40)
 const SIDEWALK_WIDTH = 3;
 const BUILDING_TYPES = {
   BANK: 'bank',
@@ -113,6 +113,18 @@ const Agent: React.FC<AgentProps> = ({ position, color, speed, agentData, onAgen
       new THREE.Vector3(2 * BLOCK_SIZE, 0, 0),
       // Houses
       new THREE.Vector3(0, 0, 2 * BLOCK_SIZE),
+      // New destinations - Nightclub
+      new THREE.Vector3(-2 * BLOCK_SIZE, 0, -2 * BLOCK_SIZE),
+      // Shopping Mall
+      new THREE.Vector3(2 * BLOCK_SIZE, 0, 2 * BLOCK_SIZE),
+      // Restaurant
+      new THREE.Vector3(-BLOCK_SIZE/2, 0, -2 * BLOCK_SIZE),
+      // Hospital
+      new THREE.Vector3(2 * BLOCK_SIZE, 0, -2 * BLOCK_SIZE),
+      // Factory
+      new THREE.Vector3(-2 * BLOCK_SIZE, 0, 2 * BLOCK_SIZE),
+      // Casino
+      new THREE.Vector3(BLOCK_SIZE/2, 0, -2 * BLOCK_SIZE),
       // Road points (safer navigation)
       new THREE.Vector3(-BLOCK_SIZE, 0, 0),
       new THREE.Vector3(0, 0, -BLOCK_SIZE),
@@ -122,7 +134,9 @@ const Agent: React.FC<AgentProps> = ({ position, color, speed, agentData, onAgen
       new THREE.Vector3(-BLOCK_SIZE, 0, -BLOCK_SIZE - ROAD_WIDTH/2), // Near bank
       new THREE.Vector3(BLOCK_SIZE, 0, -BLOCK_SIZE - ROAD_WIDTH/2),  // Near police
       new THREE.Vector3(-BLOCK_SIZE, 0, BLOCK_SIZE + ROAD_WIDTH/2),  // Near market
-      new THREE.Vector3(BLOCK_SIZE, 0, BLOCK_SIZE + ROAD_WIDTH/2)    // Near hotel
+      new THREE.Vector3(BLOCK_SIZE, 0, BLOCK_SIZE + ROAD_WIDTH/2),    // Near hotel
+      new THREE.Vector3(-2 * BLOCK_SIZE, 0, -2 * BLOCK_SIZE - ROAD_WIDTH/2), // Near nightclub
+      new THREE.Vector3(2 * BLOCK_SIZE, 0, 2 * BLOCK_SIZE + ROAD_WIDTH/2)   // Near mall
     ];
     return points;
   }, []);
@@ -167,6 +181,37 @@ const Agent: React.FC<AgentProps> = ({ position, color, speed, agentData, onAgen
     {
       center: new THREE.Vector2(0, 2 * BLOCK_SIZE),
       size: new THREE.Vector2(30, 15)
+    },
+    // New buildings to avoid
+    // Nightclub
+    {
+      center: new THREE.Vector2(-2 * BLOCK_SIZE, -2 * BLOCK_SIZE),
+      size: new THREE.Vector2(18, 18)
+    },
+    // Shopping Mall
+    {
+      center: new THREE.Vector2(2 * BLOCK_SIZE, 2 * BLOCK_SIZE),
+      size: new THREE.Vector2(35, 25)
+    },
+    // Restaurant
+    {
+      center: new THREE.Vector2(-BLOCK_SIZE/2, -2 * BLOCK_SIZE),
+      size: new THREE.Vector2(12, 12)
+    },
+    // Hospital
+    {
+      center: new THREE.Vector2(2 * BLOCK_SIZE, -2 * BLOCK_SIZE),
+      size: new THREE.Vector2(25, 20)
+    },
+    // Factory
+    {
+      center: new THREE.Vector2(-2 * BLOCK_SIZE, 2 * BLOCK_SIZE),
+      size: new THREE.Vector2(30, 20)
+    },
+    // Casino
+    {
+      center: new THREE.Vector2(BLOCK_SIZE/2, -2 * BLOCK_SIZE),
+      size: new THREE.Vector2(15, 15)
     }
   ], []);
   
@@ -314,7 +359,10 @@ const Agent: React.FC<AgentProps> = ({ position, color, speed, agentData, onAgen
   });
   
   // Get location name based on position
-  const getLocationName = () => {
+  const getLocationName = (): "Bank" | "Police Station" | "Supermarket" | "Hotel" | "Gas Station" | 
+                          "Pulse Nightclub" | "Shopping Mall" | "Fine Dining Restaurant" | 
+                          "City Hospital" | "Factory" | "Lucky Star Casino" | "Tech Hub" | 
+                          "Finance Center" | "On the Road" | "Downtown" | "Unknown" => {
     const pos = meshRef.current?.position;
     if (!pos) return "Unknown";
     
@@ -334,6 +382,32 @@ const Agent: React.FC<AgentProps> = ({ position, color, speed, agentData, onAgen
     const distToGas = new THREE.Vector3(pos.x, 0, pos.z).distanceTo(new THREE.Vector3(0, 0, -2 * BLOCK_SIZE));
     if (distToGas < 15) return "Gas Station";
     
+    // Check tech hub and finance center
+    const distToTechHub = new THREE.Vector3(pos.x, 0, pos.z).distanceTo(new THREE.Vector3(-2 * BLOCK_SIZE, 0, 0));
+    if (distToTechHub < 15) return "Tech Hub";
+    
+    const distToFinance = new THREE.Vector3(pos.x, 0, pos.z).distanceTo(new THREE.Vector3(2 * BLOCK_SIZE, 0, 0));
+    if (distToFinance < 15) return "Finance Center";
+    
+    // New locations
+    const distToNightclub = new THREE.Vector3(pos.x, 0, pos.z).distanceTo(new THREE.Vector3(-2 * BLOCK_SIZE, 0, -2 * BLOCK_SIZE));
+    if (distToNightclub < 15) return "Pulse Nightclub";
+    
+    const distToMall = new THREE.Vector3(pos.x, 0, pos.z).distanceTo(new THREE.Vector3(2 * BLOCK_SIZE, 0, 2 * BLOCK_SIZE));
+    if (distToMall < 15) return "Shopping Mall";
+    
+    const distToRestaurant = new THREE.Vector3(pos.x, 0, pos.z).distanceTo(new THREE.Vector3(-BLOCK_SIZE/2, 0, -2 * BLOCK_SIZE));
+    if (distToRestaurant < 15) return "Fine Dining Restaurant";
+    
+    const distToHospital = new THREE.Vector3(pos.x, 0, pos.z).distanceTo(new THREE.Vector3(2 * BLOCK_SIZE, 0, -2 * BLOCK_SIZE));
+    if (distToHospital < 15) return "City Hospital";
+    
+    const distToFactory = new THREE.Vector3(pos.x, 0, pos.z).distanceTo(new THREE.Vector3(-2 * BLOCK_SIZE, 0, 2 * BLOCK_SIZE));
+    if (distToFactory < 15) return "Factory";
+    
+    const distToCasino = new THREE.Vector3(pos.x, 0, pos.z).distanceTo(new THREE.Vector3(BLOCK_SIZE/2, 0, -2 * BLOCK_SIZE));
+    if (distToCasino < 15) return "Lucky Star Casino";
+    
     // Check if on road
     if (
       Math.abs(pos.x) % BLOCK_SIZE < ROAD_WIDTH/2 || 
@@ -347,13 +421,47 @@ const Agent: React.FC<AgentProps> = ({ position, color, speed, agentData, onAgen
   
   // Calculate agent data to pass when clicked
   const handleClick = () => {
+    const location = getLocationName();
+    
+    // Determine earnings multiplier based on location and agent role
+    let earningMultiplier = 1.0;
+    
+    // Each agent earns more in their specialized locations
+    if (agentData.role === 'Trader' && (location === 'Bank' || location === 'Shopping Mall')) {
+      earningMultiplier = 2.5;
+    } else if (agentData.role === 'Scientist' && (location === 'Tech Hub' || location === 'City Hospital')) {
+      earningMultiplier = 2.5;
+    } else if (agentData.role === 'Builder' && (location === 'Factory')) {
+      earningMultiplier = 2.2;
+    } else if (agentData.role === 'Explorer' && (location === 'On the Road')) {
+      earningMultiplier = 1.8;
+    } else if (agentData.role === 'Farmer' && (location === 'Fine Dining Restaurant')) {
+      earningMultiplier = 2.0;
+    } else if (agentData.role === 'Engineer' && (location === 'Factory' || location === 'Tech Hub')) {
+      earningMultiplier = 2.3;
+    } else if (agentData.role === 'Hacker' && (location === 'Tech Hub' || location === 'Bank')) {
+      earningMultiplier = 2.4;
+    } else if (agentData.role === 'Diplomat' && (location === 'Hotel' || location === 'Police Station')) {
+      earningMultiplier = 2.1;
+    } else if (agentData.role === 'Courier' && (location === 'On the Road' || location === 'Shopping Mall')) {
+      earningMultiplier = 1.9;
+    } else if (agentData.role === 'Mystic' && (location === 'Lucky Star Casino' || location === 'Pulse Nightclub')) {
+      earningMultiplier = 2.6;
+    }
+    
+    const baseEarnings = currentState === 'working' ? 2 : 0.2;
+    const locationBonus = location === 'Bank' ? 0.5 : 
+                         location === 'Lucky Star Casino' ? 0.8 : 
+                         location === 'Factory' ? 0.4 : 
+                         location === 'Pulse Nightclub' ? 0.6 : 0;
+    
     const updatedAgentData = {
       ...agentData,
       state: currentState,
-      location: getLocationName(),
-      // Simulate earning resources based on state and location
+      location: location,
+      // Simulate earning resources based on state, location and role
       resources: agentData.resources + (currentState === 'working' ? 5 : 1),
-      earnings: agentData.earnings + (currentState === 'working' ? 2 : 0.2)
+      earnings: agentData.earnings + (baseEarnings + locationBonus) * earningMultiplier
     };
     
     onAgentClick(updatedAgentData);
@@ -453,7 +561,7 @@ const Road: React.FC = () => {
   const positions = useMemo(() => {
     const roadPositions = [];
     // Create a grid of roads
-    for (let i = -2; i <= 2; i++) {
+    for (let i = -3; i <= 3; i++) {
       // Horizontal roads
       roadPositions.push({
         position: [0, 0, i * BLOCK_SIZE] as [number, number, number],
@@ -475,7 +583,7 @@ const Road: React.FC = () => {
     <group>
       {positions.map((road, i) => (
         <mesh 
-          key={`road-${i}`}
+          key={`road-${i}`} 
           position={road.position}
           rotation={road.rotation}
           receiveShadow
@@ -871,6 +979,435 @@ const Building: React.FC<BuildingProps> = ({
                   emissiveIntensity={Math.random() > 0.5 ? 0.5 : 0}
                 />
               </mesh>
+            </mesh>
+          </>
+        );
+      
+      case 'nightclub':
+        return (
+          <>
+            <mesh position={[0, height/2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[width, height, depth]} />
+              <meshStandardMaterial color="#1a0033" roughness={0.4} metalness={0.6} />
+              
+              {/* Windows with neon effect */}
+              {Array.from({ length: Math.floor(height/3) }).map((_, i) => (
+                <React.Fragment key={`nightclub-windows-row-${i}`}>
+                  {Array.from({ length: 4 }).map((_, j) => (
+                    <mesh 
+                      key={`nightclub-window-${i}-${j}`} 
+                      position={[
+                        width/2 * 0.8 - j * width/4, 
+                        -height/2 + (i * 3 + 1.5), 
+                        depth/2 - 0.1
+                      ]}
+                    >
+                      <planeGeometry args={[1.5, 0.8]} />
+                      <meshStandardMaterial 
+                        color="#ff00ff" 
+                        emissive="#ff00ff"
+                        emissiveIntensity={0.8}
+                      />
+                    </mesh>
+                  ))}
+                </React.Fragment>
+              ))}
+              
+              {/* Entrance with neon sign */}
+              <mesh position={[0, -height/2 + 2, depth/2 + 0.2]} castShadow>
+                <boxGeometry args={[width/3, 4, 0.5]} />
+                <meshStandardMaterial color="#000000" />
+                
+                <Float speed={1} rotationIntensity={0.2} floatIntensity={0.5}>
+                  <Text
+                    position={[0, 2, 0.3]}
+                    fontSize={1.5}
+                    color="#ff00ff"
+                    anchorX="center"
+                    anchorY="middle"
+                    font="/fonts/neon.ttf"
+                  >
+                    PULSE
+                  </Text>
+                </Float>
+              </mesh>
+              
+              {/* Spotlights */}
+              <mesh position={[-width/4, height/2 + 1, depth/2 - 1]} rotation={[Math.PI/4, 0, 0]}>
+                <coneGeometry args={[1, 2, 16]} />
+                <meshStandardMaterial 
+                  color="#ff00ff" 
+                  emissive="#ff00ff"
+                  emissiveIntensity={0.5}
+                  transparent
+                  opacity={0.3}
+                />
+              </mesh>
+              
+              <mesh position={[width/4, height/2 + 1, depth/2 - 1]} rotation={[Math.PI/4, 0, 0]}>
+                <coneGeometry args={[1, 2, 16]} />
+                <meshStandardMaterial 
+                  color="#00ffff" 
+                  emissive="#00ffff"
+                  emissiveIntensity={0.5}
+                  transparent
+                  opacity={0.3}
+                />
+              </mesh>
+            </mesh>
+          </>
+        );
+      
+      case 'mall':
+        return (
+          <>
+            <mesh position={[0, height/2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[width, height, depth]} />
+              <meshStandardMaterial color="#e0e0e0" roughness={0.6} metalness={0.3} />
+              
+              {/* Glass front */}
+              <mesh position={[0, 0, depth/2 + 0.1]} castShadow>
+                <boxGeometry args={[width * 0.8, height * 0.7, 0.2]} />
+                <meshStandardMaterial 
+                  color="#88ccee" 
+                  transparent
+                  opacity={0.4}
+                  metalness={0.8}
+                  roughness={0.2}
+                />
+              </mesh>
+              
+              {/* Mall entrance */}
+              <mesh position={[0, -height/2 + 3, depth/2 + 0.3]} castShadow>
+                <boxGeometry args={[width/3, 6, 0.5]} />
+                <meshStandardMaterial color="#444444" />
+              </mesh>
+              
+              {/* Mall sign */}
+              <mesh position={[0, height/2 - height/8, depth/2 + 0.3]} castShadow>
+                <boxGeometry args={[width * 0.7, height/6, 0.5]} />
+                <meshStandardMaterial color="#3366cc" />
+                <Text
+                  position={[0, 0, 0.3]}
+                  fontSize={2}
+                  color="#FFFFFF"
+                  anchorX="center"
+                  anchorY="middle"
+                >
+                  SHOPPING MALL
+                </Text>
+              </mesh>
+              
+              {/* Multiple floors with windows */}
+              {Array.from({ length: Math.floor(height/8) }).map((_, i) => (
+                <mesh 
+                  key={`mall-floor-${i}`} 
+                  position={[0, -height/2 + (i+1) * 8, 0]}
+                  castShadow
+                >
+                  <boxGeometry args={[width, 0.5, depth]} />
+                  <meshStandardMaterial color="#cccccc" />
+                </mesh>
+              ))}
+            </mesh>
+          </>
+        );
+      
+      case 'restaurant':
+        return (
+          <>
+            <mesh position={[0, height/2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[width, height, depth]} />
+              <meshStandardMaterial color="#d9a066" roughness={0.7} />
+              
+              {/* Restaurant front with windows */}
+              <mesh position={[0, 0, depth/2 + 0.1]} castShadow>
+                <boxGeometry args={[width * 0.8, height * 0.6, 0.1]} />
+                <meshStandardMaterial 
+                  color="#fff8e0" 
+                  emissive="#fff8e0"
+                  emissiveIntensity={0.3}
+                />
+              </mesh>
+              
+              {/* Restaurant sign */}
+              <mesh position={[0, height/2 + 1, depth/2 + 0.2]} castShadow>
+                <boxGeometry args={[width * 0.7, 2, 0.3]} />
+                <meshStandardMaterial color="#8b4513" />
+                <Text
+                  position={[0, 0, 0.2]}
+                  fontSize={1.2}
+                  color="#FFFFFF"
+                  anchorX="center"
+                  anchorY="middle"
+                >
+                  FINE DINING
+                </Text>
+              </mesh>
+              
+              {/* Outdoor seating area */}
+              <group position={[0, -height/2 + 0.5, depth/2 + 4]}>
+                {/* Tables */}
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <group key={`table-${i}`} position={[(i-1) * 4, 0, 0]}>
+                    <mesh castShadow>
+                      <cylinderGeometry args={[1, 1, 0.2, 16]} />
+                      <meshStandardMaterial color="#8b4513" />
+                    </mesh>
+                    <mesh position={[0, 0.6, 0]} castShadow>
+                      <cylinderGeometry args={[0.2, 0.2, 1, 8]} />
+                      <meshStandardMaterial color="#5c3c20" />
+                    </mesh>
+                  </group>
+                ))}
+              </group>
+            </mesh>
+          </>
+        );
+        
+      case 'hospital':
+        return (
+          <>
+            <mesh position={[0, height/2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[width, height, depth]} />
+              <meshStandardMaterial color="#ffffff" roughness={0.6} />
+              
+              {/* Hospital windows grid */}
+              {Array.from({ length: Math.floor(height/3) }).map((_, i) => (
+                <React.Fragment key={`hospital-windows-row-${i}`}>
+                  {Array.from({ length: Math.floor(width/3) }).map((_, j) => (
+                    <mesh 
+                      key={`hospital-window-${i}-${j}`} 
+                      position={[
+                        -width/2 + 1.5 + j * 3, 
+                        -height/2 + (i * 3 + 1.5), 
+                        depth/2 - 0.1
+                      ]}
+                    >
+                      <planeGeometry args={[2, 1.5]} />
+                      <meshStandardMaterial 
+                        color="#e0f0ff" 
+                        emissive="#e0f0ff"
+                        emissiveIntensity={Math.random() > 0.3 ? 0.3 : 0}
+                      />
+                    </mesh>
+                  ))}
+                </React.Fragment>
+              ))}
+              
+              {/* Hospital sign with cross */}
+              <group position={[0, height/2 + 2, depth/2 + 0.2]}>
+                <mesh castShadow>
+                  <boxGeometry args={[width * 0.6, 4, 0.5]} />
+                  <meshStandardMaterial color="#0066cc" />
+                </mesh>
+                
+                {/* Red cross */}
+                <mesh position={[-width/6, 0, 0.3]} castShadow>
+                  <boxGeometry args={[1, 3, 0.1]} />
+                  <meshStandardMaterial 
+                    color="#ff0000" 
+                    emissive="#ff0000"
+                    emissiveIntensity={0.5}
+                  />
+                </mesh>
+                <mesh position={[-width/6, 0, 0.3]} castShadow>
+                  <boxGeometry args={[3, 1, 0.1]} />
+                  <meshStandardMaterial 
+                    color="#ff0000" 
+                    emissive="#ff0000"
+                    emissiveIntensity={0.5}
+                  />
+                </mesh>
+                
+                <Text
+                  position={[width/8, 0, 0.3]}
+                  fontSize={1.2}
+                  color="#FFFFFF"
+                  anchorX="center"
+                  anchorY="middle"
+                >
+                  HOSPITAL
+                </Text>
+              </group>
+              
+              {/* Emergency entrance */}
+              <mesh position={[0, -height/2 + 2, depth/2 + 0.2]} castShadow>
+                <boxGeometry args={[width/3, 4, 0.5]} />
+                <meshStandardMaterial color="#0066cc" />
+                <Text
+                  position={[0, 0, 0.3]}
+                  fontSize={0.8}
+                  color="#FFFFFF"
+                  anchorX="center"
+                  anchorY="middle"
+                >
+                  EMERGENCY
+                </Text>
+              </mesh>
+            </mesh>
+          </>
+        );
+      
+      case 'factory':
+        return (
+          <>
+            <mesh position={[0, height/2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[width, height, depth]} />
+              <meshStandardMaterial color="#888888" roughness={0.8} metalness={0.3} />
+              
+              {/* Factory roof */}
+              <mesh position={[0, height/2 + 2, 0]} castShadow>
+                <cylinderGeometry args={[width/2, width/2, 4, 6]} />
+                <meshStandardMaterial color="#777777" roughness={0.7} />
+              </mesh>
+              
+              {/* Chimney */}
+              <mesh position={[width/3, height + 5, depth/3]} castShadow>
+                <cylinderGeometry args={[1.5, 2, 10, 8]} />
+                <meshStandardMaterial color="#555555" roughness={0.9} />
+                
+                {/* Smoke particles */}
+                <group position={[0, 5, 0]}>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <mesh 
+                      key={`smoke-${i}`} 
+                      position={[
+                        Math.sin(i * 0.5) * 0.5,
+                        i * 0.8,
+                        Math.cos(i * 0.5) * 0.5
+                      ]}
+                    >
+                      <sphereGeometry args={[0.8 + i * 0.2, 8, 8]} />
+                      <meshStandardMaterial 
+                        color="#cccccc" 
+                        transparent
+                        opacity={0.6 - i * 0.1}
+                      />
+                    </mesh>
+                  ))}
+                </group>
+              </mesh>
+              
+              {/* Factory windows */}
+              {Array.from({ length: 2 }).map((_, i) => (
+                <React.Fragment key={`factory-windows-row-${i}`}>
+                  {Array.from({ length: 4 }).map((_, j) => (
+                    <mesh 
+                      key={`factory-window-${i}-${j}`} 
+                      position={[
+                        -width/2 + 2 + j * width/4, 
+                        -height/2 + (i * 4 + 2), 
+                        depth/2 - 0.1
+                      ]}
+                    >
+                      <planeGeometry args={[3, 2]} />
+                      <meshStandardMaterial 
+                        color="#aaccff" 
+                        emissive="#aaccff"
+                        emissiveIntensity={0.2}
+                      />
+                    </mesh>
+                  ))}
+                </React.Fragment>
+              ))}
+              
+              {/* Factory sign */}
+              <mesh position={[0, 0, depth/2 + 0.2]} castShadow>
+                <boxGeometry args={[width * 0.6, 3, 0.3]} />
+                <meshStandardMaterial color="#555555" />
+                <Text
+                  position={[0, 0, 0.2]}
+                  fontSize={1.2}
+                  color="#FFFFFF"
+                  anchorX="center"
+                  anchorY="middle"
+                >
+                  FACTORY
+                </Text>
+              </mesh>
+            </mesh>
+          </>
+        );
+        
+      case 'casino':
+        return (
+          <>
+            <mesh position={[0, height/2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[width, height, depth]} />
+              <meshStandardMaterial color="#330033" roughness={0.5} metalness={0.4} />
+              
+              {/* Casino front with gold trim */}
+              <mesh position={[0, 0, depth/2 + 0.1]} castShadow>
+                <boxGeometry args={[width - 2, height - 2, 0.2]} />
+                <meshStandardMaterial 
+                  color="#220022" 
+                  roughness={0.4}
+                  metalness={0.6}
+                />
+              </mesh>
+              
+              {/* Casino entrance with lights */}
+              <mesh position={[0, -height/2 + 3, depth/2 + 0.3]} castShadow>
+                <boxGeometry args={[width/3, 6, 0.5]} />
+                <meshStandardMaterial 
+                  color="#000000" 
+                  roughness={0.2}
+                  metalness={0.8}
+                />
+              </mesh>
+              
+              {/* Casino sign with neon */}
+              <Float speed={0.5} rotationIntensity={0.1} floatIntensity={0.3}>
+                <mesh position={[0, height/2 + 3, 0]} castShadow>
+                  <boxGeometry args={[width - 4, 6, 2]} />
+                  <meshStandardMaterial 
+                    color="#220022" 
+                    roughness={0.3}
+                    metalness={0.7}
+                  />
+                  <Text
+                    position={[0, 0, depth/2 + 0.1]}
+                    fontSize={2.5}
+                    color="#FFD700"
+                    anchorX="center"
+                    anchorY="middle"
+                  >
+                    LUCKY STAR
+                  </Text>
+                  <Text
+                    position={[0, 0, -depth/2 - 0.1]}
+                    fontSize={2.5}
+                    color="#FFD700"
+                    anchorX="center"
+                    anchorY="middle"
+                    rotation={[0, Math.PI, 0]}
+                  >
+                    LUCKY STAR
+                  </Text>
+                </mesh>
+              </Float>
+              
+              {/* Decorative lights around the building */}
+              {Array.from({ length: 20 }).map((_, i) => {
+                const angle = (i / 20) * Math.PI * 2;
+                const x = Math.cos(angle) * (width/2 - 0.5);
+                const z = Math.sin(angle) * (depth/2 - 0.5);
+                return (
+                  <mesh 
+                    key={`casino-light-${i}`} 
+                    position={[x, height/2 - 1, z]}
+                    castShadow
+                  >
+                    <sphereGeometry args={[0.3, 8, 8]} />
+                    <meshStandardMaterial 
+                      color="#FFD700" 
+                      emissive="#FFD700"
+                      emissiveIntensity={0.8}
+                    />
+                  </mesh>
+                );
+              })}
             </mesh>
           </>
         );
@@ -1398,6 +1935,66 @@ const City: React.FC<{ onAgentClick: (agent: any) => void }> = ({ onAgentClick }
       type: 'office',
       name: 'Finance Center'
     },
+    // Nightclub - new building
+    {
+      position: [-2 * BLOCK_SIZE, 0, -2 * BLOCK_SIZE] as [number, number, number],
+      height: 15,
+      width: 18,
+      depth: 18,
+      color: '#1a0033',
+      type: 'nightclub',
+      name: 'Pulse Nightclub'
+    },
+    // Shopping Mall - new building
+    {
+      position: [2 * BLOCK_SIZE, 0, 2 * BLOCK_SIZE] as [number, number, number],
+      height: 25,
+      width: 35,
+      depth: 25,
+      color: '#e0e0e0',
+      type: 'mall',
+      name: 'Shopping Mall'
+    },
+    // Restaurant - new building
+    {
+      position: [-BLOCK_SIZE/2, 0, -2 * BLOCK_SIZE] as [number, number, number],
+      height: 8,
+      width: 12,
+      depth: 12,
+      color: '#d9a066',
+      type: 'restaurant',
+      name: 'Fine Dining'
+    },
+    // Hospital - new building
+    {
+      position: [2 * BLOCK_SIZE, 0, -2 * BLOCK_SIZE] as [number, number, number],
+      height: 20,
+      width: 25,
+      depth: 20,
+      color: '#ffffff',
+      type: 'hospital',
+      name: 'City Hospital'
+    },
+    // Factory - new building
+    {
+      position: [-2 * BLOCK_SIZE, 0, 2 * BLOCK_SIZE] as [number, number, number],
+      height: 15,
+      width: 30,
+      depth: 20,
+      color: '#888888',
+      type: 'factory',
+      name: 'Factory'
+    },
+    // Casino - new building
+    {
+      position: [BLOCK_SIZE/2, 0, -2 * BLOCK_SIZE] as [number, number, number],
+      height: 18,
+      width: 15,
+      depth: 15,
+      color: '#330033',
+      type: 'casino',
+      name: 'Lucky Star Casino'
+    },
     // Houses - residential area
     ...[...Array(6)].map((_, i) => {
       const row = Math.floor(i / 3);
@@ -1419,6 +2016,24 @@ const City: React.FC<{ onAgentClick: (agent: any) => void }> = ({ onAgentClick }
       };
     })
   ], []);
+  
+  // City map labels - updated with new buildings
+  const mapLabels = [
+    { position: [-BLOCK_SIZE, 0, -BLOCK_SIZE], name: "Bank" },
+    { position: [BLOCK_SIZE, 0, -BLOCK_SIZE], name: "Police" },
+    { position: [-BLOCK_SIZE, 0, BLOCK_SIZE], name: "Market" },
+    { position: [BLOCK_SIZE, 0, BLOCK_SIZE], name: "Hotel" },
+    { position: [0, 0, -2 * BLOCK_SIZE], name: "Gas" },
+    { position: [-2 * BLOCK_SIZE, 0, 0], name: "Tech Hub" },
+    { position: [2 * BLOCK_SIZE, 0, 0], name: "Finance" },
+    { position: [0, 0, 2 * BLOCK_SIZE], name: "Houses" },
+    { position: [-2 * BLOCK_SIZE, 0, -2 * BLOCK_SIZE], name: "Nightclub" },
+    { position: [2 * BLOCK_SIZE, 0, 2 * BLOCK_SIZE], name: "Mall" },
+    { position: [-BLOCK_SIZE/2, 0, -2 * BLOCK_SIZE], name: "Restaurant" },
+    { position: [2 * BLOCK_SIZE, 0, -2 * BLOCK_SIZE], name: "Hospital" },
+    { position: [-2 * BLOCK_SIZE, 0, 2 * BLOCK_SIZE], name: "Factory" },
+    { position: [BLOCK_SIZE/2, 0, -2 * BLOCK_SIZE], name: "Casino" }
+  ];
   
   // Define agent data
   const agentData = useMemo(() => [
@@ -1541,6 +2156,67 @@ const City: React.FC<{ onAgentClick: (agent: any) => void }> = ({ onAgentClick }
       resources: 90,
       earnings: 2100,
       level: 8
+    },
+    // Add 5 more agents for a larger city
+    {
+      id: 11,
+      name: "Cyrus",
+      role: "Trader",
+      icon: "👨‍💼",
+      color: "#42A5F5",
+      state: "walking",
+      location: "Shopping Mall",
+      resources: 82,
+      earnings: 980,
+      level: 3
+    },
+    {
+      id: 12,
+      name: "Iris",
+      role: "Engineer",
+      icon: "👩‍🔧",
+      color: "#FF7043",
+      state: "idle",
+      location: "Factory",
+      resources: 95,
+      earnings: 1750,
+      level: 6
+    },
+    {
+      id: 13,
+      name: "Felix",
+      role: "Hacker",
+      icon: "👨‍💻",
+      color: "#78909C",
+      state: "walking",
+      location: "Tech Hub",
+      resources: 88,
+      earnings: 1480,
+      level: 5
+    },
+    {
+      id: 14,
+      name: "Desiree",
+      role: "Mystic",
+      icon: "🧙",
+      color: "#B39DDB",
+      state: "working",
+      location: "Lucky Star Casino",
+      resources: 93,
+      earnings: 2250,
+      level: 8
+    },
+    {
+      id: 15,
+      name: "Jasper",
+      role: "Explorer",
+      icon: "🧭",
+      color: "#66BB6A",
+      state: "idle",
+      location: "Hospital",
+      resources: 79,
+      earnings: 1120,
+      level: 4
     }
   ], []);
   
@@ -1570,24 +2246,12 @@ const City: React.FC<{ onAgentClick: (agent: any) => void }> = ({ onAgentClick }
     });
   }, []);
   
-  // City map labels
-  const mapLabels = [
-    { position: [-BLOCK_SIZE, 0, -BLOCK_SIZE], name: "Bank" },
-    { position: [BLOCK_SIZE, 0, -BLOCK_SIZE], name: "Police" },
-    { position: [-BLOCK_SIZE, 0, BLOCK_SIZE], name: "Market" },
-    { position: [BLOCK_SIZE, 0, BLOCK_SIZE], name: "Hotel" },
-    { position: [0, 0, -2 * BLOCK_SIZE], name: "Gas" },
-    { position: [-2 * BLOCK_SIZE, 0, 0], name: "Tech Hub" },
-    { position: [2 * BLOCK_SIZE, 0, 0], name: "Finance" },
-    { position: [0, 0, 2 * BLOCK_SIZE], name: "Houses" }
-  ];
-  
   // Define vehicles data
   const vehiclesData = useMemo(() => {
     const vehicles = [];
     
     // Taxis
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 8; i++) {  // Increased from 5 to 8
       vehicles.push({
         type: 'taxi' as const,
         color: '#FFD700',
@@ -1601,8 +2265,8 @@ const City: React.FC<{ onAgentClick: (agent: any) => void }> = ({ onAgentClick }
     }
     
     // Cars with different colors
-    const carColors = ['#3366CC', '#DC3545', '#28A745', '#6F42C1', '#FD7E14', '#20C997', '#E83E8C'];
-    for (let i = 0; i < 8; i++) {
+    const carColors = ['#3366CC', '#DC3545', '#28A745', '#6F42C1', '#FD7E14', '#20C997', '#E83E8C', '#17A2B8', '#6610F2'];
+    for (let i = 0; i < 12; i++) {  // Increased from 8 to 12
       vehicles.push({
         type: 'car' as const,
         color: carColors[i % carColors.length],
@@ -1616,7 +2280,7 @@ const City: React.FC<{ onAgentClick: (agent: any) => void }> = ({ onAgentClick }
     }
     
     // Buses
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < 4; i++) {  // Increased from 2 to 4
       vehicles.push({
         type: 'bus' as const,
         color: '#3498DB',
@@ -1637,7 +2301,7 @@ const City: React.FC<{ onAgentClick: (agent: any) => void }> = ({ onAgentClick }
     const npcs = [];
     const npcColors = ['#F5DEB3', '#D2B48C', '#BC8F8F', '#A0522D', '#8B4513', '#FFDEAD', '#FFE4C4'];
     
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 25; i++) {  // Increased from 15 to 25
       npcs.push({
         color: npcColors[Math.floor(Math.random() * npcColors.length)],
         position: [

@@ -64,6 +64,11 @@ function SimulationGuide({ onClose }: { onClose: () => void }) {
                 <li><span className="text-purple-400 font-medium">City Park</span> - Recreation area with seating and fountains</li>
                 <li><span className="text-pink-500 font-medium">Shopping Mall</span> - Large retail center</li>
                 <li><span className="text-cyan-500 font-medium">Transport Hub</span> - Central taxi and bus station</li>
+                <li><span className="text-fuchsia-500 font-medium">Pulse Nightclub</span> - Entertainment venue for agents to socialize</li>
+                <li><span className="text-orange-500 font-medium">Fine Dining Restaurant</span> - High-end eatery for agents</li>
+                <li><span className="text-blue-500 font-medium">City Hospital</span> - Healthcare facility for agents</li>
+                <li><span className="text-gray-500 font-medium">Factory</span> - Industrial manufacturing center</li>
+                <li><span className="text-purple-700 font-medium">Lucky Star Casino</span> - Gaming and entertainment complex</li>
               </ul>
             </div>
             
@@ -81,6 +86,24 @@ function SimulationGuide({ onClose }: { onClose: () => void }) {
                 Agents use roads for navigation and cannot walk through buildings. Their behavior is determined
                 by their role, current state, and location in the city.
               </p>
+              <p className="mt-2">
+                Each agent role earns more $AGENT tokens at specific locations. For example, Traders 
+                earn higher rewards at the Bank and Shopping Mall, while Mystics are most profitable at 
+                the Casino and Nightclub. Engineers excel at the Factory and Tech Hub.
+              </p>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-medium text-white mb-2">Earning $AGENT</h3>
+              <p className="mb-2">
+                The simulation features a sophisticated economic system where:
+              </p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li><span className="text-white font-medium">Location bonuses</span> - Some buildings provide bonus earnings like the Casino and Nightclub</li>
+                <li><span className="text-white font-medium">Role specialization</span> - Each agent role has locations where they earn 1.8-2.6x rewards</li>
+                <li><span className="text-white font-medium">Working state</span> - Agents in "working" state earn significantly more than idle agents</li>
+                <li><span className="text-white font-medium">Level progression</span> - Higher level agents can access better-paying opportunities</li>
+              </ul>
             </div>
             
             <div>
