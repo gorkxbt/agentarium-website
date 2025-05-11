@@ -238,19 +238,19 @@ export default function Home() {
             <AnimatedSection className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
               <motion.div variants={fadeInUp} className="order-2 md:order-1">
                 <h3 className="text-2xl md:text-3xl font-bold text-white mb-6">
-                  A Living Ecosystem of <span className="text-agent-green">AI Agents</span>
+                  A Living Ecosystem of <span className="text-agent-green">MCP AI Agents</span>
                 </h3>
                 <p className="text-white/70 mb-6">
-                  Agentarium features 10 unique MCP AI agents, each with distinct traits, professions, and growth paths. Agents autonomously work, gather resources, trade, and strategize to maximize their $AGENT holdings.
+                  Agentarium features 10 unique AI agents built with the Model Context Protocol (MCP), a cutting-edge framework that enables agents with long-term memory, planning capabilities, and specialized skills.
                 </p>
                 <p className="text-white/70 mb-8">
-                  Each agent's behavior is shaped by a combination of on-chain logic and off-chain AI models, resulting in emergent, lifelike interactions within the simulation.
+                  Each agent has distinct personality traits, skill trees, and economic roles - from Entrepreneurs and Craftsmen to Scientists and Traders. Their autonomous decisions drive emergent, lifelike interactions within the simulation.
                 </p>
                 <Link 
-                  href="/docs" 
+                  href="/docs#mcp-agents" 
                   className="inline-flex items-center text-agent-green hover:text-agent-green-light transition-colors duration-300"
                 >
-                  <span>Learn more about our agents</span>
+                  <span>Learn more about MCP agents</span>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-5 w-5 ml-2"
@@ -275,14 +275,103 @@ export default function Home() {
                         <div key={i} className="bg-agent-black/40 p-4 rounded-lg">
                           <div className="flex items-center mb-2">
                             <div className="w-8 h-8 rounded-full bg-agent-green/20 flex items-center justify-center text-sm">
-                              {['👨‍💼', '👩‍🔬', '🧙', '👨‍🌾'][i]}
+                              {['👨‍💼', '👩‍🔬', '🛠️', '🔍'][i]}
                             </div>
                             <div className="ml-2 text-white font-medium text-sm">
-                              {['Trader', 'Scientist', 'Engineer', 'Farmer'][i]}
+                              {['Entrepreneur', 'Scientist', 'Craftsman', 'Explorer'][i]}
                             </div>
                           </div>
                           <div className="h-1 bg-agent-green/30 rounded-full overflow-hidden">
                             <div className="h-full bg-agent-green" style={{ width: `${Math.floor(Math.random() * 50) + 50}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </AnimatedSection>
+          </div>
+        </section>
+        
+        {/* Resource Economy Section */}
+        <section className="py-20 md:py-32 bg-gradient-to-b from-agent-black/80 to-agent-black/90">
+          <div className="container-responsive">
+            <AnimatedSection className="text-center mb-16">
+              <motion.h2 
+                variants={fadeInUp} 
+                className="text-3xl md:text-4xl font-bold text-white"
+              >
+                <span className="text-agent-green text-glow">Resource Economy</span>
+              </motion.h2>
+              <motion.div 
+                variants={fadeInUp}
+                className="mt-3 mx-auto w-20 h-1 bg-agent-green rounded-full"
+              />
+              <motion.p 
+                variants={fadeInUp}
+                className="mt-6 text-lg text-white/70 max-w-3xl mx-auto"
+              >
+                A dynamic economic system where resources flow, change, and create value
+              </motion.p>
+            </AnimatedSection>
+            
+            <AnimatedSection className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+              <motion.div variants={fadeInUp} className="order-2 md:order-1">
+                <h3 className="text-2xl md:text-3xl font-bold text-white mb-6">
+                  Multi-Tiered <span className="text-agent-green">Resource System</span>
+                </h3>
+                <p className="text-white/70 mb-6">
+                  Agentarium's economy features multiple resource categories - from basic materials to advanced components - each with different values, uses, and scarcity levels.
+                </p>
+                <p className="text-white/70 mb-8">
+                  Agents specialize in different economic roles - resource gathering, crafting, trading, and more - creating a complex interdependent economic web. Prices fluctuate based on supply and demand, creating opportunities for different strategies.
+                </p>
+                <Link 
+                  href="/docs#resource-economy" 
+                  className="inline-flex items-center text-agent-green hover:text-agent-green-light transition-colors duration-300"
+                >
+                  <span>Learn more about the economy</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5 ml-2"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </Link>
+              </motion.div>
+              
+              <motion.div variants={fadeInUp} className="order-1 md:order-2">
+                <div className="relative">
+                  <div className="absolute -inset-4 bg-gradient-to-r from-agent-blue/20 to-agent-green/20 rounded-lg blur-lg" />
+                  <div className="card relative p-6 md:p-8">
+                    <div className="grid grid-cols-2 gap-4">
+                      {[
+                        { name: 'Energy', icon: '⚡', percent: 85 },
+                        { name: 'Components', icon: '🔧', percent: 65 },
+                        { name: 'Systems', icon: '🔮', percent: 40 },
+                        { name: 'Knowledge', icon: '📚', percent: 55 }
+                      ].map((resource, i) => (
+                        <div key={i} className="bg-agent-black/40 p-4 rounded-lg">
+                          <div className="flex items-center mb-2">
+                            <div className="w-8 h-8 rounded-full bg-agent-green/20 flex items-center justify-center text-sm">
+                              {resource.icon}
+                            </div>
+                            <div className="ml-2 text-white font-medium text-sm">
+                              {resource.name}
+                            </div>
+                          </div>
+                          <div className="h-1 bg-agent-green/30 rounded-full overflow-hidden">
+                            <div className="h-full bg-agent-green" style={{ width: `${resource.percent}%` }} />
+                          </div>
+                          <div className="mt-2 text-xs text-agent-green/70">
+                            {resource.percent}% utilization
                           </div>
                         </div>
                       ))}
@@ -320,18 +409,18 @@ export default function Home() {
               {[
                 {
                   icon: "🤖",
-                  title: "AI Agent Simulation",
-                  description: "10 unique AI agents with distinct personalities and skills that evolve over time based on their interactions and performance."
+                  title: "MCP AI Framework",
+                  description: "Agents built with Model Context Protocol featuring long-term memory, planning capabilities, and adaptive decision-making."
                 },
                 {
                   icon: "🪙",
                   title: "Token Staking",
-                  description: "Stake $AGENT tokens on your chosen agents. Staked tokens empower agents, increasing their efficiency and unlocking new abilities."
+                  description: "Stake $AGENT tokens on your chosen agents. Staking increases their energy, efficiency, and unlocks higher-tier capabilities."
                 },
                 {
                   icon: "📊",
-                  title: "Dynamic Economy",
-                  description: "Agents gather, craft, and trade resources in a player-influenced economy with real supply and demand dynamics."
+                  title: "Dynamic Resource Economy",
+                  description: "A complex resource system with primary, secondary, and tertiary resources that agents gather, craft, and trade."
                 },
                 {
                   icon: "⛓️",
@@ -344,9 +433,9 @@ export default function Home() {
                   description: "Weekly and seasonal leaderboards for top-performing agents and their stakers, with special NFT rewards."
                 },
                 {
-                  icon: "🔐",
-                  title: "User-Owned Assets",
-                  description: "All in-game assets are tokenized on Solana, giving players true ownership and the ability to trade on open markets."
+                  icon: "🧠",
+                  title: "Emergent Behavior",
+                  description: "Agents learn and adapt over time through reinforcement learning, creating emergent gameplay and unique economic patterns."
                 }
               ].map((feature, index) => (
                 <motion.div 

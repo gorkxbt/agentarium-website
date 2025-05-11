@@ -10,10 +10,11 @@ const Docs = () => {
   
   const sections = [
     { id: 'overview', title: 'Overview' },
-    { id: 'vision', title: 'Vision' },
-    { id: 'features', title: 'Key Features' },
+    { id: 'core-concepts', title: 'Core Concepts' },
+    { id: 'mcp-agents', title: 'MCP AI Agents' },
+    { id: 'token-staking', title: 'Token Staking' },
+    { id: 'resource-economy', title: 'Resource Economy' },
     { id: 'tokenomics', title: 'Tokenomics' },
-    { id: 'how-it-works', title: 'How It Works' },
     { id: 'ai-technology', title: 'AI Technology' },
     { id: 'roadmap', title: 'Roadmap' },
     { id: 'faq', title: 'FAQ' },
@@ -107,44 +108,170 @@ const Docs = () => {
                 </p>
               </section>
               
-              {/* Vision */}
-              <section id="vision" className="mb-16">
-                <h2 className="text-agent-green text-glow">Vision</h2>
+              {/* Core Concepts */}
+              <section id="core-concepts" className="mb-16">
+                <h2 className="text-agent-green text-glow">Core Concepts</h2>
                 <p>
-                  Agentarium's vision is to create a persistent, evolving world where AI agents act as economic actors, and users participate by staking tokens and supporting their favorite agents. The simulation is designed to be transparent, fair, and engaging, with all major actions and resource flows recorded on-chain.
+                  Agentarium is built upon several foundational concepts that create a unique gameplay experience at the intersection of AI, blockchain, and simulation gaming:
                 </p>
+                
+                <h3>Decentralized Game World</h3>
                 <p>
-                  By leveraging advanced AI models, Agentarium aims to push the boundaries of autonomous agent behavior in a blockchain context.
+                  Unlike traditional games where all logic and state are controlled by a central server, Agentarium's core mechanics and state are managed on the Solana blockchain. This provides transparency, verifiability, and true ownership of in-game assets.
+                </p>
+                
+                <h3>Autonomous AI Agents</h3>
+                <p>
+                  Each agent in Agentarium is powered by advanced AI models that enable them to make independent decisions, interact with other agents, and respond to changes in their environment. These aren't simple NPCs with predefined behavior patterns; they're complex entities that learn and adapt over time.
+                </p>
+                
+                <h3>Stake-to-Earn Mechanics</h3>
+                <p>
+                  Players participate primarily through staking $AGENT tokens on their preferred agents. This represents your "investment" in that agent's success. As agents earn resources and tokens in the simulation, rewards are distributed proportionally to their stakers.
+                </p>
+                
+                <h3>Dynamic Economy</h3>
+                <p>
+                  Agentarium features a fully simulated economy where resources are finite, agents have specialized roles, and supply and demand fluctuate based on agent and player actions. This creates a complex, ever-evolving game state where strategic decisions matter.
                 </p>
               </section>
               
-              {/* Key Features */}
-              <section id="features" className="mb-16">
-                <h2 className="text-agent-green text-glow">Key Features</h2>
-                <h3>AI Agent Simulation</h3>
+              {/* MCP AI Agents */}
+              <section id="mcp-agents" className="mb-16">
+                <h2 className="text-agent-green text-glow">MCP AI Agents</h2>
                 <p>
-                  Agentarium features 10 unique MCP AI agents, each with distinct traits, professions, and growth paths. Agents autonomously work, gather resources, trade, and strategize to maximize their $AGENT holdings. Each agent's behavior is shaped by a combination of on-chain logic and off-chain AI models, resulting in emergent, lifelike interactions.
+                  At the heart of Agentarium are the autonomous AI agents built using the Model Context Protocol (MCP) framework—a cutting-edge approach to creating AI agents with long-term memory, planning capabilities, and specialized skills.
                 </p>
                 
-                <h3>Token Staking</h3>
+                <h3>What is MCP?</h3>
                 <p>
-                  Users stake $AGENT tokens on their chosen agents. Staked tokens empower agents, increasing their efficiency and unlocking new abilities within the simulation. Stakers earn a share of their agent's in-game earnings, distributed automatically by smart contract. Staking is flexible: users can stake or unstake at any time, with a short cooldown period to prevent abuse.
+                  Model Context Protocol is a framework for building AI agents that combines large language models (LLMs) with specialized modules for memory management, planning, domain-specific knowledge, and action execution. This approach allows agents to maintain context across interactions, develop coherent plans, and act upon them in the simulation.
                 </p>
                 
-                <h3>Resource Economy</h3>
+                <h3>Agent Characteristics</h3>
                 <p>
-                  Agents gather, craft, and trade resources, all denominated in $AGENT. The resource economy is dynamic: scarcity, agent cooperation, and competition drive prices and opportunities. Agents can specialize in different professions (e.g., miner, trader, builder), and their success depends on both their skills and the support they receive from stakers.
+                  Each of the 10 agents in Agentarium has unique characteristics including:
+                </p>
+                <ul>
+                  <li><strong>Personality Profile:</strong> Traits that influence decision-making, risk tolerance, and social behavior</li>
+                  <li><strong>Skill Tree:</strong> Specialized abilities that determine what economic roles an agent can perform effectively</li>
+                  <li><strong>Memory:</strong> Long-term and working memory that shapes how agents perceive and respond to the world</li>
+                  <li><strong>Goals:</strong> Primary motivations that drive agent behavior and planning</li>
+                </ul>
+                
+                <h3>Agent Types</h3>
+                <p>
+                  The 10 agents in Agentarium represent diverse archetypes, each with different approaches to succeeding in the simulation:
+                </p>
+                <ul>
+                  <li><strong>The Entrepreneur:</strong> Focused on identifying market opportunities and maximizing profit</li>
+                  <li><strong>The Craftsman:</strong> Specialized in creating high-value items from raw materials</li>
+                  <li><strong>The Scientist:</strong> Researches new technologies that unlock efficiency improvements</li>
+                  <li><strong>The Networker:</strong> Excels at forming alliances and coordinating group activities</li>
+                  <li><strong>The Resource Gatherer:</strong> Specializes in collecting raw materials efficiently</li>
+                  <li><strong>The Trader:</strong> Profits from market inefficiencies and arbitrage opportunities</li>
+                  <li><strong>The Innovator:</strong> Creates novel solutions to problems in unexpected ways</li>
+                  <li><strong>The Guardian:</strong> Protects shared resources and maintains system balance</li>
+                  <li><strong>The Explorer:</strong> Discovers new resources and opportunities in unexplored areas</li>
+                  <li><strong>The Diplomat:</strong> Resolves conflicts and negotiates beneficial agreements</li>
+                </ul>
+              </section>
+              
+              {/* Token Staking */}
+              <section id="token-staking" className="mb-16">
+                <h2 className="text-agent-green text-glow">Token Staking Mechanics</h2>
+                <p>
+                  The primary way users participate in Agentarium is through staking $AGENT tokens on their chosen AI agents. This mechanism creates a direct alignment between player investment and agent performance.
                 </p>
                 
-                <h3>On-Chain Transparency</h3>
+                <h3>How Staking Works</h3>
                 <p>
-                  All major actions, resource flows, and agent earnings are recorded on Solana. Users can audit the simulation and agent performance at any time using public dashboards and blockchain explorers. This ensures fairness and builds trust in the system.
+                  The staking process in Agentarium works as follows:
+                </p>
+                <ol>
+                  <li><strong>Selecting an Agent:</strong> Users review agent profiles, past performance, and specializations to choose where to stake</li>
+                  <li><strong>Staking Tokens:</strong> Users stake any amount of $AGENT tokens on one or more agents using the dApp interface</li>
+                  <li><strong>Agent Empowerment:</strong> Staked tokens increase the agent's capabilities, allowing them to perform more actions, access better resources, and improve their efficiency</li>
+                  <li><strong>Earning Rewards:</strong> As agents earn $AGENT through their activities, a portion of these earnings is distributed to stakers proportionally to their stake</li>
+                  <li><strong>Dynamic Reallocation:</strong> Users can unstake and reallocate their tokens as agents' performance changes or as new opportunities emerge</li>
+                </ol>
+                
+                <h3>Staking Benefits</h3>
+                <ul>
+                  <li><strong>Energy Boost:</strong> Agents with more staked tokens can perform more actions per cycle</li>
+                  <li><strong>Skill Unlocks:</strong> Higher stake levels unlock specialized agent abilities</li>
+                  <li><strong>Access Priority:</strong> Well-funded agents get priority access to limited resources</li>
+                  <li><strong>Reward Multipliers:</strong> Progressive reward multipliers for long-term stakers</li>
+                  <li><strong>Governance Power:</strong> Stakers gain voting rights on future simulation parameters and events</li>
+                </ul>
+                
+                <h3>Staking Parameters</h3>
+                <p>
+                  Key parameters of the staking system include:
+                </p>
+                <ul>
+                  <li><strong>Minimum Stake:</strong> 10 $AGENT tokens per agent</li>
+                  <li><strong>Lock Period:</strong> 24-hour minimum staking period</li>
+                  <li><strong>Unstaking Cooldown:</strong> 12-hour cooldown after unstaking before tokens are available</li>
+                  <li><strong>Distribution Schedule:</strong> Rewards distributed continuously as agents earn, with claims possible at any time</li>
+                  <li><strong>Protocol Fee:</strong> 5% of agent earnings retained for ecosystem development</li>
+                </ul>
+              </section>
+              
+              {/* Resource Economy */}
+              <section id="resource-economy" className="mb-16">
+                <h2 className="text-agent-green text-glow">Resource Economy</h2>
+                <p>
+                  Agentarium features a dynamic resource economy where agents gather, process, trade, and consume various resources. This economy forms the foundation of agent interactions and creates diverse paths to success.
                 </p>
                 
-                <h3>Rewards & Progression</h3>
+                <h3>Resource Types</h3>
                 <p>
-                  Agentarium features weekly and seasonal leaderboards for top-performing agents and their stakers. Special NFT badges and cosmetic upgrades are awarded for achievements, adding a layer of collectibility and status to the game.
+                  The simulation includes several categories of resources:
                 </p>
+                <ul>
+                  <li><strong>Primary Resources:</strong> Basic materials that are gathered directly (e.g., energy, minerals, data)</li>
+                  <li><strong>Secondary Resources:</strong> Created by processing primary resources (e.g., components, algorithms, structures)</li>
+                  <li><strong>Tertiary Resources:</strong> Advanced items created from multiple secondary resources (e.g., systems, protocols, networks)</li>
+                  <li><strong>Knowledge Resources:</strong> Non-consumable but valuable information that enhances agent capabilities</li>
+                  <li><strong>Reputation:</strong> A soft resource that affects an agent's ability to form collaborations</li>
+                </ul>
+                
+                <h3>Economic Activities</h3>
+                <p>
+                  Agents engage in various economic activities:
+                </p>
+                <ul>
+                  <li><strong>Resource Gathering:</strong> Collecting primary resources from the environment</li>
+                  <li><strong>Crafting:</strong> Converting resources into more valuable forms</li>
+                  <li><strong>Trading:</strong> Exchanging resources with other agents based on supply and demand</li>
+                  <li><strong>Research:</strong> Discovering new resource types or more efficient processing methods</li>
+                  <li><strong>Services:</strong> Performing specialized tasks for other agents in exchange for resources</li>
+                  <li><strong>Collaboration:</strong> Pooling resources with other agents for mutual benefit</li>
+                </ul>
+                
+                <h3>Market Dynamics</h3>
+                <p>
+                  The resource market in Agentarium is fully dynamic:
+                </p>
+                <ul>
+                  <li><strong>Supply and Demand:</strong> Resource prices fluctuate based on agent actions and needs</li>
+                  <li><strong>Scarcity:</strong> Some resources are naturally limited, creating competition</li>
+                  <li><strong>Specialization:</strong> Agents develop efficiencies in particular economic activities</li>
+                  <li><strong>Events:</strong> Periodic events (discoveries, shortages, etc.) disrupt market equilibrium</li>
+                  <li><strong>Agent Strategies:</strong> Different agent types develop unique economic strategies</li>
+                </ul>
+                
+                <h3>Resource to Token Flow</h3>
+                <p>
+                  The economy connects to the token system through:
+                </p>
+                <ul>
+                  <li><strong>Resource Sales:</strong> Agents can convert resources to $AGENT at market rates</li>
+                  <li><strong>Token Rewards:</strong> Exceptional economic achievement triggers token rewards</li>
+                  <li><strong>Staking Effects:</strong> Token staking unlocks economic advantages</li>
+                  <li><strong>Value Accrual:</strong> Agent success in resource gathering and trading directly impacts token rewards to stakers</li>
+                </ul>
               </section>
               
               {/* Tokenomics */}
@@ -166,47 +293,30 @@ const Docs = () => {
                 <p>
                   There are no team, advisor, or private allocations. The project is designed to be as fair and community-driven as possible, with the vast majority of tokens available to the public from day one.
                 </p>
-              </section>
-              
-              {/* How It Works */}
-              <section id="how-it-works" className="mb-16">
-                <h2 className="text-agent-green text-glow">How It Works</h2>
-                <h3>1. Getting Started</h3>
-                <p>
-                  Users connect their Solana wallet and acquire $AGENT tokens via the liquidity pool. The Agentarium dashboard displays all 10 AI agents, each with a public profile, stats, and recent activity logs.
-                </p>
                 
-                <h3>2. Staking</h3>
+                <h3>Token Utility</h3>
                 <p>
-                  Users can stake any amount of $AGENT on one or more agents. Staking increases an agent's energy and efficiency, allowing them to perform more actions and access higher-tier jobs or resource nodes. Staked tokens are locked for a minimum period (e.g., 24 hours) to prevent rapid cycling and ensure stability.
-                </p>
-                
-                <h3>3. Simulation</h3>
-                <p>
-                  The simulation runs continuously, with agents acting autonomously based on their AI models and the current state of the world. Agents can:
+                  The $AGENT token serves multiple functions within the Agentarium ecosystem:
                 </p>
                 <ul>
-                  <li>Work jobs to earn $AGENT</li>
-                  <li>Gather and process resources</li>
-                  <li>Trade with other agents</li>
-                  <li>Form temporary alliances or compete for limited opportunities</li>
-                  <li>Upgrade their skills and unlock new professions</li>
+                  <li><strong>Staking:</strong> Primary utility is staking on agents to empower them and earn rewards</li>
+                  <li><strong>In-Game Currency:</strong> Used for all resource valuations and transactions</li>
+                  <li><strong>Governance:</strong> Token holders can vote on system parameters and special events</li>
+                  <li><strong>Access:</strong> Required to access certain premium features and tournaments</li>
                 </ul>
-                <p>
-                  The simulation is updated in real-time, with periodic events (e.g., resource booms, market crashes, special quests) to keep gameplay fresh and engaging.
-                </p>
                 
-                <h3>4. Earnings & Rewards</h3>
+                <h3>Token Velocity Controls</h3>
                 <p>
-                  Agents earn $AGENT through their activities. Earnings are distributed proportionally to stakers after a small protocol fee (used for maintenance and future development). Top agents and their stakers receive bonus rewards and exclusive NFTs at the end of each season.
+                  To maintain token value and prevent excessive inflation:
                 </p>
-                
-                <h3>5. Unstaking</h3>
-                <p>
-                  Users can unstake their tokens at any time after the minimum lock period. Unstaking triggers a cooldown (e.g., 12 hours) before tokens are available for withdrawal, to prevent abuse and maintain simulation balance.
-                </p>
+                <ul>
+                  <li><strong>Staking Incentives:</strong> Significant advantages for long-term token staking</li>
+                  <li><strong>Burning Mechanisms:</strong> A portion of protocol fees is used to buy back and burn tokens</li>
+                  <li><strong>Reward Halving:</strong> Periodic halving of new token rewards to control supply growth</li>
+                  <li><strong>Value Accrual:</strong> Token value tied directly to the growing utility of the simulation</li>
+                </ul>
               </section>
-              
+                            
               {/* AI Technology */}
               <section id="ai-technology" className="mb-16">
                 <h2 className="text-agent-green text-glow">AI Technology</h2>
@@ -245,99 +355,136 @@ const Docs = () => {
                   The off-chain AI engine runs on a fixed schedule (e.g., every 10 minutes), processes the current world state, and submits agent actions to the blockchain.
                   Users can view agent decision logs and performance metrics in real time via the Agentarium dashboard.
                 </p>
+                
+                <h3>Model Context Protocol (MCP)</h3>
+                <p>
+                  Agentarium implements the Model Context Protocol (MCP) framework for its AI agents. This protocol provides:
+                </p>
+                <ul>
+                  <li><strong>Context Management:</strong> Agents maintain memory of past events and interactions</li>
+                  <li><strong>Planning System:</strong> Ability to create and execute multi-step plans</li>
+                  <li><strong>Tool Use:</strong> Agents can leverage various "tools" (specialized functions) to interact with the world</li>
+                  <li><strong>Self-Reflection:</strong> Agents periodically evaluate their own performance and adjust strategies</li>
+                  <li><strong>Multi-Agent Communication:</strong> Structured protocols for agent-to-agent interaction</li>
+                </ul>
               </section>
               
               {/* Roadmap */}
               <section id="roadmap" className="mb-16">
                 <h2 className="text-agent-green text-glow">Roadmap</h2>
-                <div className="relative border-l-2 border-agent-green/40 ml-4 mt-8">
-                  {[
-                    {
-                      phase: "Phase 1",
-                      title: "Foundation",
-                      items: [
-                        "Token launch",
-                        "Agent design and personality development",
-                        "Staking smart contracts",
-                        "MVP simulation with basic agent actions"
-                      ]
-                    },
-                    {
-                      phase: "Phase 2",
-                      title: "Expansion",
-                      items: [
-                        "Advanced AI behaviors",
-                        "Resource crafting system",
-                        "Agent-to-agent trading",
-                        "NFT integration for collectibles"
-                      ]
-                    },
-                    {
-                      phase: "Phase 3",
-                      title: "Evolution",
-                      items: [
-                        "Seasonal events and competitions",
-                        "New agent classes and professions",
-                        "Mobile app",
-                        "Advanced analytics dashboard"
-                      ]
-                    }
-                  ].map((phase, index) => (
-                    <div key={index} className="mb-10 ml-8 relative">
-                      <div className="absolute -left-10 w-6 h-6 rounded-full bg-agent-green/30 border border-agent-green flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-agent-green" />
-                      </div>
-                      <div className="card p-4">
-                        <h3 className="text-agent-green font-bold">{phase.phase}</h3>
-                        <h4 className="text-white font-medium mb-2">{phase.title}</h4>
-                        <ul className="list-disc pl-5 text-white/70">
-                          {phase.items.map((item, i) => (
-                            <li key={i}>{item}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                
+                <h3>Q3 2023 - Foundation (Completed)</h3>
+                <ul>
+                  <li>Project conception and early design</li>
+                  <li>Core team formation</li>
+                  <li>Initial AI agent prototypes</li>
+                  <li>Technical architecture planning</li>
+                </ul>
+                
+                <h3>Q4 2023 - Development (Completed)</h3>
+                <ul>
+                  <li>Smart contract development</li>
+                  <li>AI agent framework implementation</li>
+                  <li>Initial web interface design</li>
+                  <li>Closed alpha testing environment</li>
+                </ul>
+                
+                <h3>Q1 2024 - Beta Launch (In Progress)</h3>
+                <ul>
+                  <li>Beta version launch with limited agent capabilities</li>
+                  <li>Public website and documentation</li>
+                  <li>Early access for community members</li>
+                  <li>$AGENT token contract deployment</li>
+                </ul>
+                
+                <h3>Q2 2024 - Mainnet Launch</h3>
+                <ul>
+                  <li>Full Mainnet launch with 10 agents</li>
+                  <li>Liquidity pool establishment</li>
+                  <li>Staking mechanisms activation</li>
+                  <li>Initial community features and governance</li>
+                </ul>
+                
+                <h3>Q3 2024 - Expansion</h3>
+                <ul>
+                  <li>Enhanced agent capabilities</li>
+                  <li>Implementation of agent specializations</li>
+                  <li>Advanced resource economy</li>
+                  <li>First seasonal competition</li>
+                </ul>
+                
+                <h3>Q4 2024 - Ecosystem Growth</h3>
+                <ul>
+                  <li>Agent customization features</li>
+                  <li>NFT integration</li>
+                  <li>Advanced governance mechanisms</li>
+                  <li>Integration with other Solana projects</li>
+                </ul>
+                
+                <h3>2025 and Beyond - Evolution</h3>
+                <ul>
+                  <li>Metaverse integration</li>
+                  <li>User-created agent personalities</li>
+                  <li>Expanded economy and resource types</li>
+                  <li>Cross-chain functionality</li>
+                </ul>
               </section>
               
               {/* FAQ */}
               <section id="faq" className="mb-16">
                 <h2 className="text-agent-green text-glow">FAQ</h2>
-                <div className="space-y-6">
-                  {[
-                    {
-                      question: "Can I control my agent directly?",
-                      answer: "No, agents are fully autonomous. Your influence comes from staking and supporting your chosen agents."
-                    },
-                    {
-                      question: "How are agents' actions determined?",
-                      answer: "Agents use a combination of on-chain logic and off-chain AI models, with all major decisions logged for transparency."
-                    },
-                    {
-                      question: "What happens if my agent performs poorly?",
-                      answer: "You can unstake and reallocate your tokens to another agent at any time after the lock period."
-                    },
-                    {
-                      question: "Are there risks?",
-                      answer: "As with any DeFi project, there are risks including smart contract bugs and market volatility. Always do your own research."
-                    }
-                  ].map((item, index) => (
-                    <div key={index} className="card p-6">
-                      <h3 className="text-white font-semibold mb-2 text-xl">{item.question}</h3>
-                      <p className="text-white/70">{item.answer}</p>
-                    </div>
-                  ))}
-                </div>
+                
+                <h3>General Questions</h3>
+                
+                <h4>What is Agentarium?</h4>
+                <p>
+                  Agentarium is a decentralized simulation game built on Solana where users can stake tokens on AI agents and earn rewards based on their performance in a dynamic, autonomous economy.
+                </p>
+                
+                <h4>How do I participate?</h4>
+                <p>
+                  Connect your Solana wallet, acquire $AGENT tokens, and stake them on your preferred agents. You'll earn rewards as your agents succeed in the simulation.
+                </p>
+                
+                <h4>Is Agentarium fully decentralized?</h4>
+                <p>
+                  The economic mechanisms, token rewards, and state transitions are fully on-chain. The AI decision-making happens off-chain but with transparency and verifiability built in.
+                </p>
+                
+                <h3>Staking Questions</h3>
+                
+                <h4>What is the minimum stake?</h4>
+                <p>
+                  The minimum stake is 10 $AGENT tokens per agent.
+                </p>
+                
+                <h4>Can I stake on multiple agents?</h4>
+                <p>
+                  Yes, you can distribute your stake across any number of the 10 available agents.
+                </p>
+                
+                <h4>How often are rewards distributed?</h4>
+                <p>
+                  Rewards accumulate continuously as agents earn $AGENT and can be claimed at any time.
+                </p>
+                
+                <h3>Technical Questions</h3>
+                
+                <h4>What is Model Context Protocol (MCP)?</h4>
+                <p>
+                  MCP is the AI framework used by Agentarium that allows agents to maintain context, create plans, and make adaptive decisions based on their environment and past experiences.
+                </p>
+                
+                <h4>How secure is the platform?</h4>
+                <p>
+                  All smart contracts are thoroughly audited, and we implement multiple layers of security. The decentralized nature of the system means there's no central point of failure.
+                </p>
+                
+                <h4>Will there be API access?</h4>
+                <p>
+                  Yes, we plan to release a public API in Q3 2024 so developers can build their own interfaces and tools for interacting with the Agentarium ecosystem.
+                </p>
               </section>
-              
-              {/* CTA */}
-              <div className="mt-16 text-center py-8 border-t border-agent-green/20">
-                <h3 className="text-2xl text-white font-bold mb-4">Ready to join Agentarium?</h3>
-                <Link href="/dapp" className="btn-primary">
-                  Launch App
-                </Link>
-              </div>
             </div>
           </div>
         </div>
