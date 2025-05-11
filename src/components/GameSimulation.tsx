@@ -5,7 +5,7 @@ import { useState, useEffect, Component, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import React from 'react';
-import { isWebGLAvailable, fixBlackScreen, resetWebGLContext } from '@/utils/webgl-helper';
+import { isWebGLAvailable, fixBlackScreen, resetWebGLContext, getWebGLInfo, createFallbackScene } from '@/utils/webgl-helper';
 
 // Import the client component with no SSR and a fallback
 const ClientGameScene = dynamic(() => import('./game/ClientGameScene').catch(err => {
@@ -15,7 +15,22 @@ const ClientGameScene = dynamic(() => import('./game/ClientGameScene').catch(err
     <div className="text-white text-center p-4">
       <h3 className="text-xl font-bold mb-2">Agentarium City</h3>
       <p>Interactive 3D simulation unavailable. {err.message}</p>
-      <p className="text-xs mt-4 text-agent-green">Please refresh the page to try again.</p>
+      <p className="text-xs mt-4 text-agent-green">Please refresh the page to try again or try the 2D mode below.</p>
+      <button 
+        onClick={() => window.location.reload()}
+        className="mt-4 px-4 py-2 bg-agent-green text-black rounded-md hover:bg-agent-green/80 transition-colors mr-2"
+      >
+        Refresh
+      </button>
+      <button 
+        onClick={() => {
+          localStorage.setItem('agentarium_use_2d', 'true');
+          window.location.reload();
+        }}
+        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+      >
+        Try 2D Mode
+      </button>
     </div>
   </div>;
 }), { 
@@ -334,54 +349,80 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
   const [selectedAgent, setSelectedAgent] = useState<any | null>(null);
   const [showIntro, setShowIntro] = useState(true);
   const [showGuide, setShowGuide] = useState(false);
+  const [showControls, setShowControls] = useState<boolean>(false);
   const [timeOfDay, setTimeOfDay] = useState('day');
-  const [webGLAvailable, setWebGLAvailable] = useState(true);
-  const [loadingFailed, setLoadingFailed] = useState(false);
-  const [loadAttempts, setLoadAttempts] = useState(0);
-  const [use2DFallback, setUse2DFallback] = useState(false);
-  const loadTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [use2DMode, setUse2DMode] = useState<boolean>(false);
+  const [webGLError, setWebGLError] = useState<boolean>(false);
+  const [useReducedQuality, setUseReducedQuality] = useState<boolean>(false);
+  const simContainerRef = useRef<HTMLDivElement>(null);
   
-  // Check for WebGL support
   useEffect(() => {
-    setWebGLAvailable(isWebGLAvailable());
+    // Check if browser storage prefers 2D mode or reduced quality
+    const stored2DPref = localStorage.getItem('agentarium_use_2d');
+    const storedQualityPref = localStorage.getItem('agentarium_reduced_quality');
     
-    // Try to fix any black screen issues
+    // Try to fix black screen issues on load
     fixBlackScreen();
     
-    // Set a loading timeout
-    loadTimerRef.current = setTimeout(() => {
-      // If still loading after 15 seconds, try 2D fallback
-      setLoadingFailed(true);
-      console.warn('Loading timeout exceeded, trying fallback render mode');
-    }, 15000);
-    
-    // Check if user has specifically requested 2D mode
-    const preferSimple = localStorage.getItem('agentarium_use_2d') === 'true';
-    if (preferSimple) {
-      setUse2DFallback(true);
+    // Set preferences from storage
+    if (stored2DPref === 'true') {
+      setUse2DMode(true);
     }
     
-    return () => {
-      if (loadTimerRef.current) {
-        clearTimeout(loadTimerRef.current);
+    if (storedQualityPref === 'true') {
+      setUseReducedQuality(true);
+    }
+    
+    // Check WebGL availability with a safety timeout
+    const webGLCheckTimeout = setTimeout(() => {
+      // If this timeout triggers, WebGL may be stuck or not responding
+      setWebGLError(true);
+      console.error("WebGL initialization timed out");
+    }, 5000);
+    
+    // Try to initialize WebGL and check for support
+    if (!isWebGLAvailable()) {
+      clearTimeout(webGLCheckTimeout);
+      setWebGLError(true);
+      setUse2DMode(true);
+      console.error("WebGL is not available in this browser");
+    } else {
+      try {
+        const webGLInfo = getWebGLInfo();
+        console.log("WebGL Info:", webGLInfo);
+        clearTimeout(webGLCheckTimeout);
+      } catch (error) {
+        clearTimeout(webGLCheckTimeout);
+        console.error("Error checking WebGL:", error);
+        setWebGLError(true);
+        setUse2DMode(true);
+      }
+    }
+    
+    // Handle WebGL-related errors globally
+    const handleError = (event: ErrorEvent) => {
+      // Check if it's a WebGL context error
+      if (event.message && (
+          event.message.includes('WebGL') || 
+          event.message.includes('GL_') || 
+          event.message.includes('GPU process') ||
+          event.message.includes('threejs') ||
+          event.message.includes('WEBGL_')
+        )) {
+        console.error("WebGL error detected:", event.message);
+        setWebGLError(true);
       }
     };
+    
+    // Add error event listener
+    window.addEventListener('error', handleError);
+
+    return () => {
+      window.removeEventListener('error', handleError);
+      clearTimeout(webGLCheckTimeout);
+      resetWebGLContext(); // Clean up WebGL context when component unmounts
+    };
   }, []);
-  
-  // Handle loading failure
-  useEffect(() => {
-    if (loadingFailed) {
-      setLoadAttempts(prev => prev + 1);
-      
-      if (loadAttempts >= 1) {
-        // After one failed attempt, use 2D fallback
-        setUse2DFallback(true);
-      } else {
-        // Try reset WebGL context and retry
-        resetWebGLContext();
-      }
-    }
-  }, [loadingFailed]);
   
   // Handle agent selection
   const handleAgentClick = (agent: any) => {
@@ -400,34 +441,43 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
   // Handle time changes
   const handleTimeChange = (time: string) => {
     setTimeOfDay(time);
+    onAgentSelect && onAgentSelect(time);
   };
   
   // Handle page refresh
   const handlePageRefresh = () => {
+    // Clear all preferences and refresh
+    localStorage.removeItem('agentarium_use_2d');
+    localStorage.removeItem('agentarium_reduced_quality');
     window.location.reload();
   };
   
   // Switch to reduced quality mode
   const handleReducedQuality = () => {
+    // Set reduced quality and refresh
     localStorage.setItem('agentarium_reduced_quality', 'true');
+    setUseReducedQuality(true);
     window.location.reload();
   };
   
   // Switch to 2D mode
   const handle2DMode = () => {
+    // Switch to 2D mode and refresh
     localStorage.setItem('agentarium_use_2d', 'true');
-    setUse2DFallback(true);
+    setUse2DMode(true);
+    window.location.reload();
   };
   
   // Switch back to 3D mode
   const handle3DMode = () => {
-    localStorage.setItem('agentarium_use_2d', 'false');
-    setUse2DFallback(false);
+    // Switch to 3D mode and refresh
+    localStorage.removeItem('agentarium_use_2d');
+    setUse2DMode(false);
     window.location.reload();
   };
 
   return (
-    <div className="relative mx-auto my-4 w-full max-w-[1848px] aspect-[16/9] bg-agent-black rounded-xl border border-white/5 shadow-2xl overflow-hidden">
+    <div className="w-full h-full relative overflow-hidden" ref={simContainerRef}>
       {/* Intro overlay */}
       <AnimatePresence>
         {showIntro && (
@@ -489,7 +539,7 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
       </div>
       
       {/* WebGL error message */}
-      {!webGLAvailable && (
+      {!isWebGLAvailable && (
         <div className="absolute inset-0 z-30 bg-agent-black/90 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-agent-dark-gray/80 rounded-lg border border-red-500/30 p-6 max-w-md text-center">
             <h3 className="text-xl font-bold text-white mb-3">3D Rendering Not Available</h3>
@@ -518,7 +568,7 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
       )}
       
       {/* Loading failure message with retry button */}
-      {loadingFailed && webGLAvailable && (
+      {webGLError && (
         <div className="absolute inset-0 z-25 bg-agent-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-agent-dark-gray/60 rounded-lg border border-yellow-500/30 p-6 max-w-md text-center">
             <h3 className="text-xl font-bold text-white mb-3">Loading Taking Too Long</h3>
@@ -670,10 +720,13 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
           </div>
         }>
           <React.Suspense fallback={<LoadingScreen />}>
-            {!webGLAvailable || use2DFallback ? (
-              <FallbackSimulation onAgentSelect={handleAgentClick} />
-            ) : (
+            {!webGLError && !use2DMode ? (
               <ClientGameScene 
+                onAgentClick={handleAgentClick}
+                onTimeChange={handleTimeChange}
+              />
+            ) : (
+              <FallbackSimulation 
                 onAgentClick={handleAgentClick}
                 onTimeChange={handleTimeChange}
               />
@@ -688,16 +741,83 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
       )}
       
       {/* Mode switcher */}
-      {webGLAvailable && (
+      {webGLError && (
         <div className="absolute top-4 right-4 z-10">
           <button
-            onClick={use2DFallback ? handle3DMode : handle2DMode}
+            onClick={use2DMode ? handle3DMode : handle2DMode}
             className="px-3 py-1 bg-black/40 backdrop-blur-sm text-white/80 text-xs rounded-full hover:bg-black/60 transition-colors"
           >
-            {use2DFallback ? 'Switch to 3D Mode' : 'Switch to 2D Mode'}
+            {use2DMode ? 'Switch to 3D Mode' : 'Switch to 2D Mode'}
           </button>
         </div>
       )}
+      
+      {/* Display controls for switching modes */}
+      <div className="absolute bottom-4 left-4 z-30 flex space-x-2">
+        <button
+          onClick={() => setShowControls(!showControls)}
+          className="w-10 h-10 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+          </svg>
+        </button>
+        
+        <AnimatePresence>
+          {showControls && (
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="flex space-x-2"
+            >
+              <button
+                onClick={() => setShowGuide(true)}
+                className="px-3 py-2 bg-black/50 backdrop-blur-md rounded-md text-white text-sm hover:bg-black/70 transition-colors"
+              >
+                Guide
+              </button>
+              
+              {use2DMode ? (
+                <button
+                  onClick={handle3DMode}
+                  className="px-3 py-2 bg-agent-green/70 backdrop-blur-md rounded-md text-black text-sm hover:bg-agent-green/90 transition-colors"
+                >
+                  Switch to 3D
+                </button>
+              ) : (
+                <button
+                  onClick={handle2DMode}
+                  className="px-3 py-2 bg-blue-600/70 backdrop-blur-md rounded-md text-white text-sm hover:bg-blue-600/90 transition-colors"
+                >
+                  Switch to 2D
+                </button>
+              )}
+              
+              <button
+                onClick={handleReducedQuality}
+                className="px-3 py-2 bg-purple-600/70 backdrop-blur-md rounded-md text-white text-sm hover:bg-purple-600/90 transition-colors"
+              >
+                Reduce Quality
+              </button>
+              
+              <button
+                onClick={handlePageRefresh}
+                className="px-3 py-2 bg-red-600/70 backdrop-blur-md rounded-md text-white text-sm hover:bg-red-600/90 transition-colors"
+              >
+                Refresh
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+      
+      {/* Show simulation guide when showGuide is true */}
+      <AnimatePresence>
+        {showGuide && (
+          <SimulationGuide onClose={() => setShowGuide(false)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

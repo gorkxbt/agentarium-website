@@ -16,6 +16,8 @@ interface Agent {
 // Define props
 interface FallbackSimulationProps {
   onAgentSelect?: (agentType: string) => void;
+  onAgentClick?: (agent: any) => void;
+  onTimeChange?: (timeOfDay: string) => void;
 }
 
 // Static agent data
@@ -51,7 +53,7 @@ const LOCATIONS = [
 /**
  * A 2D fallback for the 3D city simulation that works without WebGL
  */
-const FallbackSimulation: React.FC<FallbackSimulationProps> = ({ onAgentSelect }) => {
+const FallbackSimulation: React.FC<FallbackSimulationProps> = ({ onAgentSelect, onAgentClick, onTimeChange }) => {
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [agentStates, setAgentStates] = useState<Agent[]>(AGENTS);
   const [timeOfDay, setTimeOfDay] = useState<'day' | 'sunset' | 'night'>('day');
@@ -60,14 +62,17 @@ const FallbackSimulation: React.FC<FallbackSimulationProps> = ({ onAgentSelect }
   useEffect(() => {
     const interval = setInterval(() => {
       setTimeOfDay(current => {
-        if (current === 'day') return 'sunset';
-        if (current === 'sunset') return 'night';
-        return 'day';
+        const newTime = current === 'day' ? 'sunset' : current === 'sunset' ? 'night' : 'day';
+        // Call the onTimeChange prop when time changes
+        if (onTimeChange) {
+          onTimeChange(newTime);
+        }
+        return newTime;
       });
     }, 30000); // 30 seconds per time period
     
     return () => clearInterval(interval);
-  }, []);
+  }, [onTimeChange]);
   
   // Simulate agent movement and state changes
   useEffect(() => {
@@ -109,8 +114,12 @@ const FallbackSimulation: React.FC<FallbackSimulationProps> = ({ onAgentSelect }
   // Handle agent click
   const handleAgentClick = (agent: Agent) => {
     setSelectedAgent(agent);
+    // Call both callbacks if they exist
     if (onAgentSelect) {
       onAgentSelect(agent.role);
+    }
+    if (onAgentClick) {
+      onAgentClick(agent);
     }
   };
   
