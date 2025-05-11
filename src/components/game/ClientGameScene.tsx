@@ -3279,60 +3279,35 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
   // Simplified Canvas configuration for better compatibility
   return (
     <Canvas 
-      shadows={useSimpleRenderer ? false : undefined} // Disable shadows in simple mode
+      shadows={false} // Completely disable shadows for better performance
       className="w-full h-full"
       style={{ 
         position: 'absolute', 
         height: '100%', 
         width: '100%',
-        background: "#121212", // Dark background
+        background: "#121212",
         borderRadius: 'inherit'
       }}
       camera={{ position: [80, 80, 80], fov: 55 }}
       gl={{ 
-        antialias: !useSimpleRenderer, // Disable antialiasing in simple mode
+        antialias: false, // Always disable antialiasing for better performance
         alpha: false,
-        powerPreference: useSimpleRenderer ? "low-power" : "default",
-        failIfMajorPerformanceCaveat: false, // Always allow lower performance
-        precision: useSimpleRenderer ? "lowp" : "highp", // Lower precision in simple mode
-        depth: true, // Ensure depth testing works
-        stencil: false, // Disable stencil buffer to save memory
+        powerPreference: "default",
+        failIfMajorPerformanceCaveat: false,
+        precision: "highp",
+        depth: true,
+        stencil: false,
       }}
-      dpr={useSimpleRenderer ? [0.5, 1] : [1, 1.5]} // Lower resolution in simple mode
-      frameloop={useSimpleRenderer ? "demand" : "always"} // Only render when needed in simple mode
+      dpr={1} // Fixed DPR to improve performance and avoid issues
+      frameloop="always" // Always render to ensure visibility
       onCreated={state => {
-        console.log("Canvas initialized with renderer:", 
-          useSimpleRenderer ? "simple mode" : "standard mode");
+        console.log("Canvas initialized");
         
         // Force disable shadow mapping for performance
         state.gl.shadowMap.enabled = false;
         
         // Reduce scene complexity to improve performance
         state.gl.setClearColor(new THREE.Color("#121212"));
-        
-        // Make sure canvas is sized properly
-        state.gl.domElement.style.width = '100%';
-        state.gl.domElement.style.height = '100%';
-        state.gl.domElement.style.display = 'block';
-        
-        // Add a click handler to help with context recovery
-        state.gl.domElement.addEventListener('click', () => {
-          if (isLoading && renderAttempts > 2) {
-            console.log("User clicked on stuck canvas, attempting recovery");
-            state.gl.render(state.scene, state.camera);
-            setCanvasLoaded(true);
-            setIsLoading(false);
-          }
-        });
-        
-        if (useSimpleRenderer) {
-          state.scene.fog = null; // Remove fog in simple mode
-          
-          // Reduce the pixel ratio even further if it seems to be a low-end device
-          if (window.devicePixelRatio > 2) {
-            state.gl.setPixelRatio(1);
-          }
-        }
         
         // Force an initial render to detect any immediate issues
         try {
@@ -3349,7 +3324,7 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
         }
       }}
       linear
-      flat={useSimpleRenderer} // Use flat shading in simple mode
+      flat // Always use flat shading for better performance
     >
       {/* Loading indicator - visible while initializing */}
       {isLoading && (
@@ -3364,9 +3339,9 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
         <>
           <ambientLight intensity={1} />
           <pointLight position={[10, 10, 10]} />
-          <mesh>
-            <boxGeometry args={[1, 1, 1]} />
-            <meshBasicMaterial color="#1db954" />
+          <mesh rotation={[Math.PI / 5, Math.PI / 5, 0]}>
+            <boxGeometry args={[10, 10, 10]} />
+            <meshBasicMaterial color="#1db954" wireframe />
           </mesh>
         </>
       )}
@@ -3378,7 +3353,7 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
           timeOfDay={timeOfDay} 
           setTimeOfDay={setTimeOfDay} 
           onTimeChange={onTimeChange}
-          useSimpleRenderer={useSimpleRenderer}
+          useSimpleRenderer={true} // Always use simple renderer for better performance
         />
       )}
       
@@ -3389,13 +3364,16 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
             <p className="text-sm mb-2">Loading taking longer than expected</p>
             <div className="flex justify-center space-x-2 mt-2">
               <button 
-                onClick={handleRefresh}
+                onClick={() => window.location.reload()}
                 className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
               >
                 Refresh
               </button>
               <button 
-                onClick={handleSimpleMode}
+                onClick={() => {
+                  localStorage.setItem('agentarium_reduced_quality', 'true');
+                  window.location.reload();
+                }}
                 className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
               >
                 Simple Mode
