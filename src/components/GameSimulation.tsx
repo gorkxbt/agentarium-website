@@ -407,6 +407,7 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
   const [timeOfDay, setTimeOfDay] = useState('day');
   const [useReducedQuality, setUseReducedQuality] = useState(false);
   const [loadingRetries, setLoadingRetries] = useState(0);
+  const [forceLoaded, setForceLoaded] = useState(false);
   const sceneRef = useRef<HTMLDivElement>(null);
   
   // Apply WebGL optimizations on mount
@@ -429,6 +430,13 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
       sceneRef.current.style.height = '100%';
       sceneRef.current.style.minHeight = '600px';
     }
+    
+    // Add global reset function
+    window.resetWebGL = () => {
+      console.log("Force loading the scene...");
+      setForceLoaded(true);
+      resetWebGLContext();
+    };
     
     // Add global error handler for WebGL issues
     const handleWebGLError = (event: ErrorEvent) => {
@@ -457,10 +465,11 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
     
     window.addEventListener('error', handleWebGLError);
     
-    // Set a backup timer to retry if loading seems stuck
+    // Set a backup timer to force load after 8 seconds if still loading
     const loadingTimer = setTimeout(() => {
-      setLoadingRetries(prev => prev + 1);
-    }, 10000);
+      setForceLoaded(true);
+      if (window.resetWebGL) window.resetWebGL();
+    }, 8000);
     
     return () => {
       window.removeEventListener('error', handleWebGLError);
@@ -473,6 +482,11 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
     if (loadingRetries > 0 && loadingRetries < 3) {
       resetWebGLContext();
       console.log(`Retry attempt ${loadingRetries} to initialize WebGL`);
+      
+      // Force load after 2 retries
+      if (loadingRetries >= 2) {
+        setForceLoaded(true);
+      }
     }
   }, [loadingRetries]);
   
@@ -509,16 +523,22 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
     resetWebGLContext();
     window.location.reload();
   };
+  
+  // Force continue even if not fully loaded
+  const handleForceContinue = () => {
+    setForceLoaded(true);
+    if (window.resetWebGL) window.resetWebGL();
+  };
 
   return (
     <div 
-      className="w-full relative overflow-hidden mx-auto my-8 bg-agent-black/95 rounded-xl shadow-xl border border-white/5" 
+      className="w-full relative overflow-hidden mx-auto my-4 bg-agent-black/95 rounded-xl shadow-xl border border-white/5" 
       style={{ 
-        minHeight: '910px', 
-        height: 'calc(100vh - 100px)',
+        minHeight: '700px', 
+        height: 'calc(100vh - 180px)',
         minWidth: '800px',
         maxWidth: '95%',
-        maxHeight: '95vh',
+        maxHeight: '90vh',
         aspectRatio: '16 / 9' // More standard widescreen ratio
       }} 
       ref={sceneRef}
@@ -758,10 +778,34 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
             </div>
           </div>
         }>
-          <React.Suspense fallback={<LoadingScreen />}>
+          <React.Suspense fallback={
+            <div className="w-full h-full bg-agent-dark-gray flex items-center justify-center">
+              <div className="text-white text-center p-8 bg-black/40 rounded-lg backdrop-blur-sm border border-white/10 max-w-md">
+                <h3 className="text-2xl font-bold mb-4">Loading Agentarium City...</h3>
+                <p className="mb-4">The 3D simulation is initializing...</p>
+                <div className="mt-6 w-20 h-20 border-t-4 border-agent-green rounded-full animate-spin mx-auto"></div>
+                <p className="text-xs mt-8 text-agent-green/80">This may take a moment on first load.</p>
+                <div className="mt-6 flex justify-center space-x-4">
+                  <button 
+                    onClick={handleReducedQuality}
+                    className="px-4 py-2 bg-purple-600/90 text-white rounded-md hover:bg-purple-600"
+                  >
+                    Low Quality Mode
+                  </button>
+                  <button 
+                    onClick={handleForceContinue}
+                    className="px-4 py-2 bg-agent-green/20 text-agent-green border border-agent-green/30 rounded-md hover:bg-agent-green/30 transition-colors"
+                  >
+                    Continue Anyway
+                  </button>
+                </div>
+              </div>
+            </div>
+          }>
             <ClientGameScene 
               onAgentClick={handleAgentClick} 
               onTimeChange={handleTimeChange}
+              forceLoaded={forceLoaded}
             />
           </React.Suspense>
         </ErrorBoundary>

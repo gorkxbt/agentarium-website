@@ -148,6 +148,7 @@ interface AgentData {
 interface ClientGameSceneProps {
   onAgentClick?: (agent: any) => void;
   onTimeChange?: (timeOfDay: string) => void;
+  forceLoaded?: boolean;
 }
 
 // City configuration
@@ -2900,63 +2901,45 @@ const City: React.FC<{ onAgentClick: (agent: any) => void, useSimpleRenderer?: b
   );
 };
 
-// Main component - split into scene content and wrapper
+// Scene content component with environment and city
 const SceneContent: React.FC<{ 
   onAgentClick: (agent: any) => void, 
   timeOfDay: string, 
   setTimeOfDay: (time: string) => void, 
   onTimeChange: (time: string) => void,
-  useSimpleRenderer?: boolean 
+  useSimpleRenderer?: boolean,
+  forceLoaded?: boolean
 }> = 
-    ({ onAgentClick, timeOfDay, setTimeOfDay, onTimeChange, useSimpleRenderer = false }) => {
-  // For time cycle tracking
-  const timeRef = useRef({ time: 0, cycleLength: 300 }); // 5-minute cycle
-  const [optimizedMode, setOptimizedMode] = useState(false);
+    ({ onAgentClick, timeOfDay, setTimeOfDay, onTimeChange, useSimpleRenderer = false, forceLoaded = false }) => {
   
-  // Detect if we should use optimized mode (for lower-end devices)
+  // Rendering state
+  const [isRendering, setIsRendering] = useState(false);
+  const [hasRendered, setHasRendered] = useState(false);
+  
+  // Force render after timeout
   useEffect(() => {
-    // Check for mobile device or slow GPU
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const isLowPerfMode = useSimpleRenderer || window.innerWidth < 1024 || isMobile;
-    setOptimizedMode(isLowPerfMode);
-  }, [useSimpleRenderer]);
-  
-  // Update time of day - this is safe inside Canvas
-  useFrame((state) => {
-    try {
-      // Use a slower update rate in simple renderer mode to save performance
-      const timeMultiplier = useSimpleRenderer ? 0.0005 : 0.001;
-      timeRef.current.time += state.clock.elapsedTime * timeMultiplier;
-      const normalizedTime = (timeRef.current.time % timeRef.current.cycleLength) / timeRef.current.cycleLength;
-      
-      // Change time of day based on cycle
-      let newTimeOfDay = timeOfDay;
-      if (normalizedTime < 0.45 && timeOfDay !== 'day') {
-        newTimeOfDay = 'day';
-        setTimeOfDay(newTimeOfDay);
-      } else if (normalizedTime >= 0.45 && normalizedTime < 0.55 && timeOfDay !== 'sunset') {
-        newTimeOfDay = 'sunset';
-        setTimeOfDay(newTimeOfDay);
-      } else if (normalizedTime >= 0.55 && timeOfDay !== 'night') {
-        newTimeOfDay = 'night';
-        setTimeOfDay(newTimeOfDay);
-      }
-      
-      // Notify parent component when time changes
-      if (newTimeOfDay !== timeOfDay) {
-        onTimeChange(newTimeOfDay);
-      }
-      
-      // In simple renderer mode, only request frames when needed
-      if (useSimpleRenderer) {
-        state.invalidate();
-      }
-    } catch (error) {
-      console.error("Error in time update frame:", error);
+    if (forceLoaded && !hasRendered) {
+      setIsRendering(true);
+      setHasRendered(true);
     }
-  });
+  }, [forceLoaded, hasRendered]);
   
-  // Sky and lighting settings based on time of day
+  // Begin rendering after a short delay to let WebGL initialize properly
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsRendering(true);
+    }, 800);
+    
+    return () => clearTimeout(timer);
+  }, []);
+  
+  // Handle time of day changes
+  const handleTimeChange = (newTime: string) => {
+    setTimeOfDay(newTime);
+    onTimeChange(newTime);
+  };
+  
+  // Get appropriate lighting settings based on time of day
   const getLightingSettings = () => {
     switch (timeOfDay) {
       case 'day':
@@ -3006,275 +2989,231 @@ const SceneContent: React.FC<{
     }
   };
   
-  const settings = getLightingSettings();
+  // Extract lighting settings based on time of day
+  const lightSettings = getLightingSettings();
   
   return (
     <>
-      {/* Skip fog in simple renderer mode for better performance */}
-      {!useSimpleRenderer && <fog attach="fog" args={[settings.fogColor, 120, 350]} />}
-      <color attach="background" args={[settings.skyColor]} />
-      
-      <ambientLight intensity={settings.ambientIntensity} />
-      <directionalLight
-        castShadow={!optimizedMode}
-        position={settings.directionalPosition}
-        intensity={settings.directionalIntensity}
-        color={settings.directionalColor}
-        shadow-mapSize-width={optimizedMode ? 1024 : 2048}
-        shadow-mapSize-height={optimizedMode ? 1024 : 2048}
-        shadow-camera-far={300}
-        shadow-camera-left={-100}
-        shadow-camera-right={100}
-        shadow-camera-top={100}
-        shadow-camera-bottom={-100}
-      />
-      
-      <hemisphereLight args={settings.hemisphereArgs} />
-      
-      {/* Only use Sky component in full renderer mode */}
-      {!useSimpleRenderer && <Sky distance={450000} sunPosition={settings.sunPosition} />}
-      
-      {/* Add stars at night */}
-      {timeOfDay === 'night' && !optimizedMode && !useSimpleRenderer && (
-        <group>
-          {Array.from({ length: 100 }).map((_, i) => {
-            const x = Math.random() * 400 - 200;
-            const y = Math.random() * 200 + 50;
-            const z = Math.random() * 400 - 200;
-            const size = Math.random() * 0.5 + 0.1;
-            
-            return (
-              <mesh key={`star-${i}`} position={[x, y, z]}>
-                <sphereGeometry args={[size, 8, 8]} />
-                <meshBasicMaterial color="#FFFFFF" />
-              </mesh>
-            );
-          })}
-        </group>
+      {isRendering || forceLoaded ? (
+        <>
+          <ambientLight intensity={lightSettings.ambientIntensity} />
+          <directionalLight 
+            position={lightSettings.directionalPosition} 
+            intensity={lightSettings.directionalIntensity} 
+            castShadow
+            shadow-mapSize-width={1024}
+            shadow-mapSize-height={1024}
+            shadow-camera-far={500}
+            shadow-camera-left={-150}
+            shadow-camera-right={150}
+            shadow-camera-top={150}
+            shadow-camera-bottom={-150}
+          />
+          
+          {timeOfDay === 'night' && (
+            // Street lights (simplified for performance)
+            <group>
+              {Array.from({ length: 9 }).map((_, i) => {
+                const x = Math.floor(i / 3) * BLOCK_SIZE - BLOCK_SIZE;
+                const z = (i % 3) * BLOCK_SIZE - BLOCK_SIZE;
+                return (
+                  <pointLight
+                    key={`light-${i}`}
+                    position={[x, 8, z]}
+                    intensity={0.8}
+                    distance={50}
+                    color="#FFE6A0"
+                    castShadow={false}
+                  />
+                );
+              })}
+              
+              {/* Additional lights at corners of major buildings */}
+              <pointLight position={[-BLOCK_SIZE, 8, -BLOCK_SIZE]} intensity={1} distance={50} color="#FFE6A0" />
+              <pointLight position={[BLOCK_SIZE, 8, -BLOCK_SIZE]} intensity={1} distance={50} color="#FFE6A0" />
+              <pointLight position={[-BLOCK_SIZE, 8, BLOCK_SIZE]} intensity={1} distance={50} color="#FFE6A0" />
+              <pointLight position={[BLOCK_SIZE, 8, BLOCK_SIZE]} intensity={1} distance={50} color="#FFE6A0" />
+            </group>
+          )}
+          
+          {/* Environment */}
+          <Sky 
+            distance={3000} 
+            sunPosition={lightSettings.sunPosition} 
+            turbidity={lightSettings.skyTurbidity}
+            rayleigh={lightSettings.skyRayleigh}
+            mieCoefficient={0.005}
+            mieDirectionalG={0.8}
+            inclination={lightSettings.skyInclination}
+            azimuth={lightSettings.skyAzimuth}
+          />
+          
+          {/* Clouds if not night */}
+          {timeOfDay !== 'night' && (
+            <>
+              <Cloud position={[-100, 50, -100]} speed={0.2} opacity={0.3} />
+              <Cloud position={[100, 60, 100]} speed={0.1} opacity={0.2} />
+              <Cloud position={[0, 70, -150]} speed={0.3} opacity={0.4} />
+            </>
+          )}
+          
+          {/* Environment map for reflections */}
+          <Environment preset={timeOfDay === 'night' ? "night" : "city"} />
+          
+          {/* City model with all buildings, vehicles, NPCs, and agents */}
+          <React.Suspense fallback={
+            <mesh position={[0, 10, 0]}>
+              <sphereGeometry args={[2, 16, 16]} />
+              <meshStandardMaterial color="#00ff00" />
+            </mesh>
+          }>
+            <City 
+              onAgentClick={onAgentClick} 
+              useSimpleRenderer={useSimpleRenderer} 
+            />
+          </React.Suspense>
+          
+          {/* Time controls */}
+          <Html position={[0, 5, -40]} center>
+            <div className="p-2 bg-black/60 rounded-lg backdrop-blur-sm flex gap-2 border border-white/10">
+              <button 
+                onClick={() => handleTimeChange('morning')}
+                className={`px-2 py-1 text-xs transition-colors ${timeOfDay === 'morning' ? 'bg-blue-500 text-white' : 'bg-black/40 text-white/80 hover:bg-blue-500/30'} rounded`}
+              >
+                Morning
+              </button>
+              <button 
+                onClick={() => handleTimeChange('day')}
+                className={`px-2 py-1 text-xs transition-colors ${timeOfDay === 'day' ? 'bg-yellow-500 text-white' : 'bg-black/40 text-white/80 hover:bg-yellow-500/30'} rounded`}
+              >
+                Day
+              </button>
+              <button 
+                onClick={() => handleTimeChange('evening')}
+                className={`px-2 py-1 text-xs transition-colors ${timeOfDay === 'evening' ? 'bg-orange-500 text-white' : 'bg-black/40 text-white/80 hover:bg-orange-500/30'} rounded`}
+              >
+                Evening
+              </button>
+              <button 
+                onClick={() => handleTimeChange('night')}
+                className={`px-2 py-1 text-xs transition-colors ${timeOfDay === 'night' ? 'bg-purple-900 text-white' : 'bg-black/40 text-white/80 hover:bg-purple-900/30'} rounded`}
+              >
+                Night
+              </button>
+            </div>
+          </Html>
+        </>
+      ) : (
+        // Simple placeholder sphere while loading
+        <mesh position={[0, 0, 0]}>
+          <boxGeometry args={[10, 0.1, 10]} />
+          <meshStandardMaterial color="#555555" />
+        </mesh>
       )}
-      
-      {/* Clouds - only show in high performance mode */}
-      {!optimizedMode && !useSimpleRenderer && (
-        <group position={[0, 60, 0]}>
-          <Cloud position={[-40, 20, -20]} speed={0.2} opacity={0.7} />
-          <Cloud position={[40, 10, 30]} speed={0.1} opacity={0.6} />
-          <Cloud position={[-60, 0, 40]} speed={0.3} opacity={0.5} />
-          <Cloud position={[20, 20, -50]} speed={0.15} opacity={0.6} />
-          <Cloud position={[-10, 10, 60]} speed={0.25} opacity={0.7} />
-        </group>
-      )}
-      
-      <City onAgentClick={onAgentClick} useSimpleRenderer={useSimpleRenderer} />
-      
-      <Environment preset={timeOfDay === 'night' ? 'night' : 'city'} />
-      
-      <OrbitControls 
-        enablePan={false}
-        enableZoom={true}
-        enableRotate={true}
-        maxPolarAngle={Math.PI / 2.5}
-        minPolarAngle={Math.PI / 8}
-        minDistance={40}
-        maxDistance={160}
-        target={[0, 0, 0]}
-        autoRotate={false}
-        enableDamping={true}
-        dampingFactor={0.05}
-      />
     </>
   );
 };
 
-// Fallback component if Three.js fails
+// Simple fallback scene for when main scene errors out
 const FallbackScene = () => {
   return (
-    <div className="w-full h-full bg-gray-900 flex items-center justify-center">
-      <div className="text-center p-6 max-w-md bg-black/50 rounded-lg backdrop-blur-sm border border-white/10">
-        <h3 className="text-2xl font-bold text-white mb-3">Agentarium City</h3>
-        <p className="text-white/80 mb-4">
-          The 3D simulation requires a modern browser with WebGL support.
-        </p>
-        <div className="flex justify-center space-x-4 mt-6">
-          <div className="bg-blue-500/20 px-3 py-2 rounded-md">
-            <span className="text-blue-300 text-xs">AI Agents</span>
-          </div>
-          <div className="bg-green-500/20 px-3 py-2 rounded-md">
-            <span className="text-green-300 text-xs">Virtual Economy</span>
-          </div>
-          <div className="bg-amber-500/20 px-3 py-2 rounded-md">
-            <span className="text-amber-300 text-xs">Earn $AGENT</span>
-          </div>
-        </div>
-      </div>
-    </div>
+    <>
+      <ambientLight intensity={1} />
+      <mesh position={[0, 0, 0]}>
+        <boxGeometry args={[10, 0.1, 10]} />
+        <meshStandardMaterial color="#555555" />
+      </mesh>
+      <Text
+        position={[0, 2, 0]}
+        fontSize={1}
+        color="#FFFFFF"
+        anchorX="center"
+        anchorY="middle"
+      >
+        Could not load 3D scene
+      </Text>
+    </>
   );
 };
 
-// Main wrapper component with error handling
-const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}, onTimeChange = () => {} }) => {
-  // Control day/night cycle - state moved to parent to avoid hooks outside Canvas
+// Main game scene component
+const MainGameScene: React.FC<ClientGameSceneProps> = ({ 
+  onAgentClick = () => {}, 
+  onTimeChange = () => {},
+  forceLoaded = false
+}) => {
   const [timeOfDay, setTimeOfDay] = useState('day');
-  const [hasError, setHasError] = useState(false);
-  const [canvasLoaded, setCanvasLoaded] = useState(false);
-  const [renderAttempts, setRenderAttempts] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
+  const [useSimpleRenderer, setUseSimpleRenderer] = useState(false);
+  const [error, setError] = useState(false);
   
-  // Force fallback to simple mode for better compatibility
-  const useSimpleRenderer = true;
-  
-  // Add cleanup to prevent memory leaks
+  // Check if we should use simple renderer
   useEffect(() => {
-    return () => {
-      // This will run when the component unmounts
-      if (typeof window !== 'undefined') {
-        // Store this renderer instance globally so it can be cleaned up if needed
-        window.THREE_INSTANCES = window.THREE_INSTANCES || [];
-        
-        // Clean up Three.js resources when component unmounts
-        const existingCanvases = document.querySelectorAll('canvas');
-        existingCanvases.forEach(canvas => {
-          try {
-            const gl = canvas.getContext('webgl') as WebGLRenderingContext | null;
-            if (gl) {
-              const ext = gl.getExtension('WEBGL_lose_context');
-              if (ext) ext.loseContext();
-            }
-          } catch (e) { 
-            console.warn("Error during cleanup:", e); 
-          }
-        });
-      }
-    };
-  }, []);
-  
-  // Force immediate loading after a timeout
-  useEffect(() => {
-    // Set a timeout to force loading status change
-    const forceLoadTimeout = setTimeout(() => {
-      console.log("Force loading complete after timeout");
-      setCanvasLoaded(true);
-      setIsLoading(false);
-    }, 5000); // Force complete loading after 5 seconds
-    
-    return () => clearTimeout(forceLoadTimeout);
-  }, []);
-  
-  // Attempt additional renders on a timer
-  useEffect(() => {
-    if (isLoading && renderAttempts < 3) {
-      const retryTimer = setTimeout(() => {
-        console.log(`Retry attempt ${renderAttempts + 1}`);
-        setRenderAttempts(prev => prev + 1);
-      }, 2000);
-      
-      return () => clearTimeout(retryTimer);
+    const storedQuality = localStorage.getItem('agentarium_reduced_quality');
+    if (storedQuality === 'true') {
+      setUseSimpleRenderer(true);
     }
-  }, [isLoading, renderAttempts]);
+  }, []);
   
-  // Use simple static fallback if there are errors
-  if (hasError) {
-    return <FallbackScene />;
-  }
+  // Handle errors in the 3D scene
+  const handleError = () => {
+    console.error("Error in 3D scene");
+    setError(true);
+  };
   
-  // Simplified Canvas configuration for guaranteed rendering
+  // Force a minimum of basic 3D elements to be displayed even if other parts fail
+  const renderBasicElements = () => {
+    return (
+      <>
+        <ambientLight intensity={1} />
+        <directionalLight position={[10, 10, 10]} intensity={1} />
+        <mesh position={[0, 0, 0]} receiveShadow>
+          <boxGeometry args={[100, 0.1, 100]} />
+          <meshBasicMaterial color="#333333" />
+        </mesh>
+      </>
+    );
+  };
+  
   return (
-    <Canvas 
-      shadows={false}
-      className="w-full h-full"
-      style={{ 
-        position: 'absolute', 
-        height: '100%', 
-        width: '100%',
-        background: "#121212",
-        borderRadius: 'inherit'
-      }}
-      camera={{ position: [80, 80, 80], fov: 55 }}
-      gl={{ 
-        antialias: false,
-        alpha: false,
-        powerPreference: "default",
-        failIfMajorPerformanceCaveat: false,
-        precision: "lowp", // Use low precision for better performance
-        depth: true,
-        stencil: false,
-      }}
-      dpr={1} // Fixed DPR to improve performance and avoid issues
-      frameloop="always"
-      onCreated={state => {
-        console.log("Canvas initialized");
+    <ErrorBoundary fallback={<FallbackScene />} onError={handleError}>
+      <Canvas
+        shadows
+        camera={{ position: [50, 50, 50], fov: 50, near: 0.1, far: 1000 }}
+        gl={{ 
+          antialias: !useSimpleRenderer,
+          alpha: false,
+          depth: true,
+          stencil: false,
+          powerPreference: useSimpleRenderer ? 'low-power' : 'high-performance',
+        }}
+        dpr={useSimpleRenderer ? 1 : (window.devicePixelRatio < 2 ? window.devicePixelRatio : 2)}
+      >
+        {renderBasicElements()}
         
-        // Force disable shadow mapping for performance
-        state.gl.shadowMap.enabled = false;
-        
-        // Reduce scene complexity to improve performance
-        state.gl.setClearColor(new THREE.Color("#121212"));
-        
-        // Force a render immediately to ensure display
-        try {
-          state.scene.background = new THREE.Color("#121212");
-          state.gl.render(state.scene, state.camera);
-          
-          // Call an immediate render after a short delay
-          setTimeout(() => {
-            state.invalidate();
-            setCanvasLoaded(true);
-            setIsLoading(false);
-          }, 1000);
-        } catch (err) {
-          console.error("Error during initial render:", err);
-          
-          // Even if there's an error, try to show something
-          setTimeout(() => {
-            setCanvasLoaded(true);
-            setIsLoading(false);
-          }, 2000);
-        }
-      }}
-      linear
-      flat
-    >
-      {/* Default lighting */}
-      <ambientLight intensity={1} />
-      <pointLight position={[10, 10, 10]} intensity={1} />
-      
-      {/* Always show a simple scene that will render immediately */}
-      <mesh position={[0, 15, 0]} rotation={[0, Math.PI/4, 0]}>
-        <boxGeometry args={[20, 20, 20]} />
-        <meshBasicMaterial color="#1db954" wireframe />
-      </mesh>
-      
-      {/* Actual scene content */}
-      {canvasLoaded && (
         <SceneContent 
           onAgentClick={onAgentClick} 
-          timeOfDay={timeOfDay} 
-          setTimeOfDay={setTimeOfDay} 
+          timeOfDay={timeOfDay}
+          setTimeOfDay={setTimeOfDay}
           onTimeChange={onTimeChange}
-          useSimpleRenderer={true}
+          useSimpleRenderer={useSimpleRenderer}
+          forceLoaded={forceLoaded}
         />
-      )}
-      
-      {/* Debug controls that appear after loading timeout */}
-      {isLoading && renderAttempts > 0 && (
-        <Html position={[0, 20, 0]} center>
-          <div className="bg-black/80 text-white p-4 rounded-lg text-center" style={{ width: '200px' }}>
-            <p className="text-sm mb-2">Loading in progress...</p>
-            <div className="flex justify-center space-x-2 mt-2">
-              <button 
-                onClick={() => {
-                  setCanvasLoaded(true);
-                  setIsLoading(false);
-                }}
-                className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
-              >
-                Continue Anyway
-              </button>
-            </div>
-          </div>
-        </Html>
-      )}
-    </Canvas>
+        
+        <OrbitControls 
+          enablePan={true} 
+          enableZoom={true} 
+          maxPolarAngle={Math.PI / 2 - 0.1}
+          minDistance={5}
+          maxDistance={150}
+        />
+      </Canvas>
+    </ErrorBoundary>
   );
 };
 
-export default MainGameScene;
+// Export the main scene component
+const ClientGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick, onTimeChange, forceLoaded }) => {
+  return <MainGameScene onAgentClick={onAgentClick} onTimeChange={onTimeChange} forceLoaded={forceLoaded} />;
+};
+
+export default ClientGameScene;

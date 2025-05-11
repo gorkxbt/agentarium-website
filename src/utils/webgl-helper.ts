@@ -179,6 +179,31 @@ export const resetWebGLContext = (): void => {
         window.gc();
       } catch (e) {}
     }
+
+    // Initialize a new WebGL context for immediate use
+    try {
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = 1;
+      tempCanvas.height = 1;
+      const tempContext = tempCanvas.getContext('webgl', { 
+        failIfMajorPerformanceCaveat: false,
+        powerPreference: 'default' 
+      });
+      
+      if (tempContext) {
+        tempContext.clearColor(0, 0, 0, 1);
+        tempContext.clear(tempContext.COLOR_BUFFER_BIT);
+      }
+    } catch (e) {
+      console.warn("Failed to create temporary WebGL context:", e);
+    }
+    
+    // Force a repaint
+    setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('resize'));
+      }
+    }, 100);
   } catch (e) {
     console.warn("Failed to reset WebGL context:", e);
   }
@@ -221,6 +246,70 @@ export const createFallbackScene = (container: HTMLElement): void => {
     window.location.reload();
   });
 };
+
+/**
+ * Initialize WebGL with optimizations for slow hardware
+ * This function should be called early in the application lifecycle
+ */
+export const initializeWebGL = (): void => {
+  try {
+    if (typeof window !== 'undefined') {
+      // Create a pre-init canvas to help with some hardware/drivers
+      const preInitCanvas = document.createElement('canvas');
+      preInitCanvas.width = 16;
+      preInitCanvas.height = 16;
+      
+      // Try to initialize WebGL context with conservative settings
+      const ctx = preInitCanvas.getContext('webgl', {
+        alpha: false,
+        antialias: false,
+        depth: true,
+        failIfMajorPerformanceCaveat: false,
+        powerPreference: 'default',
+        preserveDrawingBuffer: false,
+        stencil: false
+      });
+      
+      if (ctx) {
+        // Force the context to initialize
+        ctx.clearColor(0, 0, 0, 1);
+        ctx.clear(ctx.COLOR_BUFFER_BIT);
+        
+        // Create a small triangle to ensure hardware acceleration is engaged
+        const vertices = new Float32Array([
+          -1.0, -1.0, 0.0,
+           1.0, -1.0, 0.0,
+           0.0,  1.0, 0.0
+        ]);
+        
+        const buffer = ctx.createBuffer();
+        ctx.bindBuffer(ctx.ARRAY_BUFFER, buffer);
+        ctx.bufferData(ctx.ARRAY_BUFFER, vertices, ctx.STATIC_DRAW);
+        
+        // Prevent black screens on some mobile devices
+        setTimeout(() => {
+          try {
+            ctx.clear(ctx.COLOR_BUFFER_BIT);
+            
+            // Force cleanup after initialization
+            const loseExt = ctx.getExtension('WEBGL_lose_context');
+            if (loseExt) loseExt.loseContext();
+          } catch (e) {}
+        }, 100);
+      }
+      
+      // Set up global flags for monitoring WebGL instances
+      window.THREE_INSTANCES = window.THREE_INSTANCES || [];
+    }
+  } catch (e) {
+    console.warn("WebGL pre-initialization failed:", e);
+  }
+};
+
+// Initialize immediately if we're on the client
+if (typeof window !== 'undefined') {
+  setTimeout(initializeWebGL, 0);
+}
 
 /**
  * Gets WebGL information for debugging purposes
