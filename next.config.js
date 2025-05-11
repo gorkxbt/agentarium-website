@@ -28,8 +28,6 @@ const nextConfig = {
   },
   experimental: {
     largePageDataBytes: 800 * 1000,
-    isrMemoryCacheSize: 50 * 1024 * 1024,
-    staticPageGenerationTimeout: 120,
   },
 };
 

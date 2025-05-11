@@ -7,21 +7,40 @@ import dynamic from 'next/dynamic';
 import React from 'react';
 import { isWebGLAvailable, fixBlackScreen, resetWebGLContext } from '@/utils/webgl-helper';
 
+// Add interface for window.resetWebGL
+declare global {
+  interface Window {
+    resetWebGL?: () => void;
+  }
+}
+
 // Import the client component with no SSR and proper basic renderer
 const ClientGameScene = dynamic(() => import('./game/ClientGameScene'), { 
   ssr: false,
   loading: () => (
     <div className="w-full h-full bg-agent-dark-gray flex items-center justify-center">
-      <div className="text-white text-center p-4">
-        <h3 className="text-xl font-bold mb-2">Loading Agentarium City...</h3>
-        <p>The 3D simulation is initializing...</p>
-        <div className="mt-4 w-16 h-16 border-t-2 border-agent-green rounded-full animate-spin mx-auto"></div>
-        <button 
-          onClick={() => window.location.reload()}
-          className="mt-4 px-4 py-2 bg-agent-green/20 text-agent-green border border-agent-green/30 rounded-md hover:bg-agent-green/30 transition-colors"
-        >
-          Reload If Stuck
-        </button>
+      <div className="text-white text-center p-8 bg-black/40 rounded-lg backdrop-blur-sm border border-white/10 max-w-md">
+        <h3 className="text-2xl font-bold mb-4">Loading Agentarium City...</h3>
+        <p className="mb-4">The 3D simulation is initializing...</p>
+        <div className="mt-6 w-20 h-20 border-t-4 border-agent-green rounded-full animate-spin mx-auto"></div>
+        <p className="text-xs mt-8 text-agent-green/80">This may take a moment on first load.</p>
+        <div className="mt-6 flex justify-center space-x-4">
+          <button 
+            onClick={() => {
+              localStorage.setItem('agentarium_reduced_quality', 'true');
+              window.location.reload();
+            }}
+            className="px-4 py-2 bg-purple-600/90 text-white rounded-md hover:bg-purple-600"
+          >
+            Low Quality Mode
+          </button>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-agent-green/20 text-agent-green border border-agent-green/30 rounded-md hover:bg-agent-green/30 transition-colors"
+          >
+            Reload
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -308,16 +327,68 @@ class ErrorBoundary extends Component<{children: React.ReactNode, fallback: Reac
 }
 
 // Simple loading screen component
-const LoadingScreen = () => (
-  <div className="w-full h-full bg-agent-dark-gray flex items-center justify-center">
-    <div className="text-white text-center p-4">
-      <h3 className="text-xl font-bold mb-2">Loading Agentarium City...</h3>
-      <p>The 3D simulation is initializing...</p>
-      <div className="mt-4 w-16 h-16 border-t-2 border-agent-green rounded-full animate-spin mx-auto"></div>
-      <p className="text-xs mt-6 text-agent-green/80">If loading takes too long, try refreshing the page.</p>
+const LoadingScreen = () => {
+  const [loadingTime, setLoadingTime] = useState(0);
+  
+  // Increment loading time counter
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLoadingTime(prev => prev + 1);
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, []);
+  
+  // Show additional options if loading takes too long
+  const showAdditionalOptions = loadingTime > 15;
+  
+  return (
+    <div className="w-full h-full bg-agent-dark-gray flex items-center justify-center">
+      <div className="text-white text-center p-8 bg-black/40 rounded-lg backdrop-blur-sm border border-white/10 max-w-md">
+        <h3 className="text-2xl font-bold mb-4">Loading Agentarium City...</h3>
+        <p className="mb-4">The 3D simulation is initializing...</p>
+        <div className="mt-6 w-20 h-20 border-t-4 border-agent-green rounded-full animate-spin mx-auto"></div>
+        
+        {showAdditionalOptions ? (
+          <>
+            <div className="mt-6 w-full bg-gray-700/30 h-2 rounded-full">
+              <div className="bg-agent-green h-full rounded-full" style={{ width: `${Math.min(100, loadingTime * 2)}%` }}></div>
+            </div>
+            <p className="text-xs mt-4 text-yellow-400/80">
+              Loading is taking longer than usual. You can try these options:
+            </p>
+            <div className="mt-4 flex flex-col md:flex-row justify-center gap-3">
+              <button 
+                onClick={() => {
+                  localStorage.setItem('agentarium_reduced_quality', 'true');
+                  window.location.reload();
+                }}
+                className="px-4 py-2 bg-purple-600/90 text-white rounded-md hover:bg-purple-600"
+              >
+                Low Quality Mode
+              </button>
+              <button 
+                onClick={() => {
+                  // Call resetWebGL function if available on window
+                  if (typeof window !== 'undefined' && window.resetWebGL) {
+                    window.resetWebGL();
+                  } else {
+                    window.location.reload();
+                  }
+                }}
+                className="px-4 py-2 bg-agent-green/20 text-agent-green border border-agent-green/30 rounded-md hover:bg-agent-green/30 transition-colors"
+              >
+                Reset & Reload
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="text-xs mt-8 text-agent-green/80">First load may take up to 30 seconds...</p>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // Main component
 const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string) => void }) => {
@@ -432,7 +503,16 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
   };
 
   return (
-    <div className="w-full h-full relative overflow-hidden" style={{ minHeight: '600px' }} ref={sceneRef}>
+    <div 
+      className="w-full relative overflow-hidden mx-auto my-8 bg-agent-black/95 rounded-xl shadow-xl border border-white/5" 
+      style={{ 
+        minHeight: '700px', 
+        height: 'calc(100vh - 200px)',
+        maxWidth: '90%',
+        maxHeight: '90vh'
+      }} 
+      ref={sceneRef}
+    >
       {/* Intro overlay */}
       <AnimatePresence>
         {showIntro && (
@@ -630,13 +710,24 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
       </div>
       
       {/* 3D Canvas */}
-      <div className="w-full h-full" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+      <div 
+        className="w-full h-full" 
+        style={{ 
+          position: 'absolute', 
+          top: 0, 
+          left: 0, 
+          right: 0, 
+          bottom: 0,
+          borderRadius: '0.75rem',
+          overflow: 'hidden'
+        }}
+      >
         <ErrorBoundary fallback={
           <div className="w-full h-full bg-agent-dark-gray flex items-center justify-center">
-            <div className="text-white text-center p-6 max-w-md">
+            <div className="text-white text-center p-8 max-w-md bg-black/40 rounded-lg backdrop-blur-sm border border-white/10">
               <h3 className="text-xl font-bold mb-4">3D Rendering Error</h3>
               <p className="mb-5">We encountered an issue loading the 3D simulation. This could be due to WebGL support, browser settings, or graphics drivers.</p>
-              <div className="flex flex-wrap justify-center gap-3">
+              <div className="flex flex-wrap justify-center gap-4">
                 <button 
                   onClick={handlePageRefresh}
                   className="px-4 py-2 bg-agent-green/90 text-black rounded-md hover:bg-agent-green transition-colors"
@@ -651,7 +742,7 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
                   Reduce Graphics Quality
                 </button>
               </div>
-              <p className="text-white/60 text-xs mt-4">
+              <p className="text-white/60 text-sm mt-6">
                 Tip: Try enabling hardware acceleration in your browser settings
               </p>
             </div>

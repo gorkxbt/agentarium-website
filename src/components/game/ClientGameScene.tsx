@@ -14,25 +14,57 @@ import {
 } from '@react-three/drei';
 import * as THREE from 'three';
 
+// Add interface extension for Window type
+declare global {
+  interface Window {
+    resetWebGL?: () => void;
+  }
+}
+
 // Force a better initialization of WebGL context
 if (typeof window !== 'undefined') {
   try {
+    // Clear any previous WebGL contexts that might be stuck
+    const existingCanvases = document.querySelectorAll('canvas');
+    existingCanvases.forEach(canvas => {
+      const context = canvas.getContext('webgl') as WebGLRenderingContext | null || 
+                      canvas.getContext('experimental-webgl') as WebGLRenderingContext | null;
+      if (context) {
+        const loseExt = context.getExtension('WEBGL_lose_context');
+        if (loseExt) loseExt.loseContext();
+      }
+    });
+
     // Create a canvas element to pre-initialize WebGL context
     const preInitCanvas = document.createElement('canvas');
     // Set canvas size to ensure proper context creation
-    preInitCanvas.width = 300;
-    preInitCanvas.height = 150;
+    preInitCanvas.width = 512;
+    preInitCanvas.height = 384;
     
-    const preInitContext = preInitCanvas.getContext('webgl', { 
+    // Try multiple context options
+    let preInitContext = preInitCanvas.getContext('webgl', { 
       failIfMajorPerformanceCaveat: false,
       powerPreference: 'default',
-      alpha: false
-    });
+      alpha: false,
+      antialias: false,
+      depth: true
+    }) as WebGLRenderingContext | null;
+    
+    // If that failed, try another approach
+    if (!preInitContext) {
+      preInitContext = preInitCanvas.getContext('webgl', { 
+        powerPreference: 'low-power',
+        depth: true
+      }) as WebGLRenderingContext | null;
+    }
     
     // Force the context to initialize
     if (preInitContext) {
       preInitContext.clearColor(0, 0, 0, 1);
       preInitContext.clear(preInitContext.COLOR_BUFFER_BIT);
+      
+      // Attempt to initialize a minimal scene
+      preInitContext.viewport(0, 0, preInitCanvas.width, preInitCanvas.height);
       
       // Additional initialization to avoid WebGL context loss
       const ext = preInitContext.getExtension('WEBGL_lose_context');
@@ -42,6 +74,25 @@ if (typeof window !== 'undefined') {
         }, 100);
       }
     }
+    
+    // Add a globally accessible debugging function
+    window.resetWebGL = () => {
+      console.log("Manual WebGL reset triggered");
+      const canvases = document.querySelectorAll('canvas');
+      canvases.forEach(canvas => {
+        const gl = canvas.getContext('webgl') as WebGLRenderingContext | null;
+        if (gl) {
+          const ext = gl.getExtension('WEBGL_lose_context');
+          if (ext) {
+            ext.loseContext();
+            setTimeout(() => ext.restoreContext(), 200);
+          }
+        }
+      });
+      
+      // Force a reload after a short delay
+      setTimeout(() => window.location.reload(), 500);
+    };
   } catch (e) {
     console.warn('Failed pre-initialization of WebGL context', e);
   }
@@ -3232,12 +3283,12 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
       className="w-full h-full"
       style={{ 
         position: 'absolute', 
-        minHeight: '600px', 
-        height: '100vh', 
+        height: '100%', 
         width: '100%',
-        background: "#121212" // Dark background
+        background: "#121212", // Dark background
+        borderRadius: 'inherit'
       }}
-      camera={{ position: [80, 80, 80], fov: 50 }}
+      camera={{ position: [80, 80, 80], fov: 55 }}
       gl={{ 
         antialias: !useSimpleRenderer, // Disable antialiasing in simple mode
         alpha: false,
@@ -3262,6 +3313,17 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
         // Make sure canvas is sized properly
         state.gl.domElement.style.width = '100%';
         state.gl.domElement.style.height = '100%';
+        state.gl.domElement.style.display = 'block';
+        
+        // Add a click handler to help with context recovery
+        state.gl.domElement.addEventListener('click', () => {
+          if (isLoading && renderAttempts > 2) {
+            console.log("User clicked on stuck canvas, attempting recovery");
+            state.gl.render(state.scene, state.camera);
+            setCanvasLoaded(true);
+            setIsLoading(false);
+          }
+        });
         
         if (useSimpleRenderer) {
           state.scene.fog = null; // Remove fog in simple mode
@@ -3289,10 +3351,10 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
       linear
       flat={useSimpleRenderer} // Use flat shading in simple mode
     >
-      {/* Loading indicator */}
+      {/* Loading indicator - visible while initializing */}
       {isLoading && (
-        <mesh position={[0, 0, 0]}>
-          <sphereGeometry args={[2, 8, 8]} />
+        <mesh position={[0, 15, 0]} rotation={[0, 0, 0]}>
+          <torusKnotGeometry args={[5, 1.5, 100, 16]} />
           <meshBasicMaterial color="#00ff00" wireframe />
         </mesh>
       )}
