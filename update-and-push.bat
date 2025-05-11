@@ -15,9 +15,22 @@ git commit -m "%commit_message%"
 
 echo.
 echo Pushing changes to GitHub...
-git push origin main
+git push origin master
 
 echo.
-echo Update complete! Changes have been pushed to GitHub.
+echo If the push failed, you may need to force push.
+echo WARNING: Force push will overwrite remote changes.
+echo.
+set /p force_push="Do you want to force push? (y/n): "
+if "%force_push%"=="y" (
+    echo Force pushing changes to GitHub...
+    git push -f origin master
+    echo Force push complete!
+) else (
+    echo Force push cancelled.
+)
+
+echo.
+echo Update complete!
 echo.
 pause 

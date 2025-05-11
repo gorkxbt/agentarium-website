@@ -208,7 +208,7 @@ function Ground() {
 }
 
 // Simple tree model for parks
-function TreeModel({ position }) {
+function TreeModel({ position }: { position: { x: number; y: number } }) {
   return (
     <group position={[position.x, 0, position.y]}>
       {/* Trunk */}
@@ -449,7 +449,7 @@ function ResourceModel({ position, color, type, value }: Resource) {
 }
 
 // Agent model with Sims-like appearance and details
-function AgentModel({ position, color, icon, resources, selected, id, type }: Agent & { selected: boolean }) {
+function AgentModel({ position, color, icon, resources, selected, id, type, onClick }: Agent & { selected: boolean; onClick?: (id: number) => void }) {
   const rgbColor = hexToRgb(color);
   const agentType = AGENT_TYPES.find(a => a.type === type) || AGENT_TYPES[0];
   
@@ -464,7 +464,14 @@ function AgentModel({ position, color, icon, resources, selected, id, type }: Ag
   });
 
   return (
-    <group position={[position.x, 0.5, position.y]} scale={[scale, scale, scale]}>
+    <group 
+      position={[position.x, 0.5, position.y]} 
+      scale={[scale, scale, scale]}
+      onClick={onClick ? (event) => {
+        event.stopPropagation();
+        onClick(id);
+      } : undefined}
+    >
       {/* Agent body */}
       <mesh castShadow>
         <capsuleGeometry args={[0.3, 0.5, 8, 16]} />
@@ -719,7 +726,7 @@ function SimulationScene({ agents, buildings, resources, interactions, selectedA
           key={agent.id} 
           {...agent} 
           selected={agent.id === selectedAgentId}
-          onClick={() => onAgentClick(agent.id)}
+          onClick={(id) => onAgentClick(id)}
         />
       ))}
       
