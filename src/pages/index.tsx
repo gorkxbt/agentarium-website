@@ -5,7 +5,6 @@ import Link from 'next/link';
 import Head from 'next/head';
 import Image from 'next/image';
 import AnimatedBackground from '@/components/AnimatedBackground';
-import GameSimulation from '@/components/GameSimulation';
 import GlassCard from '@/components/GlassCard';
 import GlowButton from '@/components/GlowButton';
 import AgentProfiles from '@/components/AgentProfiles';
@@ -235,7 +234,7 @@ export default function Home() {
                     </div>
                     <h3 className="text-xl font-bold text-white mb-2">Autonomous AI Agents</h3>
                     <p className="text-white/70">
-                      Powered by advanced AI models, each agent makes its own decisions based on its unique 
+                      Powered by advanced AI models using the Model Context Protocol (MCP) framework, each agent makes its own decisions based on its unique 
                       personality, goals, and the changing environment.
                     </p>
                   </GlassCard>
@@ -246,10 +245,9 @@ export default function Home() {
                     <div className="w-12 h-12 flex items-center justify-center text-xl mb-4 rounded-full bg-purple-700/30 text-purple-400">
                       💰
                     </div>
-                    <h3 className="text-xl font-bold text-white mb-2">Play-to-Earn Economy</h3>
+                    <h3 className="text-xl font-bold text-white mb-2">Stake-to-Earn Economy</h3>
                     <p className="text-white/70">
-                      Stake $AGENT tokens in your favorite agents and earn a share of their profits when they
-                      successfully complete tasks in the virtual world.
+                      Stake $AGENT tokens on your preferred agents and earn rewards as they successfully navigate the simulation and accumulate resources.
                     </p>
                   </GlassCard>
                 </motion.div>
@@ -258,36 +256,176 @@ export default function Home() {
           </div>
         </section>
         
-        {/* Simulation Section */}
-        <section id="simulation" className="py-20 md:py-32 bg-agent-dark-gray/50">
+        {/* Features Section */}
+        <section className="py-20 md:py-32 bg-agent-black-muted relative overflow-hidden">
           <div className="container-responsive">
             <AnimatedSection>
               <motion.div variants={fadeInUp} className="mb-12 text-center">
                 <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-                  <span className="text-agent-green text-glow">Agentarium</span> City Simulation
+                  Key <span className="text-agent-green text-glow">Features</span>
                 </h2>
                 <p className="text-white/80 max-w-3xl mx-auto">
-                  Experience our dynamic 3D city where AI agents autonomously live, work, and earn $AGENT tokens.
+                  Explore what makes Agentarium a revolutionary gaming experience at the intersection of AI and blockchain technology.
                 </p>
               </motion.div>
               
-              <motion.div variants={fadeInUp}>
-                <GameSimulation />
-              </motion.div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-16">
+                <motion.div variants={fadeInUp} className="order-2 md:order-1">
+                  <div className="md:pr-10 max-w-xl">
+                    <h3 className="text-2xl md:text-3xl font-bold text-white mb-4">
+                      Dynamic Resource Economy
+                    </h3>
+                    <p className="text-white/80 mb-6">
+                      Agentarium features a fully simulated economy where resources are finite, agents have specialized roles, and supply and demand fluctuate based on agent and player actions.
+                    </p>
+                    <ul className="space-y-3">
+                      <li className="flex items-start">
+                        <div className="flex-shrink-0 h-6 w-6 rounded-full bg-agent-green/20 flex items-center justify-center text-agent-green mr-3 mt-0.5">
+                          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <span className="text-white/80">Multiple resource categories including primary, secondary, tertiary, and knowledge resources</span>
+                      </li>
+                      <li className="flex items-start">
+                        <div className="flex-shrink-0 h-6 w-6 rounded-full bg-agent-green/20 flex items-center justify-center text-agent-green mr-3 mt-0.5">
+                          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <span className="text-white/80">Economic activities including resource gathering, crafting, trading, research and collaboration</span>
+                      </li>
+                      <li className="flex items-start">
+                        <div className="flex-shrink-0 h-6 w-6 rounded-full bg-agent-green/20 flex items-center justify-center text-agent-green mr-3 mt-0.5">
+                          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <span className="text-white/80">Market fluctuations that create strategic opportunities for skilled players</span>
+                      </li>
+                    </ul>
+                  </div>
+                </motion.div>
+                
+                <motion.div variants={fadeInUp} className="order-1 md:order-2">
+                  <GlassCard className="w-full h-full min-h-[300px] rounded-xl overflow-hidden" borderGlow={true}>
+                    <div className="relative w-full h-full flex items-center justify-center p-6">
+                      <div className="text-5xl">📊</div>
+                      <div className="absolute inset-0 bg-gradient-to-br from-transparent to-agent-black/50 pointer-events-none" />
+                    </div>
+                  </GlassCard>
+                </motion.div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-20">
+                <motion.div variants={fadeInUp} className="order-1">
+                  <GlassCard className="w-full h-full min-h-[300px] rounded-xl overflow-hidden" borderGlow={true}>
+                    <div className="relative w-full h-full flex items-center justify-center p-6">
+                      <div className="text-5xl">🧠</div>
+                      <div className="absolute inset-0 bg-gradient-to-br from-transparent to-agent-black/50 pointer-events-none" />
+                    </div>
+                  </GlassCard>
+                </motion.div>
+                
+                <motion.div variants={fadeInUp} className="order-2">
+                  <div className="md:pl-10 max-w-xl">
+                    <h3 className="text-2xl md:text-3xl font-bold text-white mb-4">
+                      10 Unique Agent Types
+                    </h3>
+                    <p className="text-white/80 mb-6">
+                      Each of the 10 agents in Agentarium represents a different archetype with unique skills, personality traits, and economic specializations.
+                    </p>
+                    <ul className="space-y-3">
+                      <li className="flex items-start">
+                        <div className="flex-shrink-0 h-6 w-6 rounded-full bg-agent-green/20 flex items-center justify-center text-agent-green mr-3 mt-0.5">
+                          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <span className="text-white/80">Diverse agent roles including Trader, Scientist, Builder, Explorer, Farmer, Engineer, Hacker, Diplomat, Courier, and Mystic</span>
+                      </li>
+                      <li className="flex items-start">
+                        <div className="flex-shrink-0 h-6 w-6 rounded-full bg-agent-green/20 flex items-center justify-center text-agent-green mr-3 mt-0.5">
+                          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <span className="text-white/80">Long-term memory and planning capabilities using the MCP framework</span>
+                      </li>
+                      <li className="flex items-start">
+                        <div className="flex-shrink-0 h-6 w-6 rounded-full bg-agent-green/20 flex items-center justify-center text-agent-green mr-3 mt-0.5">
+                          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <span className="text-white/80">Skill trees that determine economic roles and abilities</span>
+                      </li>
+                    </ul>
+                  </div>
+                </motion.div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-20">
+                <motion.div variants={fadeInUp} className="order-2 md:order-1">
+                  <div className="md:pr-10 max-w-xl">
+                    <h3 className="text-2xl md:text-3xl font-bold text-white mb-4">
+                      Stake-to-Earn Mechanics
+                    </h3>
+                    <p className="text-white/80 mb-6">
+                      The primary way users participate in Agentarium is through staking $AGENT tokens on their chosen AI agents, creating alignment between player investment and agent performance.
+                    </p>
+                    <ul className="space-y-3">
+                      <li className="flex items-start">
+                        <div className="flex-shrink-0 h-6 w-6 rounded-full bg-agent-green/20 flex items-center justify-center text-agent-green mr-3 mt-0.5">
+                          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <span className="text-white/80">Energy boosts, skill unlocks, and access priority for well-staked agents</span>
+                      </li>
+                      <li className="flex items-start">
+                        <div className="flex-shrink-0 h-6 w-6 rounded-full bg-agent-green/20 flex items-center justify-center text-agent-green mr-3 mt-0.5">
+                          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <span className="text-white/80">Reward multipliers for long-term stakers and governance voting rights</span>
+                      </li>
+                      <li className="flex items-start">
+                        <div className="flex-shrink-0 h-6 w-6 rounded-full bg-agent-green/20 flex items-center justify-center text-agent-green mr-3 mt-0.5">
+                          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <span className="text-white/80">Dynamic reallocation options as agent performance changes</span>
+                      </li>
+                    </ul>
+                  </div>
+                </motion.div>
+                
+                <motion.div variants={fadeInUp} className="order-1 md:order-2">
+                  <GlassCard className="w-full h-full min-h-[300px] rounded-xl overflow-hidden" borderGlow={true}>
+                    <div className="relative w-full h-full flex items-center justify-center p-6">
+                      <div className="text-5xl">💎</div>
+                      <div className="absolute inset-0 bg-gradient-to-br from-transparent to-agent-black/50 pointer-events-none" />
+                    </div>
+                  </GlassCard>
+                </motion.div>
+              </div>
             </AnimatedSection>
           </div>
         </section>
         
-        {/* Agent Profiles Section */}
-        <section id="agents" className="py-20 md:py-32 relative overflow-hidden">
+        {/* Agents Section - Using AgentProfiles component */}
+        <section className="py-20 md:py-32 relative overflow-hidden">
           <div className="container-responsive">
             <AnimatedSection>
               <motion.div variants={fadeInUp} className="mb-12 text-center">
                 <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-                  Meet The <span className="text-agent-green text-glow">Agents</span>
+                  Meet the <span className="text-agent-green text-glow">Agents</span>
                 </h2>
                 <p className="text-white/80 max-w-3xl mx-auto">
-                  Each agent has a unique personality, skills, and role in the ecosystem.
+                  Get to know the 10 unique autonomous AI agents that populate the Agentarium ecosystem, each with different skills and specializations.
                 </p>
               </motion.div>
               
@@ -298,165 +436,26 @@ export default function Home() {
           </div>
         </section>
         
-        {/* Tokenomics Section */}
-        <section id="tokenomics" className="py-20 md:py-32 bg-agent-dark-gray/50">
-          <div className="container-responsive">
-            <AnimatedSection>
-              <motion.div variants={fadeInUp} className="mb-12 text-center">
-                <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-                  <span className="text-agent-green text-glow">$AGENT</span> Tokenomics
-                </h2>
-                <p className="text-white/80 max-w-3xl mx-auto">
-                  The $AGENT token is the lifeblood of the Agentarium ecosystem, used for governance, staking, and rewards.
-                </p>
-              </motion.div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <motion.div variants={fadeInUp}>
-                  <GlassCard className="p-6 h-full">
-                    <h3 className="text-2xl font-bold text-white mb-4">Token Distribution</h3>
-                    <div className="space-y-4">
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="text-white/80">Community Rewards</span>
-                          <span className="text-agent-green">40%</span>
-                        </div>
-                        <div className="h-2 bg-agent-dark-gray rounded-full">
-                          <div className="h-full bg-agent-green rounded-full" style={{ width: '40%' }}></div>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="text-white/80">Team & Development</span>
-                          <span className="text-agent-blue">20%</span>
-                        </div>
-                        <div className="h-2 bg-agent-dark-gray rounded-full">
-                          <div className="h-full bg-agent-blue rounded-full" style={{ width: '20%' }}></div>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="text-white/80">Ecosystem Growth</span>
-                          <span className="text-purple-400">15%</span>
-                        </div>
-                        <div className="h-2 bg-agent-dark-gray rounded-full">
-                          <div className="h-full bg-purple-400 rounded-full" style={{ width: '15%' }}></div>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="text-white/80">Liquidity</span>
-                          <span className="text-yellow-400">15%</span>
-                        </div>
-                        <div className="h-2 bg-agent-dark-gray rounded-full">
-                          <div className="h-full bg-yellow-400 rounded-full" style={{ width: '15%' }}></div>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="text-white/80">Partnerships & Marketing</span>
-                          <span className="text-red-400">10%</span>
-                        </div>
-                        <div className="h-2 bg-agent-dark-gray rounded-full">
-                          <div className="h-full bg-red-400 rounded-full" style={{ width: '10%' }}></div>
-                        </div>
-                      </div>
-                    </div>
-                  </GlassCard>
-                </motion.div>
-                
-                <motion.div variants={fadeInUp}>
-                  <GlassCard className="p-6 h-full">
-                    <h3 className="text-2xl font-bold text-white mb-4">Token Utility</h3>
-                    <ul className="space-y-4">
-                      <li className="flex items-start">
-                        <div className="w-8 h-8 flex-shrink-0 bg-agent-green/20 rounded-full flex items-center justify-center text-agent-green mt-0.5 mr-3">
-                          1
-                        </div>
-                        <div>
-                          <h4 className="text-white font-bold mb-1">Staking</h4>
-                          <p className="text-white/70 text-sm">
-                            Stake $AGENT in agents to earn a share of their profits as they complete tasks in the virtual world.
-                          </p>
-                        </div>
-                      </li>
-                      
-                      <li className="flex items-start">
-                        <div className="w-8 h-8 flex-shrink-0 bg-agent-green/20 rounded-full flex items-center justify-center text-agent-green mt-0.5 mr-3">
-                          2
-                        </div>
-                        <div>
-                          <h4 className="text-white font-bold mb-1">Governance</h4>
-                          <p className="text-white/70 text-sm">
-                            Participate in DAO governance to vote on key decisions and shape the future of the Agentarium ecosystem.
-                          </p>
-                        </div>
-                      </li>
-                      
-                      <li className="flex items-start">
-                        <div className="w-8 h-8 flex-shrink-0 bg-agent-green/20 rounded-full flex items-center justify-center text-agent-green mt-0.5 mr-3">
-                          3
-                        </div>
-                        <div>
-                          <h4 className="text-white font-bold mb-1">Resource Exchange</h4>
-                          <p className="text-white/70 text-sm">
-                            Use $AGENT to trade resources, upgrade agents, and unlock new capabilities in the Agentarium ecosystem.
-                          </p>
-                        </div>
-                      </li>
-                      
-                      <li className="flex items-start">
-                        <div className="w-8 h-8 flex-shrink-0 bg-agent-green/20 rounded-full flex items-center justify-center text-agent-green mt-0.5 mr-3">
-                          4
-                        </div>
-                        <div>
-                          <h4 className="text-white font-bold mb-1">NFT Marketplace</h4>
-                          <p className="text-white/70 text-sm">
-                            Buy, sell, and trade unique agent NFTs and other virtual assets in the Agentarium marketplace.
-                          </p>
-                        </div>
-                      </li>
-                    </ul>
-                  </GlassCard>
-                </motion.div>
-              </div>
-            </AnimatedSection>
-          </div>
-        </section>
-        
         {/* CTA Section */}
-        <section className="py-20 md:py-32 relative overflow-hidden">
+        <section className="py-20 md:py-32 bg-agent-black-muted relative overflow-hidden">
           <div className="container-responsive">
             <AnimatedSection>
-              <motion.div variants={fadeInUp} className="text-center">
+              <motion.div variants={fadeInUp} className="text-center max-w-3xl mx-auto">
                 <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
                   Ready to <span className="text-agent-green text-glow">Join</span> Agentarium?
                 </h2>
-                <p className="text-white/80 max-w-2xl mx-auto mb-8">
-                  Start your journey in the world of autonomous AI agents and earn rewards as they work for you.
+                <p className="text-white/80 mb-8">
+                  Experience a revolutionary simulation game where AI and blockchain converge to create a dynamic world of autonomous agents competing for resources.
                 </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link href="/dapp">
-                    <GlowButton 
-                      variant="primary"
-                      size="lg"
-                    >
-                      Launch App
-                    </GlowButton>
-                  </Link>
-                  <Link href="https://t.me/agentarium" target="_blank">
-                    <GlowButton 
-                      variant="secondary"
-                      size="lg"
-                    >
-                      Join Community
-                    </GlowButton>
-                  </Link>
-                </div>
+                <Link href="/dapp">
+                  <GlowButton
+                    variant="primary"
+                    size="lg"
+                    className="mx-auto"
+                  >
+                    Launch App
+                  </GlowButton>
+                </Link>
               </motion.div>
             </AnimatedSection>
           </div>
