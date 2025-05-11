@@ -4,6 +4,11 @@ import { motion, useAnimation, useInView } from 'framer-motion';
 import Link from 'next/link';
 import Head from 'next/head';
 import Image from 'next/image';
+import AnimatedBackground from '@/components/AnimatedBackground';
+import GameSimulation from '@/components/GameSimulation';
+import GlassCard from '@/components/GlassCard';
+import GlowButton from '@/components/GlowButton';
+import AgentProfiles from '@/components/AgentProfiles';
 
 // Animation variants
 const fadeInUp = {
@@ -46,62 +51,6 @@ const AnimatedSection = ({ children, className = "" }: { children: React.ReactNo
   );
 };
 
-// Matrix rain animation
-const MatrixRain = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    
-    const fontSize = 14;
-    const columns = canvas.width / fontSize;
-    
-    const drops: number[] = [];
-    for (let i = 0; i < columns; i++) {
-      drops[i] = 1;
-    }
-    
-    const characters = "01";
-    
-    const draw = () => {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      ctx.fillStyle = '#00FF41';
-      ctx.font = `${fontSize}px monospace`;
-      
-      for (let i = 0; i < drops.length; i++) {
-        const text = characters.charAt(Math.floor(Math.random() * characters.length));
-        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-        
-        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
-          drops[i] = 0;
-        }
-        
-        drops[i]++;
-      }
-    };
-    
-    const interval = setInterval(draw, 33);
-    
-    return () => clearInterval(interval);
-  }, []);
-  
-  return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 z-0 opacity-30"
-    />
-  );
-};
-
 // Main Home component
 export default function Home() {
   return (
@@ -114,7 +63,7 @@ export default function Home() {
       <Layout>
         {/* Hero Section */}
         <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-          <MatrixRain />
+          <AnimatedBackground />
           
           <div className="container-responsive relative z-10 py-20 md:py-32">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
@@ -131,17 +80,49 @@ export default function Home() {
                   A decentralized simulation game built on Solana, where AI agents compete, collaborate, and evolve in a living world.
                 </p>
                 <div className="mt-8 flex flex-col sm:flex-row gap-4">
-                  <Link 
-                    href="/dapp" 
-                    className="btn-primary"
-                  >
-                    Play Now
+                  <Link href="/dapp">
+                    <GlowButton 
+                      variant="primary"
+                      size="lg"
+                      icon={
+                        <svg 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          className="h-5 w-5" 
+                          viewBox="0 0 20 20" 
+                          fill="currentColor"
+                        >
+                          <path 
+                            fillRule="evenodd" 
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" 
+                            clipRule="evenodd" 
+                          />
+                        </svg>
+                      }
+                    >
+                      Play Now
+                    </GlowButton>
                   </Link>
-                  <Link 
-                    href="/docs" 
-                    className="btn-secondary"
-                  >
-                    View Whitepaper
+                  <Link href="/docs">
+                    <GlowButton 
+                      variant="secondary"
+                      size="lg"
+                      icon={
+                        <svg 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          className="h-5 w-5" 
+                          viewBox="0 0 20 20" 
+                          fill="currentColor"
+                        >
+                          <path 
+                            fillRule="evenodd" 
+                            d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" 
+                            clipRule="evenodd" 
+                          />
+                        </svg>
+                      }
+                    >
+                      View Whitepaper
+                    </GlowButton>
                   </Link>
                 </div>
                 <div className="mt-8 flex items-center text-white/60">
@@ -166,14 +147,20 @@ export default function Home() {
                 className="relative w-full h-[400px] lg:h-[500px] flex items-center justify-center"
               >
                 <div className="absolute inset-0 bg-agent-green/10 rounded-full blur-[100px]" />
-                <div className="relative w-full h-full">
-                  {/* This would be replaced with an actual 3D model or image of an agent */}
-                  <div className="glass-card w-full h-full rounded-3xl overflow-hidden flex items-center justify-center">
-                    <div className="text-agent-green text-9xl animate-float">
-                      🤖
+                <GlassCard className="relative w-full h-full rounded-3xl overflow-hidden flex items-center justify-center" borderGlow={true}>
+                  <div className="text-agent-green text-9xl animate-float">
+                    🤖
+                  </div>
+                  <div className="absolute bottom-6 left-6 right-6">
+                    <div className="bg-black/40 backdrop-blur-sm p-3 rounded-lg border border-agent-green/20">
+                      <div className="text-xs text-white/70">Agent Status</div>
+                      <div className="mt-2 flex items-center">
+                        <div className="w-2 h-2 rounded-full bg-agent-green animate-pulse mr-2"></div>
+                        <div className="text-agent-green text-sm">Active and operational</div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                </GlassCard>
               </motion.div>
             </div>
           </div>
@@ -246,56 +233,164 @@ export default function Home() {
                 <p className="text-white/70 mb-8">
                   Each agent has distinct personality traits, skill trees, and economic roles - from Entrepreneurs and Craftsmen to Scientists and Traders. Their autonomous decisions drive emergent, lifelike interactions within the simulation.
                 </p>
-                <Link 
-                  href="/docs#mcp-agents" 
-                  className="inline-flex items-center text-agent-green hover:text-agent-green-light transition-colors duration-300"
-                >
-                  <span>Learn more about MCP agents</span>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5 ml-2"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
+                <Link href="/docs#mcp-agents">
+                  <GlowButton 
+                    variant="outline"
+                    icon={
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5 ml-2"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    }
                   >
-                    <path
-                      fillRule="evenodd"
-                      d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
+                    Learn more about MCP agents
+                  </GlowButton>
                 </Link>
               </motion.div>
               
               <motion.div variants={fadeInUp} className="order-1 md:order-2">
-                <div className="relative">
-                  <div className="absolute -inset-4 bg-gradient-to-r from-agent-green/20 to-agent-blue/20 rounded-lg blur-lg" />
-                  <div className="card relative p-6 md:p-8">
-                    <div className="grid grid-cols-2 gap-4">
-                      {[...Array(4)].map((_, i) => (
-                        <div key={i} className="bg-agent-black/40 p-4 rounded-lg">
-                          <div className="flex items-center mb-2">
-                            <div className="w-8 h-8 rounded-full bg-agent-green/20 flex items-center justify-center text-sm">
-                              {['👨‍💼', '👩‍🔬', '🛠️', '🔍'][i]}
-                            </div>
-                            <div className="ml-2 text-white font-medium text-sm">
-                              {['Entrepreneur', 'Scientist', 'Craftsman', 'Explorer'][i]}
-                            </div>
+                <GlassCard className="p-6 md:p-8" glowColor="rgba(0, 255, 65, 0.2)" borderGlow={true}>
+                  <div className="grid grid-cols-2 gap-4">
+                    {[...Array(4)].map((_, i) => (
+                      <div key={i} className="bg-agent-black/40 p-4 rounded-lg border border-agent-green/10">
+                        <div className="flex items-center mb-2">
+                          <div className="w-8 h-8 rounded-full bg-agent-green/20 flex items-center justify-center text-sm">
+                            {['👨‍💼', '👩‍🔬', '🛠️', '🔍'][i]}
                           </div>
-                          <div className="h-1 bg-agent-green/30 rounded-full overflow-hidden">
-                            <div className="h-full bg-agent-green" style={{ width: `${Math.floor(Math.random() * 50) + 50}%` }} />
+                          <div className="ml-2 text-white font-medium text-sm">
+                            {['Entrepreneur', 'Scientist', 'Craftsman', 'Explorer'][i]}
                           </div>
                         </div>
-                      ))}
-                    </div>
+                        <div className="h-1 bg-agent-green/30 rounded-full overflow-hidden">
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${Math.floor(Math.random() * 50) + 50}%` }}
+                            transition={{ duration: 1, delay: i * 0.2 }}
+                            className="h-full bg-agent-green"
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
+                </GlassCard>
+              </motion.div>
+            </AnimatedSection>
+          </div>
+        </section>
+        
+        {/* Agent Profiles Section */}
+        <section className="py-20 md:py-32 bg-gradient-to-b from-agent-black/80 to-agent-black/90">
+          <div className="container-responsive">
+            <AnimatedSection className="text-center mb-16">
+              <motion.h2 
+                variants={fadeInUp} 
+                className="text-3xl md:text-4xl font-bold text-white"
+              >
+                Meet Our <span className="text-agent-green-muted text-glow">AI Agents</span>
+              </motion.h2>
+              <motion.div 
+                variants={fadeInUp}
+                className="mt-3 mx-auto w-20 h-1 bg-agent-green-muted rounded-full"
+              />
+              <motion.p 
+                variants={fadeInUp}
+                className="mt-6 text-lg text-white/70 max-w-3xl mx-auto"
+              >
+                Each of our 10 autonomous AI agents has unique personalities, skills, and economic roles
+              </motion.p>
+            </AnimatedSection>
+            
+            <AnimatedSection>
+              <motion.div variants={fadeInUp}>
+                <AgentProfiles />
+              </motion.div>
+              
+              <motion.div 
+                variants={fadeInUp}
+                className="mt-12 text-center"
+              >
+                <Link href="/docs#mcp-agents">
+                  <GlowButton 
+                    variant="secondary"
+                    icon={
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5 ml-2"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    }
+                  >
+                    Learn more about agent technology
+                  </GlowButton>
+                </Link>
+              </motion.div>
+            </AnimatedSection>
+          </div>
+        </section>
+        
+        {/* Game Simulation Section */}
+        <section className="py-20 md:py-32 bg-gradient-to-b from-agent-black/80 to-agent-black/90">
+          <div className="container-responsive">
+            <AnimatedSection className="text-center mb-16">
+              <motion.h2 
+                variants={fadeInUp} 
+                className="text-3xl md:text-4xl font-bold text-white"
+              >
+                <span className="text-agent-green-muted text-glow">Simulation Preview</span>
+              </motion.h2>
+              <motion.div 
+                variants={fadeInUp}
+                className="mt-3 mx-auto w-20 h-1 bg-agent-green-muted rounded-full"
+              />
+              <motion.p 
+                variants={fadeInUp}
+                className="mt-6 text-lg text-white/70 max-w-3xl mx-auto"
+              >
+                Experience a preview of our autonomous agent simulation where AI personalities gather resources, 
+                trade with each other, and collaborate to achieve goals in our digital ecosystem
+              </motion.p>
+            </AnimatedSection>
+            
+            <AnimatedSection>
+              <motion.div variants={fadeInUp}>
+                <GameSimulation />
+              </motion.div>
+              
+              <motion.div 
+                variants={fadeInUp}
+                className="mt-8 text-center"
+              >
+                <p className="text-white/70 mb-6">
+                  This is a simplified version of the actual simulation. In the full game, agents have more complex behaviors, 
+                  detailed economic models, and sophisticated decision-making algorithms powered by advanced AI.
+                </p>
+                <Link href="/docs#how-it-works">
+                  <GlowButton variant="secondary">
+                    Learn how the simulation works
+                  </GlowButton>
+                </Link>
               </motion.div>
             </AnimatedSection>
           </div>
         </section>
         
         {/* Resource Economy Section */}
-        <section className="py-20 md:py-32 bg-gradient-to-b from-agent-black/80 to-agent-black/90">
+        <section className="py-20 md:py-32 bg-gradient-to-b from-agent-black/90 to-agent-black/95">
           <div className="container-responsive">
             <AnimatedSection className="text-center mb-16">
               <motion.h2 
@@ -327,64 +422,69 @@ export default function Home() {
                 <p className="text-white/70 mb-8">
                   Agents specialize in different economic roles - resource gathering, crafting, trading, and more - creating a complex interdependent economic web. Prices fluctuate based on supply and demand, creating opportunities for different strategies.
                 </p>
-                <Link 
-                  href="/docs#resource-economy" 
-                  className="inline-flex items-center text-agent-green hover:text-agent-green-light transition-colors duration-300"
-                >
-                  <span>Learn more about the economy</span>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5 ml-2"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
+                <Link href="/docs#resource-economy">
+                  <GlowButton 
+                    variant="outline"
+                    icon={
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5 ml-2"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    }
                   >
-                    <path
-                      fillRule="evenodd"
-                      d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
+                    Learn more about the economy
+                  </GlowButton>
                 </Link>
               </motion.div>
               
               <motion.div variants={fadeInUp} className="order-1 md:order-2">
-                <div className="relative">
-                  <div className="absolute -inset-4 bg-gradient-to-r from-agent-blue/20 to-agent-green/20 rounded-lg blur-lg" />
-                  <div className="card relative p-6 md:p-8">
-                    <div className="grid grid-cols-2 gap-4">
-                      {[
-                        { name: 'Energy', icon: '⚡', percent: 85 },
-                        { name: 'Components', icon: '🔧', percent: 65 },
-                        { name: 'Systems', icon: '🔮', percent: 40 },
-                        { name: 'Knowledge', icon: '📚', percent: 55 }
-                      ].map((resource, i) => (
-                        <div key={i} className="bg-agent-black/40 p-4 rounded-lg">
-                          <div className="flex items-center mb-2">
-                            <div className="w-8 h-8 rounded-full bg-agent-green/20 flex items-center justify-center text-sm">
-                              {resource.icon}
-                            </div>
-                            <div className="ml-2 text-white font-medium text-sm">
-                              {resource.name}
-                            </div>
+                <GlassCard className="p-6 md:p-8" glowColor="rgba(13, 211, 255, 0.2)" borderGlow={true}>
+                  <div className="grid grid-cols-2 gap-4">
+                    {[
+                      { name: 'Energy', icon: '⚡', percent: 85 },
+                      { name: 'Components', icon: '🔧', percent: 65 },
+                      { name: 'Systems', icon: '🔮', percent: 40 },
+                      { name: 'Knowledge', icon: '📚', percent: 55 }
+                    ].map((resource, i) => (
+                      <div key={i} className="bg-agent-black/40 p-4 rounded-lg border border-agent-blue/10">
+                        <div className="flex items-center mb-2">
+                          <div className="w-8 h-8 rounded-full bg-agent-blue/20 flex items-center justify-center text-sm">
+                            {resource.icon}
                           </div>
-                          <div className="h-1 bg-agent-green/30 rounded-full overflow-hidden">
-                            <div className="h-full bg-agent-green" style={{ width: `${resource.percent}%` }} />
-                          </div>
-                          <div className="mt-2 text-xs text-agent-green/70">
-                            {resource.percent}% utilization
+                          <div className="ml-2 text-white font-medium text-sm">
+                            {resource.name}
                           </div>
                         </div>
-                      ))}
-                    </div>
+                        <div className="h-1 bg-agent-blue/30 rounded-full overflow-hidden">
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${resource.percent}%` }}
+                            transition={{ duration: 1.2, delay: i * 0.2 }}
+                            className="h-full bg-agent-blue"
+                          />
+                        </div>
+                        <div className="mt-2 text-xs text-agent-blue/70 text-right">
+                          {resource.percent}% utilization
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
+                </GlassCard>
               </motion.div>
             </AnimatedSection>
           </div>
         </section>
         
         {/* Features Section */}
-        <section className="py-20 md:py-32 bg-gradient-to-b from-agent-black/90 to-agent-black">
+        <section className="py-20 md:py-32 bg-gradient-to-b from-agent-black/95 to-agent-black">
           <div className="container-responsive">
             <AnimatedSection className="text-center mb-16">
               <motion.h2 
@@ -436,27 +536,53 @@ export default function Home() {
                   icon: "🧠",
                   title: "Emergent Behavior",
                   description: "Agents learn and adapt over time through reinforcement learning, creating emergent gameplay and unique economic patterns."
+                },
+                {
+                  icon: "🛒",
+                  title: "Marketplace (Q2 2025)",
+                  description: "A comprehensive marketplace for trading resources, customizing agents, and analyzing performance metrics launching in Q2 2025."
                 }
               ].map((feature, index) => (
                 <motion.div 
                   key={index}
                   variants={fadeInUp}
-                  className="card p-6 flex flex-col items-start"
                 >
-                  <div className="text-3xl mb-4">{feature.icon}</div>
-                  <h3 className="text-xl font-bold text-white mb-3">{feature.title}</h3>
-                  <p className="text-white/70">{feature.description}</p>
+                  <GlassCard 
+                    className="p-6 flex flex-col items-start h-full" 
+                    hoverable={true} 
+                    animationDelay={index * 0.1}
+                  >
+                    <div className="text-3xl mb-4">{feature.icon}</div>
+                    <h3 className="text-xl font-bold text-white mb-3">{feature.title}</h3>
+                    <p className="text-white/70">{feature.description}</p>
+                  </GlassCard>
                 </motion.div>
               ))}
             </AnimatedSection>
             
             <AnimatedSection className="mt-16 text-center">
               <motion.div variants={fadeInUp}>
-                <Link 
-                  href="/dapp" 
-                  className="btn-primary"
-                >
-                  Enter Agentarium
+                <Link href="/dapp">
+                  <GlowButton
+                    variant="primary"
+                    size="lg"
+                    icon={
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    }
+                  >
+                    Enter Agentarium
+                  </GlowButton>
                 </Link>
               </motion.div>
             </AnimatedSection>
@@ -486,17 +612,21 @@ export default function Home() {
                 variants={fadeInUp}
                 className="mt-10 flex flex-col sm:flex-row gap-4 justify-center"
               >
-                <Link 
-                  href="/dapp" 
-                  className="btn-primary"
-                >
-                  Launch App
+                <Link href="/dapp">
+                  <GlowButton 
+                    variant="primary" 
+                    size="lg"
+                  >
+                    Launch App
+                  </GlowButton>
                 </Link>
-                <Link 
-                  href="/#about" 
-                  className="btn-secondary"
-                >
-                  Learn More
+                <Link href="/#about">
+                  <GlowButton 
+                    variant="secondary" 
+                    size="lg"
+                  >
+                    Learn More
+                  </GlowButton>
                 </Link>
               </motion.div>
             </AnimatedSection>

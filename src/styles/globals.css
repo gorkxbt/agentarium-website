@@ -6,11 +6,14 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
-  --foreground-rgb: 255, 255, 255;
-  --background-start-rgb: 18, 18, 18;
-  --background-end-rgb: 10, 10, 10;
-  --agent-green: 0, 255, 65;
-  --agent-green-dark: 0, 128, 42;
+  --agent-green: #1DB954; /* Original bright green */
+  --agent-green-muted: #149042; /* A more muted, professional green */
+  --agent-blue: #0D9DFF;
+  --agent-blue-dark: #0B72B8;
+  --agent-black: #121212;
+  --agent-gray: #282828;
+  --agent-dark-gray: #1E1E1E;
+  --agent-light-gray: #3D3D3D;
 }
 
 * {
@@ -44,38 +47,47 @@ a {
 
 /* Custom glowing text effects */
 .text-glow {
-  text-shadow: 0 0 10px rgba(0, 255, 65, 0.7);
+  text-shadow: 0 0 15px rgba(29, 185, 84, 0.4);
 }
 
 .text-glow-strong {
-  text-shadow: 0 0 15px rgba(0, 255, 65, 0.9), 0 0 25px rgba(0, 255, 65, 0.5);
+  text-shadow: 0 0 20px rgba(29, 185, 84, 0.6);
 }
 
-/* Custom grid background */
-.grid-bg {
-  background-image: 
-    linear-gradient(rgba(0, 255, 65, 0.2) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 255, 65, 0.2) 1px, transparent 1px);
-  background-size: 40px 40px;
-  background-position: -1px -1px;
+/* Matrix Rain animation for accents */
+.matrix-bg {
+  position: relative;
+  overflow: hidden;
+}
+
+.matrix-bg::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.9)), 
+              radial-gradient(circle, rgba(29, 185, 84, 0.05) 0%, rgba(0, 0, 0, 0) 70%);
+  z-index: -1;
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgb(var(--background-start-rgb));
+  background: #121212;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgb(var(--agent-green-dark));
-  border-radius: 4px;
+  background: var(--agent-green-muted);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(var(--agent-green), 0.8);
+  background: var(--agent-green);
 }
 
 /* Custom Animations */
@@ -98,35 +110,21 @@ a {
   animation: scanline 6s linear infinite;
 }
 
-/* Matrix Rain animation for accents */
-.matrix-bg {
-  position: relative;
-  overflow: hidden;
-}
-
-.matrix-bg::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.9)), 
-              radial-gradient(circle, rgba(0, 255, 65, 0.1) 0%, rgba(0, 0, 0, 0) 70%);
-  z-index: -1;
-}
-
 /* Button styles */
 .btn-primary {
-  @apply bg-agent-green text-agent-black font-bold py-2 px-6 rounded-md 
-         transition-all duration-300 ease-in-out hover:bg-agent-green-light 
-         hover:shadow-[0_0_15px_rgba(0,255,65,0.7)] focus:outline-none;
+  @apply bg-gradient-to-r from-agent-green-muted to-agent-green-muted/80 text-black py-2.5 px-5 rounded-md 
+         hover:from-agent-green hover:to-agent-green transition-all duration-300 font-medium;
+  box-shadow: 0 0 15px rgba(29, 185, 84, 0.3);
 }
 
 .btn-secondary {
-  @apply bg-transparent border-2 border-agent-green text-agent-green font-bold 
-         py-2 px-6 rounded-md transition-all duration-300 ease-in-out 
-         hover:bg-agent-green/10 hover:shadow-[0_0_10px_rgba(0,255,65,0.5)] focus:outline-none;
+  @apply bg-agent-black/70 backdrop-blur-sm text-agent-green-muted py-2 px-4 rounded-md 
+         border border-agent-green-muted/40 hover:border-agent-green-muted/70 hover:bg-agent-black transition-all duration-300;
+}
+
+.btn-outline {
+  @apply bg-transparent text-agent-green-muted py-2 px-4 rounded-md 
+         border border-agent-green-muted/40 hover:border-agent-green-muted/70 hover:bg-agent-green-muted/5 transition-all duration-300;
 }
 
 /* Custom badge styles */
@@ -136,9 +134,8 @@ a {
 
 /* Card styles */
 .card {
-  @apply bg-agent-gray/70 backdrop-blur-sm rounded-xl border border-agent-green/20 
-         shadow-lg transition-all duration-300 hover:shadow-[0_0_15px_rgba(0,255,65,0.2)] 
-         hover:border-agent-green/40;
+  @apply bg-agent-black/80 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
 .glass-card {
@@ -148,5 +145,57 @@ a {
 
 /* Responsive containers */
 .container-responsive {
-  @apply px-4 mx-auto sm:px-6 md:px-8 max-w-7xl;
+  @apply container mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+/* Animation utilities */
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Prose styling for documentation */
+.prose h2 {
+  @apply text-2xl font-bold mb-4;
+}
+
+.prose h3 {
+  @apply text-xl font-bold mt-8 mb-3;
+}
+
+.prose h4 {
+  @apply text-lg font-bold mt-6 mb-2;
+}
+
+.prose p {
+  @apply mb-4 text-white/80;
+}
+
+.prose ul, .prose ol {
+  @apply mb-6 pl-6;
+}
+
+.prose ul {
+  @apply list-disc;
+}
+
+.prose ol {
+  @apply list-decimal;
+}
+
+.prose li {
+  @apply mb-1 text-white/80;
+}
+
+.prose a {
+  @apply text-agent-blue hover:text-agent-blue-dark underline transition-colors;
+}
+
+.prose strong {
+  @apply text-white font-semibold;
 } 

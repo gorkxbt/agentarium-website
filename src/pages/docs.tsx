@@ -375,11 +375,20 @@ const Docs = () => {
                 
                 <h3>Q2 2025 - Initial Launch</h3>
                 <ul>
-                  <li>Full launch with marketplace and playable game</li>
-                  <li>10 AI agents with unique personalities</li>
+                  <li>Full launch with playable game featuring 10 autonomous AI agents</li>
+                  <li>Core agent simulation and staking mechanisms</li>
                   <li>Liquidity pool establishment</li>
-                  <li>Token staking mechanisms</li>
-                  <li>Core gameplay features available at launch</li>
+                  <li>Token staking mechanics and rewards system</li>
+                  <li>Community features and social integration</li>
+                </ul>
+                
+                <h3>Q2 2025 - Marketplace Update</h3>
+                <ul>
+                  <li>Launch of the Agentarium Marketplace</li>
+                  <li>Agent customization options</li>
+                  <li>Resource trading interface</li>
+                  <li>Agent performance analytics dashboard</li>
+                  <li>Enhanced staking features</li>
                 </ul>
                 
                 <h3>Q3 2025 - Expansion</h3>

@@ -8,12 +8,19 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        'agent-green': '#1DB954',
+        'agent-green-muted': '#149042',
+        'agent-green-dark': '#0A6E31',
+        'agent-blue': '#0D9DFF',
+        'agent-blue-dark': '#0B72B8',
         'agent-black': '#121212',
-        'agent-green': '#00FF41',  // Bright Matrix-like green
-        'agent-green-dark': '#00802A',
-        'agent-green-light': '#7AFFA1',
-        'agent-gray': '#2D2D2D',
-        'agent-blue': '#0DD3FF', // Accent color for some UI elements
+        'agent-gray': '#282828',
+        'agent-dark-gray': '#1E1E1E',
+        'agent-light-gray': '#3D3D3D',
+      },
+      backgroundImage: {
+        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+        'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
       },
       fontFamily: {
         sans: ['Orbitron', 'Arial', 'sans-serif'],
