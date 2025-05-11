@@ -122,6 +122,14 @@ interface AgentProfilesProps {
 
 const AgentProfiles = ({ initialAgent }: AgentProfilesProps) => {
   const [selectedAgent, setSelectedAgent] = useState(AGENT_TYPES[0]);
+  const [stakingAmount, setStakingAmount] = useState('');
+  const [isStaking, setIsStaking] = useState(false);
+  const [stakingInfo, setStakingInfo] = useState({
+    totalStaked: 5000,
+    apy: 12.5,
+    rewards: 625,
+    lockPeriod: '7 days'
+  });
   
   useEffect(() => {
     if (initialAgent) {
@@ -131,6 +139,36 @@ const AgentProfiles = ({ initialAgent }: AgentProfilesProps) => {
       }
     }
   }, [initialAgent]);
+  
+  const handleStake = () => {
+    if (!stakingAmount || parseFloat(stakingAmount) <= 0) return;
+    
+    setIsStaking(true);
+    
+    // Simulate staking process
+    setTimeout(() => {
+      setStakingInfo(prev => ({
+        ...prev,
+        totalStaked: prev.totalStaked + parseFloat(stakingAmount)
+      }));
+      setStakingAmount('');
+      setIsStaking(false);
+    }, 1500);
+  };
+  
+  const handleUnstake = () => {
+    setIsStaking(true);
+    
+    // Simulate unstaking process
+    setTimeout(() => {
+      setStakingInfo(prev => ({
+        ...prev,
+        totalStaked: 0,
+        rewards: 0
+      }));
+      setIsStaking(false);
+    }, 1500);
+  };
   
   return (
     <div className="w-full">
@@ -249,85 +287,94 @@ const AgentProfiles = ({ initialAgent }: AgentProfilesProps) => {
                   <div 
                     className="h-1 bg-agent-gray/30 rounded-full mt-1 overflow-hidden"
                   >
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.floor(Math.random() * 30) + 70}%` }}
-                      transition={{ duration: 1, delay: 0.2 * index }}
-                      className="h-full rounded-full"
-                      style={{ backgroundColor: selectedAgent.color }}
-                    ></motion.div>
+                    <div 
+                      className="h-full transition-all duration-500 ease-out group-hover:w-full" 
+                      style={{ 
+                        width: `${65 + index * 10}%`,
+                        backgroundColor: selectedAgent.color
+                      }}
+                    ></div>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
-          
-          {/* Advantages */}
-          <div className="bg-agent-black/40 p-4 rounded-lg border border-white/10 backdrop-blur-sm transition-all duration-300 hover:border-white/20">
-            <h4 className="text-white font-bold mb-2 text-sm uppercase tracking-wider">Strengths & Synergies</h4>
-            <p className="text-white/70 text-sm mb-3">{selectedAgent.strengths}</p>
-            
-            <h5 className="text-white/90 text-xs font-semibold mt-4 mb-2">Synergizes Well With:</h5>
-            <div className="flex flex-wrap gap-2">
-              {selectedAgent.synergies.map(synergy => {
-                const synergyAgent = AGENT_TYPES.find(a => a.type === synergy);
-                return (
-                  <div 
-                    key={synergy}
-                    className="flex items-center bg-agent-black/60 px-2 py-1 rounded border border-white/5 transition-all duration-300 hover:border-white/20"
-                  >
-                    <span 
-                      className="mr-1 text-sm"
-                      style={{ color: synergyAgent?.color }}
-                    >
-                      {synergyAgent?.icon}
-                    </span>
-                    <span className="text-xs text-white/90">{synergy}</span>
-                  </div>
-                );
-              })}
+            <div className="mt-4">
+              <h4 className="text-white font-bold mb-2 text-sm uppercase tracking-wider">Synergies</h4>
+              <p className="text-white/70 text-sm">Works best with: {selectedAgent.synergies.join(', ')}</p>
             </div>
           </div>
-        </div>
-        
-        {/* Agent Stats - New addition for more information */}
-        <div className="mt-6 bg-agent-black/30 rounded-lg p-4 border border-white/10">
-          <h4 className="text-white font-bold mb-4 text-sm uppercase tracking-wider">Agent Performance Metrics</h4>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-            {['Efficiency', 'Adaptability', 'Cooperation', 'Productivity', 'Innovation'].map((stat) => {
-              const value = Math.floor(Math.random() * 30) + 70;
-              return (
-                <div key={stat} className="flex flex-col items-center">
-                  <div className="relative w-16 h-16">
-                    <svg viewBox="0 0 120 120" className="w-full h-full">
-                      <circle 
-                        cx="60" 
-                        cy="60" 
-                        r="54" 
-                        fill="none" 
-                        stroke="#282828" 
-                        strokeWidth="12" 
-                      />
-                      <circle 
-                        cx="60" 
-                        cy="60" 
-                        r="54" 
-                        fill="none" 
-                        stroke={selectedAgent.color} 
-                        strokeWidth="12" 
-                        strokeDasharray="339.292"
-                        strokeDashoffset={339.292 * (1 - value / 100)}
-                        transform="rotate(-90 60 60)"
-                      />
-                    </svg>
-                    <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
-                      <span className="text-xs font-bold text-white">{value}</span>
-                    </div>
-                  </div>
-                  <span className="text-xs text-white/70 mt-2">{stat}</span>
-                </div>
-              );
-            })}
+          
+          {/* Staking Section - Enhanced with APY and unstaking */}
+          <div className="bg-agent-black/40 p-4 rounded-lg border border-white/10 backdrop-blur-sm transition-all duration-300 hover:border-white/20">
+            <h4 className="text-white font-bold mb-3 text-sm uppercase tracking-wider">Agent Staking</h4>
+            
+            {/* Staking Stats */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="bg-agent-gray/30 p-3 rounded-lg">
+                <div className="text-xs text-white/50 mb-1">Total Staked</div>
+                <div className="text-white font-mono font-bold">{stakingInfo.totalStaked.toLocaleString()} $AGENT</div>
+              </div>
+              <div className="bg-agent-gray/30 p-3 rounded-lg">
+                <div className="text-xs text-white/50 mb-1">Current APY</div>
+                <div className="text-agent-green font-mono font-bold">{stakingInfo.apy}%</div>
+              </div>
+              <div className="bg-agent-gray/30 p-3 rounded-lg">
+                <div className="text-xs text-white/50 mb-1">Rewards Earned</div>
+                <div className="text-white font-mono font-bold">{stakingInfo.rewards.toLocaleString()} $AGENT</div>
+              </div>
+              <div className="bg-agent-gray/30 p-3 rounded-lg">
+                <div className="text-xs text-white/50 mb-1">Lock Period</div>
+                <div className="text-white font-mono font-bold">{stakingInfo.lockPeriod}</div>
+              </div>
+            </div>
+            
+            {/* Staking Input */}
+            <div className="mb-3">
+              <div className="flex items-center bg-agent-gray/20 rounded-lg overflow-hidden border border-white/5 focus-within:border-agent-green/50 transition-colors">
+                <input
+                  type="number"
+                  value={stakingAmount}
+                  onChange={(e) => setStakingAmount(e.target.value)}
+                  placeholder="Amount to stake"
+                  className="bg-transparent text-white px-3 py-2 flex-1 focus:outline-none"
+                />
+                <div className="px-3 text-white/50 text-sm">$AGENT</div>
+              </div>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={handleStake}
+                disabled={isStaking || !stakingAmount}
+                className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
+                  isStaking || !stakingAmount
+                    ? 'bg-agent-gray/30 text-white/30 cursor-not-allowed'
+                    : 'bg-agent-green text-black hover:bg-agent-green-muted'
+                }`}
+              >
+                {isStaking ? 'Processing...' : 'Stake Agent'}
+              </button>
+              
+              <button
+                onClick={handleUnstake}
+                disabled={isStaking || stakingInfo.totalStaked <= 0}
+                className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
+                  isStaking || stakingInfo.totalStaked <= 0
+                    ? 'bg-agent-gray/30 text-white/30 cursor-not-allowed'
+                    : 'bg-agent-dark-gray text-white hover:bg-agent-gray border border-white/10'
+                }`}
+              >
+                Unstake
+              </button>
+            </div>
+            
+            {/* Staking Info */}
+            {stakingInfo.totalStaked > 0 && (
+              <div className="mt-3 text-xs text-white/50">
+                Staking this agent earns you passive rewards and increases the agent's effectiveness in the simulation.
+              </div>
+            )}
           </div>
         </div>
       </GlassCard>

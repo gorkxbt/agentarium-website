@@ -25,6 +25,7 @@ const agentData = [
     },
     earnings: 1245,
     staked: 3500,
+    apy: 12.5,
     description: "Specializes in trading resources at optimal prices. Has developed a network of contacts in the virtual marketplace."
   },
   {
@@ -41,6 +42,7 @@ const agentData = [
     },
     earnings: 1870,
     staked: 5200,
+    apy: 14.2,
     description: "Focuses on research and development of new technologies. Can unlock unique resource processing methods."
   },
   {
@@ -57,6 +59,7 @@ const agentData = [
     },
     earnings: 1560,
     staked: 4100,
+    apy: 13.8,
     description: "Expert in construction and infrastructure development. Creates more efficient resource gathering stations."
   },
   {
@@ -73,6 +76,7 @@ const agentData = [
     },
     earnings: 1320,
     staked: 2900,
+    apy: 11.5,
     description: "Specializes in discovering new resource nodes and territories. High chance of finding rare resources."
   },
   {
@@ -89,6 +93,7 @@ const agentData = [
     },
     earnings: 1480,
     staked: 3800,
+    apy: 12.8,
     description: "Expert in cultivating and harvesting renewable resources. Creates sustainable resource production."
   },
   {
@@ -105,6 +110,7 @@ const agentData = [
     },
     earnings: 1690,
     staked: 4300,
+    apy: 13.5,
     description: "Focuses on creating and improving tools and machines. Increases resource processing efficiency."
   },
   {
@@ -121,6 +127,7 @@ const agentData = [
     },
     earnings: 1920,
     staked: 4800,
+    apy: 15.0,
     description: "Specializes in technology and data systems. Can find opportunities in the digital realm."
   },
   {
@@ -137,6 +144,7 @@ const agentData = [
     },
     earnings: 1530,
     staked: 3700,
+    apy: 12.3,
     description: "Expert in forging alliances with other agents. Can secure favorable trading deals and collaborations."
   },
   {
@@ -153,6 +161,7 @@ const agentData = [
     },
     earnings: 1380,
     staked: 3100,
+    apy: 11.8,
     description: "Specializes in rapid resource transportation. Increases the speed of resource transfers between locations."
   },
   {
@@ -169,6 +178,7 @@ const agentData = [
     },
     earnings: 2100,
     staked: 5500,
+    apy: 16.2,
     description: "Has unusual abilities to predict market changes and resource fluctuations. Thrives during special events."
   }
 ];
@@ -198,394 +208,400 @@ const DappPage = () => {
     });
     
     setTimeout(() => {
-      setNotification({
-        show: false,
-        message: '',
-        type: 'success'
-      });
-    }, 3000);
+      setNotification(prev => ({...prev, show: false}));
+    }, 5000);
   };
-
+  
   const handleStake = () => {
-    if (!wallet.connected) {
-      showNotification('Please connect your wallet first', 'error');
+    if (parseFloat(stakeAmount) <= 0 || !selectedAgent) {
+      showNotification('Please enter a valid amount to stake', 'error');
       return;
     }
     
-    if (selectedAgent === null) {
-      showNotification('Please select an agent first', 'error');
-      return;
-    }
-    
-    const amount = parseFloat(stakeAmount);
-    if (isNaN(amount) || amount <= 0) {
-      showNotification('Please enter a valid amount', 'error');
-      return;
-    }
-    
-    if (amount > userBalance) {
+    if (parseFloat(stakeAmount) > userBalance) {
       showNotification('Insufficient balance', 'error');
       return;
     }
     
-    // Here you would call the actual staking contract
     setIsLoading(true);
     
-    // Simulate API call
+    // Simulate blockchain transaction
     setTimeout(() => {
-      setUserBalance(prev => prev - amount);
+      setUserBalance(prev => prev - parseFloat(stakeAmount));
+      showNotification(`Successfully staked ${stakeAmount} $AGENT on ${agentData.find(a => a.id === selectedAgent)?.name}`, 'success');
       setStakeAmount('0');
       setIsLoading(false);
-      showNotification(`Successfully staked ${amount} $AGENT on ${agentData[selectedAgent-1].name}`, 'success');
-    }, 1500);
+    }, 2000);
   };
-
+  
+  const handleUnstake = (agentId: number) => {
+    setIsLoading(true);
+    
+    // Simulate blockchain transaction
+    setTimeout(() => {
+      const agent = agentData.find(a => a.id === agentId);
+      if (agent) {
+        setUserBalance(prev => prev + agent.staked);
+        showNotification(`Successfully unstaked ${agent.staked} $AGENT from ${agent.name}`, 'success');
+      }
+      setIsLoading(false);
+    }, 2000);
+  };
+  
+  const handleAgentSelect = (agentType: string) => {
+    setSelectedGameAgent(agentType);
+  };
+  
   return (
-    <>
+    <Layout>
       <Head>
-        <title>Agentarium - Platform</title>
-        <meta name="description" content="Interact with the Agentarium simulation, stake on agents, and earn rewards" />
+        <title>Agentarium - AI Agent Simulation</title>
+        <meta name="description" content="Explore the Agentarium simulation with AI agents interacting in a virtual economy" />
       </Head>
       
-      <Layout>
-        <div className="container-responsive pt-24 pb-20">
-          <div className="mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold text-white">Agentarium Platform</h1>
-            <p className="text-white/70 mt-2">Interact with the simulation, manage your agents, and earn rewards</p>
-          </div>
-          
-          {/* Wallet Connection Bar */}
-          <div className="bg-agent-black/80 backdrop-blur-sm border border-white/10 rounded-xl p-4 mb-8 flex flex-col md:flex-row items-center justify-between">
-            <div className="mb-4 md:mb-0">
-              <div className="text-sm text-white/70 mb-1">Your Balance</div>
-              <div className="text-xl font-bold text-white">{userBalance.toLocaleString()} AGT</div>
-            </div>
-            
-            <div className="wallet-adapter-dropdown">
-              <WalletMultiButton className="btn-primary" />
-            </div>
-          </div>
-          
-          {/* Tabs */}
-          <div className="mb-8 border-b border-white/10 flex overflow-x-auto scrollbar-hide">
-            <button
-              onClick={() => setActiveTab('game')}
-              className={`px-6 py-3 font-medium text-sm ${
-                activeTab === 'game' 
-                  ? 'text-agent-green border-b-2 border-agent-green' 
-                  : 'text-white/70 hover:text-white'
-              }`}
-            >
-              Game Simulation
-            </button>
-            <button
-              onClick={() => setActiveTab('agents')}
-              className={`px-6 py-3 font-medium text-sm ${
-                activeTab === 'agents' 
-                  ? 'text-agent-green border-b-2 border-agent-green' 
-                  : 'text-white/70 hover:text-white'
-              }`}
-            >
-              My Agents
-            </button>
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`px-6 py-3 font-medium text-sm ${
-                activeTab === 'dashboard' 
-                  ? 'text-agent-green border-b-2 border-agent-green' 
-                  : 'text-white/70 hover:text-white'
-              }`}
-            >
-              Dashboard
-            </button>
-            <button
-              onClick={() => setActiveTab('marketplace')}
-              className={`px-6 py-3 font-medium text-sm ${
-                activeTab === 'marketplace' 
-                  ? 'text-agent-green border-b-2 border-agent-green' 
-                  : 'text-white/70 hover:text-white'
-              }`}
-            >
-              Marketplace
-            </button>
-          </div>
-          
-          {/* Game Simulation Tab */}
-          {activeTab === 'game' && (
-            <div>
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-white mb-2">AI Agent Simulation</h2>
-                <p className="text-white/70">
-                  Explore the Agentarium world where AI agents interact, trade, and evolve in a simulated environment.
-                  Click on an agent to learn more about their abilities and behaviors.
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                <div className="xl:col-span-2">
-                  <GlassCard className="p-4 h-[600px] relative overflow-hidden">
-                    <GameSimulation onAgentSelect={setSelectedGameAgent} />
-                  </GlassCard>
-                </div>
-                
-                <div className="xl:col-span-1">
-                  <GlassCard className="p-6">
-                    {selectedGameAgent ? (
-                      <div>
-                        <h3 className="text-xl font-bold text-white mb-4">
-                          Agent Profile: <span className="text-agent-green">{selectedGameAgent}</span>
-                        </h3>
-                        
-                        <div className="mb-6">
-                          {/* Agent profile details here */}
-                          <p className="text-white/70 mb-4">
-                            View detailed information about this agent type and how they function in the Agentarium ecosystem.
-                          </p>
-                          
-                          <button 
-                            onClick={() => setSelectedGameAgent(null)}
-                            className="text-agent-green text-sm hover:underline"
-                          >
-                            ← Back to all agents
-                          </button>
-                        </div>
-                        
-                        {/* Specific agent details */}
-                        <AgentProfiles initialAgent={selectedGameAgent} />
-                      </div>
-                    ) : (
-                      <div>
-                        <h3 className="text-xl font-bold text-white mb-4">Simulation Controls</h3>
-                        <p className="text-white/70 mb-4">
-                          Click on any agent in the simulation to view their detailed profile and abilities.
-                        </p>
-                        <div className="text-white/70 space-y-4">
-                          <div>
-                            <h4 className="font-medium text-white">How to interact</h4>
-                            <p className="mt-1 text-sm">Click on agents to select them and view their details.</p>
-                          </div>
-                          <div>
-                            <h4 className="font-medium text-white">Agent Types</h4>
-                            <p className="mt-1 text-sm">The simulation features 10 different agent types, each with unique behaviors and specializations.</p>
-                          </div>
-                          <div>
-                            <h4 className="font-medium text-white">Buildings</h4>
-                            <p className="mt-1 text-sm">Various buildings serve different functions in the ecosystem, from resource processing to trading hubs.</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </GlassCard>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {/* My Agents Tab */}
-          {activeTab === 'agents' && (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {agentData.map((agent) => (
-                  <motion.div
-                    key={agent.id}
-                    whileHover={{ scale: 1.02 }}
-                    className={`card p-6 cursor-pointer transition-colors ${
-                      selectedAgent === agent.id ? 'border-agent-green bg-agent-green/10' : ''
-                    }`}
-                    onClick={() => setSelectedAgent(agent.id)}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-center">
-                        <div className="text-4xl mr-3">{agent.avatar}</div>
-                        <div>
-                          <h3 className="text-white font-bold text-xl">{agent.name}</h3>
-                          <div className="text-agent-green text-sm">{agent.role}</div>
-                        </div>
-                      </div>
-                      <div className="bg-agent-green/20 text-agent-green px-2 py-1 rounded-md text-xs">
-                        Lvl {agent.level}
-                      </div>
-                    </div>
-                    
-                    <div className="mt-4">
-                      <p className="text-white/70 text-sm">{agent.description}</p>
-                    </div>
-                    
-                    <div className="mt-4 space-y-2">
-                      <div>
-                        <div className="flex justify-between text-xs text-white/60 mb-1">
-                          <span>Energy</span>
-                          <span>{agent.energy}%</span>
-                        </div>
-                        <div className="h-1.5 bg-agent-black/60 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-agent-green" 
-                            style={{ width: `${agent.energy}%` }} 
-                          />
-                        </div>
-                      </div>
-                      
-                      {/* Core skill */}
-                      <div>
-                        <div className="flex justify-between text-xs text-white/60 mb-1">
-                          <span>Primary Skill</span>
-                          <span>
-                            {Object.entries(agent.skills)[0][1]}%
-                          </span>
-                        </div>
-                        <div className="h-1.5 bg-agent-black/60 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-agent-blue" 
-                            style={{ width: `${Object.entries(agent.skills)[0][1]}%` }} 
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-6 pt-4 border-t border-agent-green/10 flex justify-between items-center">
-                      <div>
-                        <div className="text-xs text-white/60">Current Staked</div>
-                        <div className="text-white font-medium">{agent.staked} $AGENT</div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-white/60">Earnings</div>
-                        <div className="text-agent-green font-medium">+{agent.earnings} $AGENT</div>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-              
-              {/* Staking UI */}
-              {selectedAgent !== null && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-8 card p-6"
-                >
-                  <h2 className="text-white font-bold text-xl mb-4">
-                    Stake on {agentData[selectedAgent-1].name}
-                  </h2>
-                  <div className="flex flex-col md:flex-row gap-4 md:items-end">
-                    <div className="flex-grow">
-                      <label className="block text-white/70 text-sm mb-2">
-                        Amount to Stake
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          value={stakeAmount}
-                          onChange={(e) => setStakeAmount(e.target.value)}
-                          placeholder="0.00"
-                          className="bg-agent-black/60 text-white border border-agent-green/30 rounded-md w-full py-2 px-3 focus:outline-none focus:border-agent-green/70"
-                        />
-                        <button
-                          onClick={() => setStakeAmount(userBalance.toString())}
-                          className="absolute right-2 top-1/2 transform -translate-y-1/2 text-agent-green/70 text-xs hover:text-agent-green"
-                        >
-                          MAX
-                        </button>
-                      </div>
-                      <div className="text-white/50 text-xs mt-1">
-                        Balance: {userBalance.toFixed(2)} $AGENT
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleStake}
-                      disabled={isLoading}
-                      className="btn-primary flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isLoading ? 'Processing...' : 'Stake Tokens'}
-                    </button>
-                  </div>
-                  
-                  <div className="mt-6 bg-agent-black/40 rounded-md p-4">
-                    <h3 className="text-white font-medium mb-2">Staking Benefits</h3>
-                    <ul className="text-white/70 text-sm space-y-2">
-                      <li className="flex items-start">
-                        <span className="text-agent-green mr-2">•</span>
-                        <span>Increases agent's energy and efficiency by ~2% per 1000 $AGENT</span>
-                      </li>
-                      <li className="flex items-start">
-                        <span className="text-agent-green mr-2">•</span>
-                        <span>Earn a proportional share of the agent's rewards</span>
-                      </li>
-                      <li className="flex items-start">
-                        <span className="text-agent-green mr-2">•</span>
-                        <span>Unlock special abilities when staking threshold is reached</span>
-                      </li>
-                    </ul>
-                  </div>
-                </motion.div>
-              )}
-            </>
-          )}
-          
-          {/* Dashboard Tab */}
-          {activeTab === 'dashboard' && (
-            <div className="card p-6">
-              <h2 className="text-white font-bold text-xl mb-6">Your Dashboard</h2>
-              {wallet.connected ? (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div className="bg-agent-black/40 p-4 rounded-lg">
-                      <div className="text-white/60 text-sm">Total Staked</div>
-                      <div className="text-white text-xl font-bold">3,500 $AGENT</div>
-                    </div>
-                    <div className="bg-agent-black/40 p-4 rounded-lg">
-                      <div className="text-white/60 text-sm">Total Earnings</div>
-                      <div className="text-agent-green text-xl font-bold">+758 $AGENT</div>
-                    </div>
-                    <div className="bg-agent-black/40 p-4 rounded-lg">
-                      <div className="text-white/60 text-sm">Active Agents</div>
-                      <div className="text-white text-xl font-bold">2</div>
-                    </div>
-                  </div>
-                  <p className="text-white/70 text-center">
-                    Full dashboard with analytics and detailed agent monitoring coming soon!
-                  </p>
-                </>
-              ) : (
-                <div className="text-center py-8">
-                  <div className="text-white/70 mb-4">
-                    Please connect your wallet to view your dashboard
-                  </div>
-                  <WalletMultiButton className="!bg-agent-green !text-agent-black hover:!bg-agent-green-light" />
-                </div>
-              )}
-            </div>
-          )}
-          
-          {/* Marketplace Tab */}
-          {activeTab === 'marketplace' && (
-            <div className="card p-6">
-              <h2 className="text-white font-bold text-xl mb-6">Resource Marketplace</h2>
-              <div className="text-center py-12">
-                <div className="text-6xl mb-6">🚧</div>
-                <h3 className="text-white text-xl font-medium mb-2">Coming Soon</h3>
-                <p className="text-white/70 max-w-md mx-auto">
-                  The resource marketplace will allow you to buy, sell, and trade in-game resources. Check back later!
-                </p>
-              </div>
-            </div>
-          )}
-          
-          {/* Notification */}
+      {/* Full-screen game layout */}
+      <div className="h-screen w-full pt-16 md:pt-20 bg-agent-black overflow-hidden">
+        {/* Notification */}
+        <AnimatePresence>
           {notification.show && (
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg flex items-center ${
-                notification.type === 'success' ? 'bg-agent-green-muted text-white' : 'bg-red-600 text-white'
+              transition={{ duration: 0.2 }}
+              className={`fixed top-20 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-md shadow-lg ${
+                notification.type === 'success' ? 'bg-agent-green text-black' : 'bg-red-600 text-white'
               }`}
             >
-              <span>{notification.message}</span>
+              {notification.message}
             </motion.div>
           )}
+        </AnimatePresence>
+        
+        {/* Main content */}
+        <div className="h-full flex flex-col">
+          {/* Tabs */}
+          <div className="flex items-center px-4 py-2 bg-agent-black border-b border-white/10">
+            <div className="flex space-x-1">
+              <button
+                onClick={() => setActiveTab('game')}
+                className={`px-4 py-2 rounded-t-md text-sm font-medium transition-colors ${
+                  activeTab === 'game'
+                    ? 'bg-agent-green-muted/20 text-agent-green border-b-2 border-agent-green'
+                    : 'text-white/60 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                Simulation
+              </button>
+              <button
+                onClick={() => setActiveTab('agents')}
+                className={`px-4 py-2 rounded-t-md text-sm font-medium transition-colors ${
+                  activeTab === 'agents'
+                    ? 'bg-agent-green-muted/20 text-agent-green border-b-2 border-agent-green'
+                    : 'text-white/60 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                Agents
+              </button>
+              <button
+                onClick={() => setActiveTab('dashboard')}
+                className={`px-4 py-2 rounded-t-md text-sm font-medium transition-colors ${
+                  activeTab === 'dashboard'
+                    ? 'bg-agent-green-muted/20 text-agent-green border-b-2 border-agent-green'
+                    : 'text-white/60 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                Dashboard
+              </button>
+              <button
+                onClick={() => setActiveTab('marketplace')}
+                className={`px-4 py-2 rounded-t-md text-sm font-medium transition-colors ${
+                  activeTab === 'marketplace'
+                    ? 'bg-agent-green-muted/20 text-agent-green border-b-2 border-agent-green'
+                    : 'text-white/60 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                Marketplace
+              </button>
+            </div>
+            
+            <div className="ml-auto flex items-center space-x-4">
+              <div className="hidden md:block text-right">
+                <div className="text-white/60 text-xs">Balance</div>
+                <div className="text-white font-mono font-bold">{userBalance.toLocaleString()} $AGENT</div>
+              </div>
+              <div className="wallet-adapter-dropdown">
+                <WalletMultiButton className="!bg-agent-green hover:!bg-agent-green-muted !transition-colors" />
+              </div>
+            </div>
+          </div>
+          
+          {/* Tab Content - Full height */}
+          <div className="flex-1 overflow-y-auto">
+            {/* Game Simulation - Full height */}
+            {activeTab === 'game' && (
+              <div className="h-full">
+                <GameSimulation onAgentSelect={handleAgentSelect} />
+              </div>
+            )}
+            
+            {/* Agents */}
+            {activeTab === 'agents' && (
+              <div className="container-responsive py-6">
+                <h2 className="text-2xl font-bold text-white mb-6">Agent Profiles</h2>
+                <AgentProfiles initialAgent={selectedGameAgent || undefined} />
+              </div>
+            )}
+            
+            {/* Dashboard */}
+            {activeTab === 'dashboard' && (
+              <div className="container-responsive py-6">
+                <h2 className="text-2xl font-bold text-white mb-6">Your Dashboard</h2>
+                
+                {/* Stats Overview */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                  <GlassCard className="p-4">
+                    <h3 className="text-white/70 text-sm mb-1">Total Staked</h3>
+                    <p className="text-2xl font-bold text-white">32,500 $AGENT</p>
+                    <div className="mt-2 text-agent-green text-sm">+12.4% from last week</div>
+                  </GlassCard>
+                  
+                  <GlassCard className="p-4">
+                    <h3 className="text-white/70 text-sm mb-1">Total Rewards</h3>
+                    <p className="text-2xl font-bold text-white">4,125 $AGENT</p>
+                    <div className="mt-2 text-agent-green text-sm">+5.2% from last week</div>
+                  </GlassCard>
+                  
+                  <GlassCard className="p-4">
+                    <h3 className="text-white/70 text-sm mb-1">Active Agents</h3>
+                    <p className="text-2xl font-bold text-white">7 / 10</p>
+                    <div className="mt-2 text-white/70 text-sm">70% participation rate</div>
+                  </GlassCard>
+                </div>
+                
+                {/* Staked Agents */}
+                <h3 className="text-xl font-bold text-white mb-4">Your Staked Agents</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {agentData.slice(0, 7).map(agent => (
+                    <GlassCard key={agent.id} className="p-4">
+                      <div className="flex items-start">
+                        <div 
+                          className="w-12 h-12 rounded-full flex items-center justify-center mr-3 text-xl"
+                          style={{ backgroundColor: 'rgba(29, 185, 84, 0.2)' }}
+                        >
+                          {agent.avatar}
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-white font-bold">{agent.name}</h4>
+                          <p className="text-white/70 text-sm">{agent.role}</p>
+                          
+                          <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                              <div className="text-white/50">Staked</div>
+                              <div className="text-white font-mono">{agent.staked} $AGENT</div>
+                            </div>
+                            <div>
+                              <div className="text-white/50">APY</div>
+                              <div className="text-agent-green font-mono">{agent.apy}%</div>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-4 flex justify-between items-center">
+                            <button 
+                              onClick={() => handleUnstake(agent.id)}
+                              disabled={isLoading}
+                              className="px-3 py-1 bg-agent-dark-gray hover:bg-agent-gray text-white text-sm rounded-md transition-colors"
+                            >
+                              Unstake
+                            </button>
+                            <div className="text-white/50 text-xs">Level {agent.level}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </GlassCard>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Marketplace */}
+            {activeTab === 'marketplace' && (
+              <div className="container-responsive py-6">
+                <h2 className="text-2xl font-bold text-white mb-6">Agent Marketplace</h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {agentData.map(agent => (
+                    <GlassCard 
+                      key={agent.id} 
+                      className="p-4"
+                      glowColor={selectedAgent === agent.id ? 'rgba(29, 185, 84, 0.2)' : undefined}
+                      borderGlow={selectedAgent === agent.id}
+                    >
+                      <div 
+                        className={`cursor-pointer transition-all duration-300 ${
+                          selectedAgent === agent.id ? 'scale-105' : 'hover:scale-105'
+                        }`}
+                        onClick={() => setSelectedAgent(agent.id)}
+                      >
+                        <div className="flex items-center mb-3">
+                          <div 
+                            className="w-10 h-10 rounded-full flex items-center justify-center mr-3 text-xl"
+                            style={{ backgroundColor: 'rgba(29, 185, 84, 0.2)' }}
+                          >
+                            {agent.avatar}
+                          </div>
+                          <div>
+                            <h4 className="text-white font-bold">{agent.name}</h4>
+                            <p className="text-white/70 text-xs">{agent.role}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="mb-3">
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="text-white/70">Level</span>
+                            <span className="text-white">{agent.level}</span>
+                          </div>
+                          <div className="h-1.5 bg-agent-gray/30 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-agent-green rounded-full"
+                              style={{ width: `${agent.level * 10}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
+                          <div className="bg-agent-dark-gray/50 p-2 rounded">
+                            <div className="text-white/50">Energy</div>
+                            <div className="text-white font-medium">{agent.energy}%</div>
+                          </div>
+                          <div className="bg-agent-dark-gray/50 p-2 rounded">
+                            <div className="text-white/50">APY</div>
+                            <div className="text-agent-green font-medium">{agent.apy}%</div>
+                          </div>
+                        </div>
+                        
+                        <p className="text-white/60 text-xs line-clamp-2 h-10">{agent.description}</p>
+                      </div>
+                    </GlassCard>
+                  ))}
+                </div>
+                
+                {/* Staking Interface */}
+                {selectedAgent && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="mt-8"
+                  >
+                    <GlassCard className="p-6">
+                      <h3 className="text-xl font-bold text-white mb-4">
+                        Stake {agentData.find(a => a.id === selectedAgent)?.name}
+                      </h3>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <div className="mb-4">
+                            <label className="block text-white/70 text-sm mb-2">Amount to Stake</label>
+                            <div className="flex items-center bg-agent-gray/20 rounded-lg overflow-hidden border border-white/5 focus-within:border-agent-green/50 transition-colors">
+                              <input
+                                type="number"
+                                value={stakeAmount}
+                                onChange={(e) => setStakeAmount(e.target.value)}
+                                placeholder="0"
+                                className="bg-transparent text-white px-4 py-3 flex-1 focus:outline-none"
+                              />
+                              <div className="px-4 text-white/50">$AGENT</div>
+                            </div>
+                            <div className="flex justify-between mt-2 text-xs">
+                              <button 
+                                className="text-agent-green hover:text-agent-green-muted transition-colors"
+                                onClick={() => setStakeAmount((userBalance / 4).toString())}
+                              >
+                                25%
+                              </button>
+                              <button 
+                                className="text-agent-green hover:text-agent-green-muted transition-colors"
+                                onClick={() => setStakeAmount((userBalance / 2).toString())}
+                              >
+                                50%
+                              </button>
+                              <button 
+                                className="text-agent-green hover:text-agent-green-muted transition-colors"
+                                onClick={() => setStakeAmount((userBalance * 0.75).toString())}
+                              >
+                                75%
+                              </button>
+                              <button 
+                                className="text-agent-green hover:text-agent-green-muted transition-colors"
+                                onClick={() => setStakeAmount(userBalance.toString())}
+                              >
+                                MAX
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <button
+                            onClick={handleStake}
+                            disabled={isLoading || !selectedAgent || parseFloat(stakeAmount) <= 0 || parseFloat(stakeAmount) > userBalance}
+                            className={`w-full py-3 rounded-md font-medium transition-all ${
+                              isLoading || !selectedAgent || parseFloat(stakeAmount) <= 0 || parseFloat(stakeAmount) > userBalance
+                                ? 'bg-agent-gray/30 text-white/30 cursor-not-allowed'
+                                : 'bg-agent-green text-black hover:bg-agent-green-muted'
+                            }`}
+                          >
+                            {isLoading ? 'Processing...' : 'Stake Agent'}
+                          </button>
+                          
+                          <p className="mt-3 text-white/50 text-xs">
+                            Staking this agent will lock your tokens for a minimum of 7 days.
+                            You will earn rewards based on the agent's performance in the simulation.
+                          </p>
+                        </div>
+                        
+                        <div className="bg-agent-black/40 p-4 rounded-lg">
+                          <h4 className="text-white font-bold mb-3">Staking Details</h4>
+                          
+                          <div className="space-y-3">
+                            <div className="flex justify-between">
+                              <span className="text-white/70">Agent Type</span>
+                              <span className="text-white">{agentData.find(a => a.id === selectedAgent)?.role}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-white/70">APY</span>
+                              <span className="text-agent-green">{agentData.find(a => a.id === selectedAgent)?.apy}%</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-white/70">Lock Period</span>
+                              <span className="text-white">7 days</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-white/70">Early Unstake Fee</span>
+                              <span className="text-white">10%</span>
+                            </div>
+                            
+                            <div className="pt-3 border-t border-white/10">
+                              <div className="flex justify-between font-bold">
+                                <span className="text-white">Estimated Rewards (30d)</span>
+                                <span className="text-agent-green">
+                                  {parseFloat(stakeAmount) > 0 
+                                    ? ((parseFloat(stakeAmount) * (agentData.find(a => a.id === selectedAgent)?.apy || 0) / 100) / 12).toFixed(2)
+                                    : '0'} $AGENT
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </GlassCard>
+                  </motion.div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-      </Layout>
-    </>
+      </div>
+    </Layout>
   );
 };
 
