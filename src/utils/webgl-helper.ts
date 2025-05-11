@@ -100,25 +100,85 @@ export const setPreferredQuality = (quality: 'high' | 'medium' | 'low'): void =>
   localStorage.setItem('agentarium_quality', quality);
 };
 
+// Extend the Window interface with properties we might access
+declare global {
+  interface Window {
+    resetWebGL?: () => void;
+    gc?: () => void;
+    THREE_INSTANCES?: any[];
+  }
+}
+
 /**
  * Reset WebGL context if it exists
  */
 export const resetWebGLContext = (): void => {
   try {
+    console.log("Attempting to reset WebGL context");
+    
+    // Clean up any existing ThreeJS renderers
+    if (typeof window !== 'undefined' && window.THREE_INSTANCES) {
+      window.THREE_INSTANCES.forEach((renderer: any) => {
+        try {
+          if (renderer && renderer.dispose) {
+            renderer.dispose();
+          }
+        } catch (e) {
+          console.warn("Error disposing renderer:", e);
+        }
+      });
+    }
+    
+    // Find all canvas elements
     const canvases = document.querySelectorAll('canvas');
     canvases.forEach(canvas => {
-      // Try to get the WebGL context and reset it, with proper type assertion
-      const gl = canvas.getContext('webgl') as WebGLRenderingContext | null || 
-                 canvas.getContext('experimental-webgl') as WebGLRenderingContext | null;
-      
-      if (gl) {
-        // Force context loss
-        const loseContextExt = gl.getExtension('WEBGL_lose_context');
-        if (loseContextExt) {
-          loseContextExt.loseContext();
+      // Try to get all possible contexts and reset them
+      ['webgl', 'experimental-webgl', 'webgl2'].forEach(contextType => {
+        try {
+          const gl = canvas.getContext(contextType) as WebGLRenderingContext | null;
+          
+          if (gl) {
+            // Clear the context
+            gl.clearColor(0, 0, 0, 0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            
+            // Try to use the context loss extension
+            const loseContextExt = gl.getExtension('WEBGL_lose_context');
+            if (loseContextExt) {
+              loseContextExt.loseContext();
+              
+              // Optional: try to restore after a delay
+              setTimeout(() => {
+                try {
+                  loseContextExt.restoreContext();
+                } catch (e) {
+                  console.warn("Could not restore context:", e);
+                }
+              }, 300);
+            }
+          }
+        } catch (e) {
+          console.warn(`Failed to reset ${contextType} context:`, e);
         }
+      });
+      
+      // Replace the canvas with a fresh copy if needed
+      try {
+        const newCanvas = canvas.cloneNode(false) as HTMLCanvasElement;
+        if (canvas.parentNode) {
+          canvas.parentNode.replaceChild(newCanvas, canvas);
+        }
+      } catch (e) {
+        console.warn("Failed to replace canvas:", e);
       }
     });
+    
+    // Force garbage collection if available (only in some browsers)
+    if (typeof window !== 'undefined' && window.gc) {
+      try {
+        window.gc();
+      } catch (e) {}
+    }
   } catch (e) {
     console.warn("Failed to reset WebGL context:", e);
   }

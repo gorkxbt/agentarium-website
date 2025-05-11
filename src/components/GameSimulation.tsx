@@ -339,8 +339,16 @@ const LoadingScreen = () => {
     return () => clearInterval(timer);
   }, []);
   
+  // Force continue after a timeout
+  useEffect(() => {
+    if (loadingTime > 8 && typeof window !== 'undefined' && window.resetWebGL) {
+      console.log("Loading screen timeout reached - attempting reset");
+      window.resetWebGL();
+    }
+  }, [loadingTime]);
+  
   // Show additional options if loading takes too long
-  const showAdditionalOptions = loadingTime > 15;
+  const showAdditionalOptions = loadingTime > 6;
   
   return (
     <div className="w-full h-full bg-agent-dark-gray flex items-center justify-center">
@@ -352,7 +360,7 @@ const LoadingScreen = () => {
         {showAdditionalOptions ? (
           <>
             <div className="mt-6 w-full bg-gray-700/30 h-2 rounded-full">
-              <div className="bg-agent-green h-full rounded-full" style={{ width: `${Math.min(100, loadingTime * 2)}%` }}></div>
+              <div className="bg-agent-green h-full rounded-full" style={{ width: `${Math.min(100, loadingTime * 6)}%` }}></div>
             </div>
             <p className="text-xs mt-4 text-yellow-400/80">
               Loading is taking longer than usual. You can try these options:
@@ -378,12 +386,12 @@ const LoadingScreen = () => {
                 }}
                 className="px-4 py-2 bg-agent-green/20 text-agent-green border border-agent-green/30 rounded-md hover:bg-agent-green/30 transition-colors"
               >
-                Reset & Reload
+                Reset & Continue
               </button>
             </div>
           </>
         ) : (
-          <p className="text-xs mt-8 text-agent-green/80">First load may take up to 30 seconds...</p>
+          <p className="text-xs mt-8 text-agent-green/80">First load may take a moment...</p>
         )}
       </div>
     </div>
@@ -506,10 +514,12 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
     <div 
       className="w-full relative overflow-hidden mx-auto my-8 bg-agent-black/95 rounded-xl shadow-xl border border-white/5" 
       style={{ 
-        minHeight: '700px', 
-        height: 'calc(100vh - 200px)',
-        maxWidth: '90%',
-        maxHeight: '90vh'
+        minHeight: '910px', 
+        height: 'calc(100vh - 100px)',
+        minWidth: '800px',
+        maxWidth: '95%',
+        maxHeight: '95vh',
+        aspectRatio: '16 / 9' // More standard widescreen ratio
       }} 
       ref={sceneRef}
     >

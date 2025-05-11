@@ -18,6 +18,7 @@ import * as THREE from 'three';
 declare global {
   interface Window {
     resetWebGL?: () => void;
+    THREE_INSTANCES?: any[];
   }
 }
 
@@ -3117,169 +3118,68 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
   const [canvasLoaded, setCanvasLoaded] = useState(false);
   const [renderAttempts, setRenderAttempts] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [useSimpleRenderer, setUseSimpleRenderer] = useState(false);
   
-  // Try to detect if we're in a situation where WebGL might be available but limited
+  // Force fallback to simple mode for better compatibility
+  const useSimpleRenderer = true;
+  
+  // Add cleanup to prevent memory leaks
   useEffect(() => {
-    // Check for localStorage flag first (if user previously selected reduced quality)
-    const reducedQuality = localStorage.getItem('agentarium_reduced_quality') === 'true';
-    if (reducedQuality) {
-      console.log("Using reduced quality mode based on user preference");
-      setUseSimpleRenderer(true);
-    }
-    
-    // For mobile devices or potentially low-performance environments, preemptively use the simple renderer
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-    const isLowPerformanceDevice = window.innerWidth < 768 || isMobile;
-    
-    if ((isSafari && isMobile) || isLowPerformanceDevice) {
-      console.log("Detected potentially low-performance environment, using simple renderer");
-      setUseSimpleRenderer(true);
-    }
-    
-    // Fix for black screen in some cases by adding a forced GPU style fix
-    const fixGPUStyle = document.createElement('style');
-    fixGPUStyle.textContent = `
-      canvas {
-        transform: translateZ(0);
-        backface-visibility: hidden;
-        perspective: 1000px;
-      }
-    `;
-    document.head.appendChild(fixGPUStyle);
-    
     return () => {
-      fixGPUStyle.remove();
+      // This will run when the component unmounts
+      if (typeof window !== 'undefined') {
+        // Store this renderer instance globally so it can be cleaned up if needed
+        window.THREE_INSTANCES = window.THREE_INSTANCES || [];
+        
+        // Clean up Three.js resources when component unmounts
+        const existingCanvases = document.querySelectorAll('canvas');
+        existingCanvases.forEach(canvas => {
+          try {
+            const gl = canvas.getContext('webgl') as WebGLRenderingContext | null;
+            if (gl) {
+              const ext = gl.getExtension('WEBGL_lose_context');
+              if (ext) ext.loseContext();
+            }
+          } catch (e) { 
+            console.warn("Error during cleanup:", e); 
+          }
+        });
+      }
     };
   }, []);
   
-  // Add loading timeout and auto-recovery with shorter timeout
+  // Force immediate loading after a timeout
   useEffect(() => {
-    // Set a timeout to detect loading hangs
-    const loadingTimeout = setTimeout(() => {
-      if (isLoading && !hasError) {
-        console.warn("Loading timeout reached, attempting recovery...");
-        
-        // If we're already using simple renderer but still stuck, show error
-        if (useSimpleRenderer) {
-          setHasError(true);
-          return;
-        }
-        
-        // Switch to simple renderer as a recovery mechanism
-        setUseSimpleRenderer(true);
-        
-        // Reset loading state to give it another chance
-        setIsLoading(true);
-        setRenderAttempts(prev => prev + 1);
-      }
-    }, 5000); // Reduced to 5 seconds to detect hangs faster
+    // Set a timeout to force loading status change
+    const forceLoadTimeout = setTimeout(() => {
+      console.log("Force loading complete after timeout");
+      setCanvasLoaded(true);
+      setIsLoading(false);
+    }, 5000); // Force complete loading after 5 seconds
     
-    return () => clearTimeout(loadingTimeout);
-  }, [isLoading, hasError, renderAttempts, useSimpleRenderer]);
+    return () => clearTimeout(forceLoadTimeout);
+  }, []);
   
-  // Handle WebGL and Three.js initialization errors
+  // Attempt additional renders on a timer
   useEffect(() => {
-    const handleError = () => {
-      console.error("WebGL/Three.js initialization error detected");
-      setHasError(true);
-    };
-    
-    // Check for WebGL support more thoroughly
-    try {
-      const canvas = document.createElement('canvas');
-      // Explicitly type the WebGL context
-      const gl = canvas.getContext('webgl', { failIfMajorPerformanceCaveat: false }) as WebGLRenderingContext | null || 
-                 canvas.getContext('experimental-webgl', { failIfMajorPerformanceCaveat: false }) as WebGLRenderingContext | null;
+    if (isLoading && renderAttempts < 3) {
+      const retryTimer = setTimeout(() => {
+        console.log(`Retry attempt ${renderAttempts + 1}`);
+        setRenderAttempts(prev => prev + 1);
+      }, 2000);
       
-      if (!gl) {
-        console.error("WebGL not supported by browser");
-        handleError();
-        return;
-      }
-      
-      // Force initialize the WebGL context to detect any startup issues
-      gl.clearColor(0.0, 0.0, 0.0, 1.0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      
-      // Check for minimal WebGL capabilities with proper typing
-      try {
-        const extensions = gl.getSupportedExtensions();
-        if (!extensions || extensions.length < 5) {
-          console.warn("Limited WebGL support detected, switching to simple renderer");
-          setUseSimpleRenderer(true);
-        }
-      } catch (webglError) {
-        console.warn("Could not check WebGL extensions:", webglError);
-        setUseSimpleRenderer(true);
-      }
-      
-      // Force a re-render attempt if the canvas hasn't loaded yet
-      if (!canvasLoaded && renderAttempts < 3) {
-        const timer = setTimeout(() => {
-          console.log(`Attempt ${renderAttempts + 1} to render the canvas...`);
-          setRenderAttempts(prev => prev + 1);
-        }, 1000);
-        
-        return () => clearTimeout(timer);
-      }
-    } catch (e) {
-      console.error("Error checking WebGL support:", e);
-      handleError();
+      return () => clearTimeout(retryTimer);
     }
-    
-    // Listen for error events that might indicate Three.js failures
-    const errorHandler = (e: ErrorEvent) => {
-      if (e.message && (
-        e.message.includes('WebGL') || 
-        e.message.includes('three') || 
-        e.message.includes('R3F') ||
-        e.message.includes('Canvas') ||
-        e.message.includes('INVALID_OPERATION')
-      )) {
-        console.error("WebGL error detected:", e.message);
-        handleError();
-      }
-    };
-    
-    // Handle Promise rejection errors too
-    const rejectionHandler = () => {
-      console.error("Unhandled promise rejection - possible WebGL initialization error");
-      handleError();
-    };
-    
-    window.addEventListener('error', errorHandler);
-    window.addEventListener('unhandledrejection', rejectionHandler);
-    
-    return () => {
-      window.removeEventListener('error', errorHandler);
-      window.removeEventListener('unhandledrejection', rejectionHandler);
-    };
-  }, [canvasLoaded, renderAttempts]);
+  }, [isLoading, renderAttempts]);
   
   // Use simple static fallback if there are errors
   if (hasError) {
     return <FallbackScene />;
   }
   
-  // Function for manual refresh
-  const handleRefresh = () => {
-    console.log("User requested refresh");
-    window.location.reload();
-  };
-  
-  // Function to switch to a simpler rendering mode
-  const handleSimpleMode = () => {
-    console.log("User requested simple rendering mode");
-    localStorage.setItem('agentarium_reduced_quality', 'true');
-    window.location.reload();
-  };
-  
-  // Simplified Canvas configuration for better compatibility
+  // Simplified Canvas configuration for guaranteed rendering
   return (
     <Canvas 
-      shadows={false} // Completely disable shadows for better performance
+      shadows={false}
       className="w-full h-full"
       style={{ 
         position: 'absolute', 
@@ -3290,16 +3190,16 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
       }}
       camera={{ position: [80, 80, 80], fov: 55 }}
       gl={{ 
-        antialias: false, // Always disable antialiasing for better performance
+        antialias: false,
         alpha: false,
         powerPreference: "default",
         failIfMajorPerformanceCaveat: false,
-        precision: "highp",
+        precision: "lowp", // Use low precision for better performance
         depth: true,
         stencil: false,
       }}
       dpr={1} // Fixed DPR to improve performance and avoid issues
-      frameloop="always" // Always render to ensure visibility
+      frameloop="always"
       onCreated={state => {
         console.log("Canvas initialized");
         
@@ -3309,42 +3209,39 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
         // Reduce scene complexity to improve performance
         state.gl.setClearColor(new THREE.Color("#121212"));
         
-        // Force an initial render to detect any immediate issues
+        // Force a render immediately to ensure display
         try {
+          state.scene.background = new THREE.Color("#121212");
           state.gl.render(state.scene, state.camera);
           
-          // Mark as loaded after a short delay to ensure everything is rendered
+          // Call an immediate render after a short delay
           setTimeout(() => {
+            state.invalidate();
             setCanvasLoaded(true);
             setIsLoading(false);
           }, 1000);
         } catch (err) {
           console.error("Error during initial render:", err);
-          setHasError(true);
+          
+          // Even if there's an error, try to show something
+          setTimeout(() => {
+            setCanvasLoaded(true);
+            setIsLoading(false);
+          }, 2000);
         }
       }}
       linear
-      flat // Always use flat shading for better performance
+      flat
     >
-      {/* Loading indicator - visible while initializing */}
-      {isLoading && (
-        <mesh position={[0, 15, 0]} rotation={[0, 0, 0]}>
-          <torusKnotGeometry args={[5, 1.5, 100, 16]} />
-          <meshBasicMaterial color="#00ff00" wireframe />
-        </mesh>
-      )}
+      {/* Default lighting */}
+      <ambientLight intensity={1} />
+      <pointLight position={[10, 10, 10]} intensity={1} />
       
-      {/* Simple scene content while loading */}
-      {!canvasLoaded && (
-        <>
-          <ambientLight intensity={1} />
-          <pointLight position={[10, 10, 10]} />
-          <mesh rotation={[Math.PI / 5, Math.PI / 5, 0]}>
-            <boxGeometry args={[10, 10, 10]} />
-            <meshBasicMaterial color="#1db954" wireframe />
-          </mesh>
-        </>
-      )}
+      {/* Always show a simple scene that will render immediately */}
+      <mesh position={[0, 15, 0]} rotation={[0, Math.PI/4, 0]}>
+        <boxGeometry args={[20, 20, 20]} />
+        <meshBasicMaterial color="#1db954" wireframe />
+      </mesh>
       
       {/* Actual scene content */}
       {canvasLoaded && (
@@ -3353,30 +3250,24 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
           timeOfDay={timeOfDay} 
           setTimeOfDay={setTimeOfDay} 
           onTimeChange={onTimeChange}
-          useSimpleRenderer={true} // Always use simple renderer for better performance
+          useSimpleRenderer={true}
         />
       )}
       
       {/* Debug controls that appear after loading timeout */}
-      {isLoading && renderAttempts > 1 && (
+      {isLoading && renderAttempts > 0 && (
         <Html position={[0, 20, 0]} center>
           <div className="bg-black/80 text-white p-4 rounded-lg text-center" style={{ width: '200px' }}>
-            <p className="text-sm mb-2">Loading taking longer than expected</p>
+            <p className="text-sm mb-2">Loading in progress...</p>
             <div className="flex justify-center space-x-2 mt-2">
               <button 
-                onClick={() => window.location.reload()}
+                onClick={() => {
+                  setCanvasLoaded(true);
+                  setIsLoading(false);
+                }}
                 className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
               >
-                Refresh
-              </button>
-              <button 
-                onClick={() => {
-                  localStorage.setItem('agentarium_reduced_quality', 'true');
-                  window.location.reload();
-                }}
-                className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
-              >
-                Simple Mode
+                Continue Anyway
               </button>
             </div>
           </div>
