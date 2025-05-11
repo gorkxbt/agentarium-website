@@ -27,8 +27,9 @@ const nextConfig = {
     return config;
   },
   experimental: {
-    outputFileTracing: true,
     largePageDataBytes: 800 * 1000,
+    isrMemoryCacheSize: 50 * 1024 * 1024,
+    staticPageGenerationTimeout: 120,
   },
 };
 

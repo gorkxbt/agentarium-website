@@ -19,15 +19,28 @@ if (typeof window !== 'undefined') {
   try {
     // Create a canvas element to pre-initialize WebGL context
     const preInitCanvas = document.createElement('canvas');
+    // Set canvas size to ensure proper context creation
+    preInitCanvas.width = 300;
+    preInitCanvas.height = 150;
+    
     const preInitContext = preInitCanvas.getContext('webgl', { 
       failIfMajorPerformanceCaveat: false,
-      powerPreference: 'default'
+      powerPreference: 'default',
+      alpha: false
     });
     
     // Force the context to initialize
     if (preInitContext) {
       preInitContext.clearColor(0, 0, 0, 1);
       preInitContext.clear(preInitContext.COLOR_BUFFER_BIT);
+      
+      // Additional initialization to avoid WebGL context loss
+      const ext = preInitContext.getExtension('WEBGL_lose_context');
+      if (ext) {
+        setTimeout(() => {
+          ext.restoreContext();
+        }, 100);
+      }
     }
   } catch (e) {
     console.warn('Failed pre-initialization of WebGL context', e);
@@ -3217,6 +3230,13 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
     <Canvas 
       shadows={useSimpleRenderer ? false : undefined} // Disable shadows in simple mode
       className="w-full h-full"
+      style={{ 
+        position: 'absolute', 
+        minHeight: '600px', 
+        height: '100vh', 
+        width: '100%',
+        background: "#121212" // Dark background
+      }}
       camera={{ position: [80, 80, 80], fov: 50 }}
       gl={{ 
         antialias: !useSimpleRenderer, // Disable antialiasing in simple mode
@@ -3238,6 +3258,11 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
         
         // Reduce scene complexity to improve performance
         state.gl.setClearColor(new THREE.Color("#121212"));
+        
+        // Make sure canvas is sized properly
+        state.gl.domElement.style.width = '100%';
+        state.gl.domElement.style.height = '100%';
+        
         if (useSimpleRenderer) {
           state.scene.fog = null; // Remove fog in simple mode
           
@@ -3261,7 +3286,6 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
           setHasError(true);
         }
       }}
-      style={{ background: "#121212" }} // Dark background
       linear
       flat={useSimpleRenderer} // Use flat shading in simple mode
     >

@@ -16,6 +16,12 @@ const ClientGameScene = dynamic(() => import('./game/ClientGameScene'), {
         <h3 className="text-xl font-bold mb-2">Loading Agentarium City...</h3>
         <p>The 3D simulation is initializing...</p>
         <div className="mt-4 w-16 h-16 border-t-2 border-agent-green rounded-full animate-spin mx-auto"></div>
+        <button 
+          onClick={() => window.location.reload()}
+          className="mt-4 px-4 py-2 bg-agent-green/20 text-agent-green border border-agent-green/30 rounded-md hover:bg-agent-green/30 transition-colors"
+        >
+          Reload If Stuck
+        </button>
       </div>
     </div>
   )
@@ -338,6 +344,11 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
     // Force a hardware acceleration trigger
     if (sceneRef.current) {
       sceneRef.current.style.transform = 'translateZ(0)';
+      
+      // Ensure the container is sized properly
+      sceneRef.current.style.width = '100%';
+      sceneRef.current.style.height = '100%';
+      sceneRef.current.style.minHeight = '600px';
     }
     
     // Add global error handler for WebGL issues
@@ -421,7 +432,7 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
   };
 
   return (
-    <div className="w-full h-full relative overflow-hidden" ref={sceneRef}>
+    <div className="w-full h-full relative overflow-hidden" style={{ minHeight: '600px' }} ref={sceneRef}>
       {/* Intro overlay */}
       <AnimatePresence>
         {showIntro && (
@@ -619,7 +630,7 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
       </div>
       
       {/* 3D Canvas */}
-      <div className="w-full h-full">
+      <div className="w-full h-full" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
         <ErrorBoundary fallback={
           <div className="w-full h-full bg-agent-dark-gray flex items-center justify-center">
             <div className="text-white text-center p-6 max-w-md">
