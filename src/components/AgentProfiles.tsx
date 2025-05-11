@@ -118,9 +118,10 @@ const AGENT_TYPES = [
 
 interface AgentProfilesProps {
   initialAgent?: string;
+  showStaking?: boolean;
 }
 
-const AgentProfiles = ({ initialAgent }: AgentProfilesProps) => {
+const AgentProfiles = ({ initialAgent, showStaking = false }: AgentProfilesProps) => {
   const [selectedAgent, setSelectedAgent] = useState(AGENT_TYPES[0]);
   const [stakingAmount, setStakingAmount] = useState('');
   const [isStaking, setIsStaking] = useState(false);
@@ -231,7 +232,7 @@ const AgentProfiles = ({ initialAgent }: AgentProfilesProps) => {
         glowColor={`${selectedAgent.color}40`}
         borderGlow={true}
       >
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className={`grid grid-cols-1 ${showStaking ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-6`}>
           {/* Agent Header - Improved responsiveness */}
           <div className="lg:col-span-3 flex flex-col sm:flex-row items-start sm:items-center mb-6">
             <div 
@@ -305,77 +306,79 @@ const AgentProfiles = ({ initialAgent }: AgentProfilesProps) => {
           </div>
           
           {/* Staking Section - Enhanced with APY and unstaking */}
-          <div className="bg-agent-black/40 p-4 rounded-lg border border-white/10 backdrop-blur-sm transition-all duration-300 hover:border-white/20">
-            <h4 className="text-white font-bold mb-3 text-sm uppercase tracking-wider">Agent Staking</h4>
-            
-            {/* Staking Stats */}
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="bg-agent-gray/30 p-3 rounded-lg">
-                <div className="text-xs text-white/50 mb-1">Total Staked</div>
-                <div className="text-white font-mono font-bold">{stakingInfo.totalStaked.toLocaleString()} $AGENT</div>
-              </div>
-              <div className="bg-agent-gray/30 p-3 rounded-lg">
-                <div className="text-xs text-white/50 mb-1">Current APY</div>
-                <div className="text-agent-green font-mono font-bold">{stakingInfo.apy}%</div>
-              </div>
-              <div className="bg-agent-gray/30 p-3 rounded-lg">
-                <div className="text-xs text-white/50 mb-1">Rewards Earned</div>
-                <div className="text-white font-mono font-bold">{stakingInfo.rewards.toLocaleString()} $AGENT</div>
-              </div>
-              <div className="bg-agent-gray/30 p-3 rounded-lg">
-                <div className="text-xs text-white/50 mb-1">Lock Period</div>
-                <div className="text-white font-mono font-bold">{stakingInfo.lockPeriod}</div>
-              </div>
-            </div>
-            
-            {/* Staking Input */}
-            <div className="mb-3">
-              <div className="flex items-center bg-agent-gray/20 rounded-lg overflow-hidden border border-white/5 focus-within:border-agent-green/50 transition-colors">
-                <input
-                  type="number"
-                  value={stakingAmount}
-                  onChange={(e) => setStakingAmount(e.target.value)}
-                  placeholder="Amount to stake"
-                  className="bg-transparent text-white px-3 py-2 flex-1 focus:outline-none"
-                />
-                <div className="px-3 text-white/50 text-sm">$AGENT</div>
-              </div>
-            </div>
-            
-            {/* Action Buttons */}
-            <div className="flex gap-2">
-              <button
-                onClick={handleStake}
-                disabled={isStaking || !stakingAmount}
-                className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
-                  isStaking || !stakingAmount
-                    ? 'bg-agent-gray/30 text-white/30 cursor-not-allowed'
-                    : 'bg-agent-green text-black hover:bg-agent-green-muted'
-                }`}
-              >
-                {isStaking ? 'Processing...' : 'Stake Agent'}
-              </button>
+          {showStaking && (
+            <div className="bg-agent-black/40 p-4 rounded-lg border border-white/10 backdrop-blur-sm transition-all duration-300 hover:border-white/20">
+              <h4 className="text-white font-bold mb-3 text-sm uppercase tracking-wider">Agent Staking</h4>
               
-              <button
-                onClick={handleUnstake}
-                disabled={isStaking || stakingInfo.totalStaked <= 0}
-                className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
-                  isStaking || stakingInfo.totalStaked <= 0
-                    ? 'bg-agent-gray/30 text-white/30 cursor-not-allowed'
-                    : 'bg-agent-dark-gray text-white hover:bg-agent-gray border border-white/10'
-                }`}
-              >
-                Unstake
-              </button>
-            </div>
-            
-            {/* Staking Info */}
-            {stakingInfo.totalStaked > 0 && (
-              <div className="mt-3 text-xs text-white/50">
-                Staking this agent earns you passive rewards and increases the agent's effectiveness in the simulation.
+              {/* Staking Stats */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="bg-agent-gray/30 p-3 rounded-lg">
+                  <div className="text-xs text-white/50 mb-1">Total Staked</div>
+                  <div className="text-white font-mono font-bold">{stakingInfo.totalStaked.toLocaleString()} $AGENT</div>
+                </div>
+                <div className="bg-agent-gray/30 p-3 rounded-lg">
+                  <div className="text-xs text-white/50 mb-1">Current APY</div>
+                  <div className="text-agent-green font-mono font-bold">{stakingInfo.apy}%</div>
+                </div>
+                <div className="bg-agent-gray/30 p-3 rounded-lg">
+                  <div className="text-xs text-white/50 mb-1">Rewards Earned</div>
+                  <div className="text-white font-mono font-bold">{stakingInfo.rewards.toLocaleString()} $AGENT</div>
+                </div>
+                <div className="bg-agent-gray/30 p-3 rounded-lg">
+                  <div className="text-xs text-white/50 mb-1">Lock Period</div>
+                  <div className="text-white font-mono font-bold">{stakingInfo.lockPeriod}</div>
+                </div>
               </div>
-            )}
-          </div>
+              
+              {/* Staking Input */}
+              <div className="mb-3">
+                <div className="flex items-center bg-agent-gray/20 rounded-lg overflow-hidden border border-white/5 focus-within:border-agent-green/50 transition-colors">
+                  <input
+                    type="number"
+                    value={stakingAmount}
+                    onChange={(e) => setStakingAmount(e.target.value)}
+                    placeholder="Amount to stake"
+                    className="bg-transparent text-white px-3 py-2 flex-1 focus:outline-none"
+                  />
+                  <div className="px-3 text-white/50 text-sm">$AGENT</div>
+                </div>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleStake}
+                  disabled={isStaking || !stakingAmount}
+                  className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
+                    isStaking || !stakingAmount
+                      ? 'bg-agent-gray/30 text-white/30 cursor-not-allowed'
+                      : 'bg-agent-green text-black hover:bg-agent-green-muted'
+                  }`}
+                >
+                  {isStaking ? 'Processing...' : 'Stake Agent'}
+                </button>
+                
+                <button
+                  onClick={handleUnstake}
+                  disabled={isStaking || stakingInfo.totalStaked <= 0}
+                  className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
+                    isStaking || stakingInfo.totalStaked <= 0
+                      ? 'bg-agent-gray/30 text-white/30 cursor-not-allowed'
+                      : 'bg-agent-dark-gray text-white hover:bg-agent-gray border border-white/10'
+                  }`}
+                >
+                  Unstake
+                </button>
+              </div>
+              
+              {/* Staking Info */}
+              {stakingInfo.totalStaked > 0 && (
+                <div className="mt-3 text-xs text-white/50">
+                  Staking this agent earns you passive rewards and increases the agent's effectiveness in the simulation.
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </GlassCard>
     </div>

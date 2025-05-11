@@ -347,10 +347,9 @@ const DappPage = () => {
             
             {/* Agents */}
             {activeTab === 'agents' && (
-              <div className="container-responsive py-6">
-                <h2 className="text-2xl font-bold text-white mb-6">Agent Profiles</h2>
-                <AgentProfiles initialAgent={selectedGameAgent || undefined} />
-              </div>
+              <GlassCard className="w-full h-full overflow-auto p-6">
+                <AgentProfiles initialAgent={selectedGameAgent || undefined} showStaking={true} />
+              </GlassCard>
             )}
             
             {/* Dashboard */}
