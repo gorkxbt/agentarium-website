@@ -617,8 +617,6 @@ export default function Home() {
                 >
                   <GlassCard 
                     className="p-6 flex flex-col items-start h-full" 
-                    hoverable={true} 
-                    animationDelay={index * 0.1}
                   >
                     <div className="text-3xl mb-4">{feature.icon}</div>
                     <h3 className="text-xl font-bold text-white mb-3">{feature.title}</h3>
