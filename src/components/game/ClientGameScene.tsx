@@ -9,7 +9,8 @@ import {
   Text,
   Trail,
   Float,
-  Cloud
+  Cloud,
+  Html
 } from '@react-three/drei';
 import * as THREE from 'three';
 
@@ -2325,7 +2326,7 @@ const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
 };
 
 // City component with buildings, agents, vehicles and NPCs
-const City: React.FC<{ onAgentClick: (agent: any) => void }> = ({ onAgentClick }) => {
+const City: React.FC<{ onAgentClick: (agent: any) => void, useSimpleRenderer?: boolean }> = ({ onAgentClick, useSimpleRenderer = false }) => {
   // Define buildings
   const buildings = useMemo(() => [
     // Bank
@@ -2815,8 +2816,14 @@ const City: React.FC<{ onAgentClick: (agent: any) => void }> = ({ onAgentClick }
 };
 
 // Main component - split into scene content and wrapper
-const SceneContent: React.FC<{ onAgentClick: (agent: any) => void, timeOfDay: string, setTimeOfDay: (time: string) => void, onTimeChange: (time: string) => void }> = 
-    ({ onAgentClick, timeOfDay, setTimeOfDay, onTimeChange }) => {
+const SceneContent: React.FC<{ 
+  onAgentClick: (agent: any) => void, 
+  timeOfDay: string, 
+  setTimeOfDay: (time: string) => void, 
+  onTimeChange: (time: string) => void,
+  useSimpleRenderer?: boolean 
+}> = 
+    ({ onAgentClick, timeOfDay, setTimeOfDay, onTimeChange, useSimpleRenderer = false }) => {
   // For time cycle tracking
   const timeRef = useRef({ time: 0, cycleLength: 300 }); // 5-minute cycle
   const [optimizedMode, setOptimizedMode] = useState(false);
@@ -2825,14 +2832,16 @@ const SceneContent: React.FC<{ onAgentClick: (agent: any) => void, timeOfDay: st
   useEffect(() => {
     // Check for mobile device or slow GPU
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const isLowPerfMode = window.innerWidth < 1024 || isMobile;
+    const isLowPerfMode = useSimpleRenderer || window.innerWidth < 1024 || isMobile;
     setOptimizedMode(isLowPerfMode);
-  }, []);
+  }, [useSimpleRenderer]);
   
   // Update time of day - this is safe inside Canvas
   useFrame((state) => {
     try {
-      timeRef.current.time += state.clock.elapsedTime * 0.001;
+      // Use a slower update rate in simple renderer mode to save performance
+      const timeMultiplier = useSimpleRenderer ? 0.0005 : 0.001;
+      timeRef.current.time += state.clock.elapsedTime * timeMultiplier;
       const normalizedTime = (timeRef.current.time % timeRef.current.cycleLength) / timeRef.current.cycleLength;
       
       // Change time of day based on cycle
@@ -2851,6 +2860,11 @@ const SceneContent: React.FC<{ onAgentClick: (agent: any) => void, timeOfDay: st
       // Notify parent component when time changes
       if (newTimeOfDay !== timeOfDay) {
         onTimeChange(newTimeOfDay);
+      }
+      
+      // In simple renderer mode, only request frames when needed
+      if (useSimpleRenderer) {
+        state.invalidate();
       }
     } catch (error) {
       console.error("Error in time update frame:", error);
@@ -2911,7 +2925,8 @@ const SceneContent: React.FC<{ onAgentClick: (agent: any) => void, timeOfDay: st
   
   return (
     <>
-      <fog attach="fog" args={[settings.fogColor, 120, 350]} />
+      {/* Skip fog in simple renderer mode for better performance */}
+      {!useSimpleRenderer && <fog attach="fog" args={[settings.fogColor, 120, 350]} />}
       <color attach="background" args={[settings.skyColor]} />
       
       <ambientLight intensity={settings.ambientIntensity} />
@@ -2930,10 +2945,12 @@ const SceneContent: React.FC<{ onAgentClick: (agent: any) => void, timeOfDay: st
       />
       
       <hemisphereLight args={settings.hemisphereArgs} />
-      <Sky distance={450000} sunPosition={settings.sunPosition} />
+      
+      {/* Only use Sky component in full renderer mode */}
+      {!useSimpleRenderer && <Sky distance={450000} sunPosition={settings.sunPosition} />}
       
       {/* Add stars at night */}
-      {timeOfDay === 'night' && !optimizedMode && (
+      {timeOfDay === 'night' && !optimizedMode && !useSimpleRenderer && (
         <group>
           {Array.from({ length: 100 }).map((_, i) => {
             const x = Math.random() * 400 - 200;
@@ -2952,7 +2969,7 @@ const SceneContent: React.FC<{ onAgentClick: (agent: any) => void, timeOfDay: st
       )}
       
       {/* Clouds - only show in high performance mode */}
-      {!optimizedMode && (
+      {!optimizedMode && !useSimpleRenderer && (
         <group position={[0, 60, 0]}>
           <Cloud position={[-40, 20, -20]} speed={0.2} opacity={0.7} />
           <Cloud position={[40, 10, 30]} speed={0.1} opacity={0.6} />
@@ -2962,9 +2979,10 @@ const SceneContent: React.FC<{ onAgentClick: (agent: any) => void, timeOfDay: st
         </group>
       )}
       
-      <City onAgentClick={onAgentClick} />
+      <City onAgentClick={onAgentClick} useSimpleRenderer={useSimpleRenderer} />
       
       <Environment preset={timeOfDay === 'night' ? 'night' : 'city'} />
+      
       <OrbitControls 
         enablePan={false}
         enableZoom={true}
@@ -3015,6 +3033,27 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
   const [canvasLoaded, setCanvasLoaded] = useState(false);
   const [renderAttempts, setRenderAttempts] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [useSimpleRenderer, setUseSimpleRenderer] = useState(false);
+  
+  // Try to detect if we're in a situation where WebGL might be available but limited
+  useEffect(() => {
+    // Check for localStorage flag first (if user previously selected reduced quality)
+    const reducedQuality = localStorage.getItem('agentarium_reduced_quality') === 'true';
+    if (reducedQuality) {
+      console.log("Using reduced quality mode based on user preference");
+      setUseSimpleRenderer(true);
+    }
+    
+    // For mobile devices or potentially low-performance environments, preemptively use the simple renderer
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isLowPerformanceDevice = window.innerWidth < 768 || isMobile;
+    
+    if ((isSafari && isMobile) || isLowPerformanceDevice) {
+      console.log("Detected potentially low-performance environment, using simple renderer");
+      setUseSimpleRenderer(true);
+    }
+  }, []);
   
   // Add loading timeout and auto-recovery
   useEffect(() => {
@@ -3022,19 +3061,24 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
     const loadingTimeout = setTimeout(() => {
       if (isLoading && !hasError) {
         console.warn("Loading timeout reached, attempting recovery...");
-        // Try to force re-render the scene
-        setRenderAttempts(prev => prev + 1);
         
-        // If we've tried multiple times, flag as error
-        if (renderAttempts >= 2) {
-          console.error("Multiple rendering attempts failed, showing fallback");
+        // If we're already using simple renderer but still stuck, show error
+        if (useSimpleRenderer) {
           setHasError(true);
+          return;
         }
+        
+        // Switch to simple renderer as a recovery mechanism
+        setUseSimpleRenderer(true);
+        
+        // Reset loading state to give it another chance
+        setIsLoading(true);
+        setRenderAttempts(prev => prev + 1);
       }
-    }, 8000); // 8 second timeout
+    }, 6000); // Reduced from 8 seconds to 6 seconds
     
     return () => clearTimeout(loadingTimeout);
-  }, [isLoading, hasError, renderAttempts]);
+  }, [isLoading, hasError, renderAttempts, useSimpleRenderer]);
   
   // Handle WebGL and Three.js initialization errors
   useEffect(() => {
@@ -3060,10 +3104,12 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
       try {
         const extensions = gl.getSupportedExtensions();
         if (!extensions || extensions.length < 5) {
-          console.warn("Limited WebGL support detected");
+          console.warn("Limited WebGL support detected, switching to simple renderer");
+          setUseSimpleRenderer(true);
         }
       } catch (webglError) {
         console.warn("Could not check WebGL extensions:", webglError);
+        setUseSimpleRenderer(true);
       }
       
       // Force a re-render attempt if the canvas hasn't loaded yet
@@ -3098,30 +3144,59 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
     return () => window.removeEventListener('error', errorHandler);
   }, [canvasLoaded, renderAttempts]);
   
+  // Use simple static fallback if there are errors
   if (hasError) {
     return <FallbackScene />;
   }
   
+  // Function for manual refresh
+  const handleRefresh = () => {
+    console.log("User requested refresh");
+    window.location.reload();
+  };
+  
+  // Function to switch to a simpler rendering mode
+  const handleSimpleMode = () => {
+    console.log("User requested simple rendering mode");
+    localStorage.setItem('agentarium_reduced_quality', 'true');
+    window.location.reload();
+  };
+  
   // Simplified Canvas configuration for better compatibility
   return (
     <Canvas 
-      shadows={false} // Disable shadows initially for better performance
+      shadows={useSimpleRenderer ? false : undefined} // Disable shadows in simple mode
       className="w-full h-full"
       camera={{ position: [80, 80, 80], fov: 50 }}
       gl={{ 
-        antialias: false, // Disable antialiasing for better performance
+        antialias: !useSimpleRenderer, // Disable antialiasing in simple mode
         alpha: false,
-        powerPreference: "default", // Try default first
-        failIfMajorPerformanceCaveat: false, // Allow lower performance
-        precision: "lowp", // Use lower precision for better performance
+        powerPreference: useSimpleRenderer ? "low-power" : "default",
+        failIfMajorPerformanceCaveat: false, // Always allow lower performance
+        precision: useSimpleRenderer ? "lowp" : "highp", // Lower precision in simple mode
+        depth: true, // Ensure depth testing works
+        stencil: false, // Disable stencil buffer to save memory
       }}
-      dpr={[1, 1.5]} // Limit DPR for better performance
+      dpr={useSimpleRenderer ? [0.5, 1] : [1, 1.5]} // Lower resolution in simple mode
+      frameloop={useSimpleRenderer ? "demand" : "always"} // Only render when needed in simple mode
       onCreated={state => {
-        console.log("Canvas initialized");
+        console.log("Canvas initialized with renderer:", 
+          useSimpleRenderer ? "simple mode" : "standard mode");
         
-        // Enable shadow mapping only if device seems capable
-        if (state.gl.capabilities.maxVertexUniforms > 4096) {
+        // Enable shadow mapping only if device seems capable and not using simple renderer
+        if (!useSimpleRenderer && state.gl.capabilities.maxVertexUniforms > 4096) {
           state.gl.shadowMap.enabled = true;
+        }
+        
+        // Reduce the scene complexity for simple renderer
+        if (useSimpleRenderer) {
+          state.gl.setClearColor(new THREE.Color("#121212"));
+          state.scene.fog = null; // Remove fog in simple mode
+          
+          // Reduce the pixel ratio even further if it seems to be a low-end device
+          if (window.devicePixelRatio > 2) {
+            state.gl.setPixelRatio(1);
+          }
         }
         
         // Force an initial render
@@ -3133,18 +3208,26 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
           setIsLoading(false);
         }, 1000);
       }}
-      style={{ background: "#87ceeb" }} // Default sky blue background
+      style={{ background: "#121212" }} // Dark background
       linear
-      flat // Use flat shading for better performance
+      flat={useSimpleRenderer} // Use flat shading in simple mode
     >
-      {/* Fallback content while loading */}
+      {/* Loading indicator */}
+      {isLoading && (
+        <mesh position={[0, 0, 0]}>
+          <sphereGeometry args={[2, 8, 8]} />
+          <meshBasicMaterial color="#00ff00" wireframe />
+        </mesh>
+      )}
+      
+      {/* Simple scene content while loading */}
       {!canvasLoaded && (
         <>
           <ambientLight intensity={1} />
           <pointLight position={[10, 10, 10]} />
           <mesh>
             <boxGeometry args={[1, 1, 1]} />
-            <meshStandardMaterial color="hotpink" />
+            <meshBasicMaterial color="#1db954" />
           </mesh>
         </>
       )}
@@ -3156,7 +3239,31 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
           timeOfDay={timeOfDay} 
           setTimeOfDay={setTimeOfDay} 
           onTimeChange={onTimeChange}
+          useSimpleRenderer={useSimpleRenderer}
         />
+      )}
+      
+      {/* Debug controls that appear after loading timeout */}
+      {isLoading && renderAttempts > 1 && (
+        <Html position={[0, 20, 0]} center>
+          <div className="bg-black/80 text-white p-4 rounded-lg" style={{ width: '200px' }}>
+            <div className="text-center">Loading taking too long</div>
+            <div className="flex mt-2">
+              <button 
+                onClick={handleRefresh}
+                className="bg-green-800 text-white px-2 py-1 rounded mr-1 text-xs"
+              >
+                Refresh
+              </button>
+              <button 
+                onClick={handleSimpleMode}
+                className="bg-blue-800 text-white px-2 py-1 rounded ml-1 text-xs"
+              >
+                Simple Mode
+              </button>
+            </div>
+          </div>
+        </Html>
       )}
     </Canvas>
   );
