@@ -1,3 +1,5 @@
+'use client';
+
 // GameSimulation.tsx - Enhanced 3D simulation component
 import { useState, useEffect, Component } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';

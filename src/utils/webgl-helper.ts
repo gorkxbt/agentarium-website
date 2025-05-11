@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * WebGL Helper Utilities
  * 
@@ -34,7 +36,7 @@ export function getWebGLInfo(): {
 } {
   try {
     const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl') as WebGLRenderingContext | null;
     
     if (!gl) {
       return { available: false };
@@ -74,11 +76,14 @@ export function getWebGLInfo(): {
 export function resetWebGLContext(): void {
   try {
     const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl') as WebGLRenderingContext | null;
     
-    if (gl && (gl as any).getExtension('WEBGL_lose_context')) {
-      (gl as any).getExtension('WEBGL_lose_context').loseContext();
-      console.log('WebGL context reset requested');
+    if (gl) {
+      const loseContext = gl.getExtension('WEBGL_lose_context');
+      if (loseContext) {
+        loseContext.loseContext();
+        console.log('WebGL context reset requested');
+      }
     }
   } catch (e) {
     console.error('Error resetting WebGL context:', e);
@@ -97,7 +102,9 @@ export function fixBlackScreen(): boolean {
       document.body.style.display = '';
       
       // Try to reset hardware acceleration
-      if (typeof document.createElement('canvas').getContext('webgl')?.getExtension === 'function') {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl') as WebGLRenderingContext | null;
+      if (gl && typeof gl.getExtension === 'function') {
         resetWebGLContext();
       }
     }, 50);
