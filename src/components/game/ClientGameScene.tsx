@@ -74,9 +74,9 @@ const SIDEWALK_WIDTH = 3;
 const Agent: React.FC<AgentProps> = ({ position, color, speed, agentData, onAgentClick }) => {
   const meshRef = useRef<THREE.Group>(null);
   const targetRef = useRef(new THREE.Vector3(
-    position[0] + (Math.random() * 40 - 20),
-    position[1],
-    position[2] + (Math.random() * 40 - 20)
+    Array.isArray(position) && position.length >= 3 ? position[0] + (Math.random() * 40 - 20) : 0,
+    Array.isArray(position) && position.length >= 3 ? position[1] : 0,
+    Array.isArray(position) && position.length >= 3 ? position[2] + (Math.random() * 40 - 20) : 0
   ));
   
   // List of possible destinations
@@ -900,9 +900,9 @@ const Building: React.FC<BuildingProps> = ({
 const Vehicle: React.FC<VehicleProps> = ({ position, color, type, speed }) => {
   const meshRef = useRef<THREE.Group>(null);
   const targetRef = useRef(new THREE.Vector3(
-    position[0] + (Math.random() * 100 - 50),
-    position[1],
-    position[2] + (Math.random() * 100 - 50)
+    Array.isArray(position) && position.length >= 3 ? position[0] + (Math.random() * 100 - 50) : 0,
+    Array.isArray(position) && position.length >= 3 ? position[1] : 0,
+    Array.isArray(position) && position.length >= 3 ? position[2] + (Math.random() * 100 - 50) : 0
   ));
   
   // List of possible destinations (road points)
@@ -1130,7 +1130,12 @@ const Vehicle: React.FC<VehicleProps> = ({ position, color, type, speed }) => {
 // NPC component
 const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
   const meshRef = useRef<THREE.Group>(null);
-  const targetRef = useRef(new THREE.Vector3(position[0], position[1], position[2]));
+  // Ensure position is a valid array with 3 elements before creating Vector3
+  const targetRef = useRef(new THREE.Vector3(
+    Array.isArray(position) && position.length >= 3 ? position[0] : 0,
+    Array.isArray(position) && position.length >= 3 ? position[1] : 0,
+    Array.isArray(position) && position.length >= 3 ? position[2] : 0
+  ));
   const [state, setState] = useState('idle');
   const [stateTimer, setStateTimer] = useState(Math.random() * 3);
   
@@ -1723,25 +1728,29 @@ const ClientGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => 
   
   // Update time of day
   useFrame((state) => {
-    timeRef.current.time += state.clock.elapsedTime * 0.001;
-    const normalizedTime = (timeRef.current.time % timeRef.current.cycleLength) / timeRef.current.cycleLength;
-    
-    // Change time of day based on cycle
-    let newTimeOfDay = timeOfDay;
-    if (normalizedTime < 0.45 && timeOfDay !== 'day') {
-      newTimeOfDay = 'day';
-      setTimeOfDay(newTimeOfDay);
-    } else if (normalizedTime >= 0.45 && normalizedTime < 0.55 && timeOfDay !== 'sunset') {
-      newTimeOfDay = 'sunset';
-      setTimeOfDay(newTimeOfDay);
-    } else if (normalizedTime >= 0.55 && timeOfDay !== 'night') {
-      newTimeOfDay = 'night';
-      setTimeOfDay(newTimeOfDay);
-    }
-    
-    // Notify parent component when time changes
-    if (newTimeOfDay !== timeOfDay) {
-      onTimeChange(newTimeOfDay);
+    try {
+      timeRef.current.time += state.clock.elapsedTime * 0.001;
+      const normalizedTime = (timeRef.current.time % timeRef.current.cycleLength) / timeRef.current.cycleLength;
+      
+      // Change time of day based on cycle
+      let newTimeOfDay = timeOfDay;
+      if (normalizedTime < 0.45 && timeOfDay !== 'day') {
+        newTimeOfDay = 'day';
+        setTimeOfDay(newTimeOfDay);
+      } else if (normalizedTime >= 0.45 && normalizedTime < 0.55 && timeOfDay !== 'sunset') {
+        newTimeOfDay = 'sunset';
+        setTimeOfDay(newTimeOfDay);
+      } else if (normalizedTime >= 0.55 && timeOfDay !== 'night') {
+        newTimeOfDay = 'night';
+        setTimeOfDay(newTimeOfDay);
+      }
+      
+      // Notify parent component when time changes
+      if (newTimeOfDay !== timeOfDay) {
+        onTimeChange(newTimeOfDay);
+      }
+    } catch (error) {
+      console.error("Error in time update frame:", error);
     }
   });
   
