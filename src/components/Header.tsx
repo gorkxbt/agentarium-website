@@ -11,7 +11,8 @@ const Header = () => {
   
   // Navigation links
   const navLinks = [
-    { label: 'Home', href: '/' }
+    { label: 'Home', href: '/' },
+    { label: 'Docs', href: '/docs' }
   ];
 
   // Social media links
@@ -150,6 +151,28 @@ const Header = () => {
         
         {/* CTAs */}
         <div className="hidden md:flex items-center space-x-3">
+          <Link href="/docs">
+            <GlowButton
+              variant="secondary"
+              size="sm"
+              icon={
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className="h-4 w-4 mr-1" 
+                  viewBox="0 0 20 20" 
+                  fill="currentColor"
+                >
+                  <path 
+                    fillRule="evenodd" 
+                    d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" 
+                    clipRule="evenodd" 
+                  />
+                </svg>
+              }
+            >
+              Docs
+            </GlowButton>
+          </Link>
           <Link href="/dapp">
             <GlowButton
               variant="primary"
@@ -258,6 +281,11 @@ const Header = () => {
               
               {/* Mobile CTA */}
               <div className="mt-4 pt-4 border-t border-white/10">
+                <Link href="/docs">
+                  <div className="bg-agent-dark-gray text-white py-3 mb-2 rounded-md text-center font-medium">
+                    Docs
+                  </div>
+                </Link>
                 <Link href="/dapp">
                   <div className="bg-agent-green text-black py-3 rounded-md text-center font-medium">
                     Enter App
