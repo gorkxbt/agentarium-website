@@ -165,6 +165,93 @@ const GameSimulation = () => {
     setIsAnimating(!isAnimating);
   };
   
+  // Helper to set a wandering target
+  const setWanderingTarget = (agent: Agent) => {
+    const margin = 30;
+    const simulation = simulationRef.current;
+    agent.targetPosition = {
+      x: margin + Math.random() * (simulation.width - 2 * margin),
+      y: margin + Math.random() * (simulation.height - 2 * margin)
+    };
+    agent.state = 'wandering';
+    agent.stateTimer = 0;
+  };
+  
+  // Helper to generate a trajectory for an agent
+  const generateTrajectory = (agent: Agent) => {
+    agent.trajectory = [];
+    
+    const startPoint = { ...agent.position };
+    const endPoint = { ...agent.targetPosition };
+    
+    // Create a control point for the curve
+    const controlPoint = {
+      x: (startPoint.x + endPoint.x) / 2 + (Math.random() - 0.5) * 100,
+      y: (startPoint.y + endPoint.y) / 2 + (Math.random() - 0.5) * 100
+    };
+    
+    // Generate points along a quadratic curve
+    const steps = 20;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const point = {
+        x: Math.pow(1 - t, 2) * startPoint.x + 2 * (1 - t) * t * controlPoint.x + Math.pow(t, 2) * endPoint.x,
+        y: Math.pow(1 - t, 2) * startPoint.y + 2 * (1 - t) * t * controlPoint.y + Math.pow(t, 2) * endPoint.y
+      };
+      agent.trajectory.push(point);
+    }
+  };
+  
+  // Helper to set a new target for an agent
+  const setNewAgentTarget = (agent: Agent) => {
+    const simulation = simulationRef.current;
+    // Clear previous target
+    agent.targetId = undefined;
+    
+    // Decide action based on agent type and current state
+    const randomAction = Math.random();
+    
+    if (randomAction < 0.3) {
+      // Target a resource
+      if (simulation.resources.length > 0) {
+        const resourceIndex = Math.floor(Math.random() * simulation.resources.length);
+        const resource = simulation.resources[resourceIndex];
+        
+        agent.targetPosition = { ...resource.position };
+        agent.targetId = resource.id;
+        agent.state = 'gathering';
+        agent.stateTimer = 20 + Math.floor(Math.random() * 60);
+      } else {
+        // Wander if no resources
+        setWanderingTarget(agent);
+      }
+    } else if (randomAction < 0.7) {
+      // Target a building
+      if (simulation.buildings.length > 0) {
+        const buildingIndex = Math.floor(Math.random() * simulation.buildings.length);
+        const building = simulation.buildings[buildingIndex];
+        
+        // Position at the entrance of the building
+        agent.targetPosition = {
+          x: building.position.x + building.size.width / 2,
+          y: building.position.y + building.size.height
+        };
+        agent.targetId = building.id;
+        agent.state = 'entering';
+        agent.stateTimer = 30 + Math.floor(Math.random() * 120);
+      } else {
+        // Wander if no buildings
+        setWanderingTarget(agent);
+      }
+    } else {
+      // Wander
+      setWanderingTarget(agent);
+    }
+    
+    // Generate a smooth trajectory
+    generateTrajectory(agent);
+  };
+  
   // Initialize the simulation
   useEffect(() => {
     const simulation = simulationRef.current;
@@ -288,91 +375,6 @@ const GameSimulation = () => {
         setNewAgentTarget(agent);
         
         simulation.agents.push(agent);
-      }
-    };
-    
-    // Helper to set a new target for an agent
-    const setNewAgentTarget = (agent: Agent) => {
-      // Clear previous target
-      agent.targetId = undefined;
-      
-      // Decide action based on agent type and current state
-      const randomAction = Math.random();
-      
-      if (randomAction < 0.3) {
-        // Target a resource
-        if (simulation.resources.length > 0) {
-          const resourceIndex = Math.floor(Math.random() * simulation.resources.length);
-          const resource = simulation.resources[resourceIndex];
-          
-          agent.targetPosition = { ...resource.position };
-          agent.targetId = resource.id;
-          agent.state = 'gathering';
-          agent.stateTimer = 20 + Math.floor(Math.random() * 60);
-        } else {
-          // Wander if no resources
-          setWanderingTarget(agent);
-        }
-      } else if (randomAction < 0.7) {
-        // Target a building
-        if (simulation.buildings.length > 0) {
-          const buildingIndex = Math.floor(Math.random() * simulation.buildings.length);
-          const building = simulation.buildings[buildingIndex];
-          
-          // Position at the entrance of the building
-          agent.targetPosition = {
-            x: building.position.x + building.size.width / 2,
-            y: building.position.y + building.size.height
-          };
-          agent.targetId = building.id;
-          agent.state = 'entering';
-          agent.stateTimer = 30 + Math.floor(Math.random() * 120);
-        } else {
-          // Wander if no buildings
-          setWanderingTarget(agent);
-        }
-      } else {
-        // Wander
-        setWanderingTarget(agent);
-      }
-      
-      // Generate a smooth trajectory
-      generateTrajectory(agent);
-    };
-    
-    // Helper to set a wandering target
-    const setWanderingTarget = (agent: Agent) => {
-      const margin = 30;
-      agent.targetPosition = {
-        x: margin + Math.random() * (simulation.width - 2 * margin),
-        y: margin + Math.random() * (simulation.height - 2 * margin)
-      };
-      agent.state = 'wandering';
-      agent.stateTimer = 0;
-    };
-    
-    // Generate a curved trajectory for more natural movement
-    const generateTrajectory = (agent: Agent) => {
-      agent.trajectory = [];
-      
-      const startPoint = { ...agent.position };
-      const endPoint = { ...agent.targetPosition };
-      
-      // Create a control point for the curve
-      const controlPoint = {
-        x: (startPoint.x + endPoint.x) / 2 + (Math.random() - 0.5) * 100,
-        y: (startPoint.y + endPoint.y) / 2 + (Math.random() - 0.5) * 100
-      };
-      
-      // Generate points along a quadratic curve
-      const steps = 20;
-      for (let i = 0; i <= steps; i++) {
-        const t = i / steps;
-        const point = {
-          x: Math.pow(1 - t, 2) * startPoint.x + 2 * (1 - t) * t * controlPoint.x + Math.pow(t, 2) * endPoint.x,
-          y: Math.pow(1 - t, 2) * startPoint.y + 2 * (1 - t) * t * controlPoint.y + Math.pow(t, 2) * endPoint.y
-        };
-        agent.trajectory.push(point);
       }
     };
     
@@ -556,6 +558,8 @@ const GameSimulation = () => {
     
     // Render the simulation state
     const renderSimulation = () => {
+      if (!canvas || !ctx) return;
+      
       // Clear the canvas
       ctx.clearRect(0, 0, simulation.width, simulation.height);
       
@@ -810,20 +814,6 @@ const GameSimulation = () => {
       </div>
     </div>
   );
-};
-
-// Helper function for agent wandering
-const setWanderingTarget = (agent: any) => {
-  const margin = 30;
-  const width = 800; // Default width
-  const height = 500; // Default height
-  
-  agent.targetPosition = {
-    x: margin + Math.random() * (width - 2 * margin),
-    y: margin + Math.random() * (height - 2 * margin)
-  };
-  agent.state = 'wandering';
-  agent.stateTimer = 0;
 };
 
 export default GameSimulation; 

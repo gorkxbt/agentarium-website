@@ -7,6 +7,7 @@ interface GlowButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: 'sm' | 'md' | 'lg';
   icon?: ReactNode;
   iconPosition?: 'left' | 'right';
+  className?: string;
 }
 
 const GlowButton = ({
@@ -54,6 +55,18 @@ const GlowButton = ({
     `,
   };
   
+  // Motion button animation props
+  const motionProps = {
+    whileHover: { scale: 1.03 },
+    whileTap: { scale: 0.98 },
+    initial: { opacity: 0 },
+    animate: { opacity: 1 },
+    transition: {
+      duration: 0.3,
+      ease: "easeOut"
+    }
+  };
+  
   return (
     <motion.button
       className={`
@@ -64,15 +77,8 @@ const GlowButton = ({
         flex items-center justify-center gap-2
         ${className}
       `}
-      whileHover={{ scale: 1.03 }}
-      whileTap={{ scale: 0.98 }}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{
-        duration: 0.3,
-        ease: "easeOut"
-      }}
-      {...props}
+      {...motionProps}
+      {...props as any}
     >
       {icon && iconPosition === 'left' && (
         <span className="relative -ml-1">{icon}</span>

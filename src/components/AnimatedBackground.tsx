@@ -27,6 +27,8 @@ export const AnimatedBackground = () => {
     
     // Resize handler
     const handleResize = () => {
+      if (!canvas) return;
+      
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
       
@@ -40,6 +42,8 @@ export const AnimatedBackground = () => {
     // Initialize particles
     function initParticles() {
       particles = [];
+      
+      if (!canvas) return;
       
       const greenShades = [
         'rgba(0, 255, 65, 0.6)',
@@ -77,6 +81,8 @@ export const AnimatedBackground = () => {
     
     // Animation loop
     const animate = () => {
+      if (!canvas || !ctx) return;
+      
       // Clear canvas with slight opacity to create trail effect
       ctx.fillStyle = 'rgba(18, 18, 18, 0.05)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
