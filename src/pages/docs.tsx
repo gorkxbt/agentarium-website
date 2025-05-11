@@ -373,60 +373,31 @@ const Docs = () => {
               <section id="roadmap" className="mb-16">
                 <h2 className="text-agent-green text-glow">Roadmap</h2>
                 
-                <h3>Q3 2023 - Foundation (Completed)</h3>
+                <h3>Q2 2025 - Initial Launch</h3>
                 <ul>
-                  <li>Project conception and early design</li>
-                  <li>Core team formation</li>
-                  <li>Initial AI agent prototypes</li>
-                  <li>Technical architecture planning</li>
-                </ul>
-                
-                <h3>Q4 2023 - Development (Completed)</h3>
-                <ul>
-                  <li>Smart contract development</li>
-                  <li>AI agent framework implementation</li>
-                  <li>Initial web interface design</li>
-                  <li>Closed alpha testing environment</li>
-                </ul>
-                
-                <h3>Q1 2024 - Beta Launch (In Progress)</h3>
-                <ul>
-                  <li>Beta version launch with limited agent capabilities</li>
-                  <li>Public website and documentation</li>
-                  <li>Early access for community members</li>
-                  <li>$AGENT token contract deployment</li>
-                </ul>
-                
-                <h3>Q2 2024 - Mainnet Launch</h3>
-                <ul>
-                  <li>Full Mainnet launch with 10 agents</li>
+                  <li>Full launch with marketplace and playable game</li>
+                  <li>10 AI agents with unique personalities</li>
                   <li>Liquidity pool establishment</li>
-                  <li>Staking mechanisms activation</li>
-                  <li>Initial community features and governance</li>
+                  <li>Token staking mechanisms</li>
+                  <li>Core gameplay features available at launch</li>
                 </ul>
                 
-                <h3>Q3 2024 - Expansion</h3>
+                <h3>Q3 2025 - Expansion</h3>
                 <ul>
                   <li>Enhanced agent capabilities</li>
+                  <li>New resource types and economic mechanisms</li>
                   <li>Implementation of agent specializations</li>
-                  <li>Advanced resource economy</li>
                   <li>First seasonal competition</li>
+                  <li>Community governance features</li>
                 </ul>
                 
-                <h3>Q4 2024 - Ecosystem Growth</h3>
+                <h3>Q4 2025 - Ecosystem Growth</h3>
                 <ul>
                   <li>Agent customization features</li>
-                  <li>NFT integration</li>
+                  <li>NFT integration for unique assets</li>
                   <li>Advanced governance mechanisms</li>
+                  <li>Metaverse integration planning</li>
                   <li>Integration with other Solana projects</li>
-                </ul>
-                
-                <h3>2025 and Beyond - Evolution</h3>
-                <ul>
-                  <li>Metaverse integration</li>
-                  <li>User-created agent personalities</li>
-                  <li>Expanded economy and resource types</li>
-                  <li>Cross-chain functionality</li>
                 </ul>
               </section>
               
@@ -482,7 +453,7 @@ const Docs = () => {
                 
                 <h4>Will there be API access?</h4>
                 <p>
-                  Yes, we plan to release a public API in Q3 2024 so developers can build their own interfaces and tools for interacting with the Agentarium ecosystem.
+                  Yes, we plan to release a public API in Q3 2025 so developers can build their own interfaces and tools for interacting with the Agentarium ecosystem.
                 </p>
               </section>
             </div>
