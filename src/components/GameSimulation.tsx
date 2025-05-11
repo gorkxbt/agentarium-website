@@ -5,7 +5,7 @@ import { useState, useEffect, Component, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import React from 'react';
-import { isWebGLAvailable, fixBlackScreen } from '@/utils/webgl-helper';
+import { isWebGLAvailable, fixBlackScreen, resetWebGLContext } from '@/utils/webgl-helper';
 
 // Import the client component with no SSR and a fallback
 const ClientGameScene = dynamic(() => import('./game/ClientGameScene').catch(err => {
@@ -29,6 +29,12 @@ const ClientGameScene = dynamic(() => import('./game/ClientGameScene').catch(err
       </div>
     </div>
   )
+});
+
+// Dynamic imports for both 3D and 2D versions
+const FallbackSimulation = dynamic(() => import('./FallbackSimulation'), { 
+  ssr: false,
+  loading: () => <LoadingScreen />
 });
 
 // Guide component
@@ -311,6 +317,18 @@ class ErrorBoundary extends Component<{children: React.ReactNode, fallback: Reac
   }
 }
 
+// Simple loading screen component
+const LoadingScreen = () => (
+  <div className="w-full h-full bg-agent-dark-gray flex items-center justify-center">
+    <div className="text-white text-center p-4">
+      <h3 className="text-xl font-bold mb-2">Loading Agentarium City...</h3>
+      <p>The 3D simulation is initializing...</p>
+      <div className="mt-4 w-16 h-16 border-t-2 border-agent-green rounded-full animate-spin mx-auto"></div>
+      <p className="text-xs mt-6 text-agent-green/80">If loading takes too long, try refreshing the page.</p>
+    </div>
+  </div>
+);
+
 // Main component
 const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string) => void }) => {
   const [selectedAgent, setSelectedAgent] = useState<any | null>(null);
@@ -320,6 +338,7 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
   const [webGLAvailable, setWebGLAvailable] = useState(true);
   const [loadingFailed, setLoadingFailed] = useState(false);
   const [loadAttempts, setLoadAttempts] = useState(0);
+  const [use2DFallback, setUse2DFallback] = useState(false);
   const loadTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Check for WebGL support
@@ -329,89 +348,84 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
     // Try to fix any black screen issues
     fixBlackScreen();
     
-    // Set up loading timeout detection - more robust with progressive timeouts
+    // Set a loading timeout
     loadTimerRef.current = setTimeout(() => {
-      if (loadAttempts === 0) {
-        console.warn("Loading taking longer than expected, waiting a bit longer...");
-        
-        // Give it a bit more time before showing the error
-        loadTimerRef.current = setTimeout(() => {
-          console.error("Loading timeout reached, showing recovery options");
-          setLoadingFailed(true);
-        }, 8000); // Additional 8 seconds
-      }
-    }, 10000); // Initial 10 second timeout
+      // If still loading after 15 seconds, try 2D fallback
+      setLoadingFailed(true);
+      console.warn('Loading timeout exceeded, trying fallback render mode');
+    }, 15000);
+    
+    // Check if user has specifically requested 2D mode
+    const preferSimple = localStorage.getItem('agentarium_use_2d') === 'true';
+    if (preferSimple) {
+      setUse2DFallback(true);
+    }
     
     return () => {
       if (loadTimerRef.current) {
         clearTimeout(loadTimerRef.current);
       }
     };
-  }, [loadAttempts]);
-  
-  // Hide intro after 2 seconds
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowIntro(false);
-    }, 2000);
-    
-    return () => clearTimeout(timer);
   }, []);
   
+  // Handle loading failure
+  useEffect(() => {
+    if (loadingFailed) {
+      setLoadAttempts(prev => prev + 1);
+      
+      if (loadAttempts >= 1) {
+        // After one failed attempt, use 2D fallback
+        setUse2DFallback(true);
+      } else {
+        // Try reset WebGL context and retry
+        resetWebGLContext();
+      }
+    }
+  }, [loadingFailed]);
+  
+  // Handle agent selection
   const handleAgentClick = (agent: any) => {
     setSelectedAgent(agent);
-    if (onAgentSelect && agent) {
+    
+    if (onAgentSelect) {
       onAgentSelect(agent.role);
     }
   };
   
+  // Close agent details panel
   const closeAgentDetails = () => {
     setSelectedAgent(null);
   };
-
-  const handleTimeChange = (newTime: string) => {
-    setTimeOfDay(newTime);
+  
+  // Handle time changes
+  const handleTimeChange = (time: string) => {
+    setTimeOfDay(time);
   };
   
-  const handleReload = () => {
-    // Clear previous timeout
-    if (loadTimerRef.current) {
-      clearTimeout(loadTimerRef.current);
-    }
-    
-    setLoadingFailed(false);
-    setLoadAttempts(prev => prev + 1);
-    
-    // Force a reload of the dynamic component
-    const canvas = document.querySelector('canvas');
-    if (canvas) {
-      canvas.remove();
-    }
-    
-    // Also try fixing WebGL context
-    fixBlackScreen();
-    
-    // Set up a new timeout for this attempt
-    loadTimerRef.current = setTimeout(() => {
-      if (!loadingFailed) {
-        console.error("Reload attempt failed, showing recovery options again");
-        setLoadingFailed(true);
-      }
-    }, 15000); // 15 second timeout for reload attempts
-  };
-  
-  // Function to force a page refresh
+  // Handle page refresh
   const handlePageRefresh = () => {
     window.location.reload();
   };
   
-  // Function to try with reduced quality
+  // Switch to reduced quality mode
   const handleReducedQuality = () => {
-    // Set a localStorage flag for reduced quality mode
     localStorage.setItem('agentarium_reduced_quality', 'true');
-    handlePageRefresh();
+    window.location.reload();
   };
   
+  // Switch to 2D mode
+  const handle2DMode = () => {
+    localStorage.setItem('agentarium_use_2d', 'true');
+    setUse2DFallback(true);
+  };
+  
+  // Switch back to 3D mode
+  const handle3DMode = () => {
+    localStorage.setItem('agentarium_use_2d', 'false');
+    setUse2DFallback(false);
+    window.location.reload();
+  };
+
   return (
     <div className="relative mx-auto my-4 w-full max-w-[1848px] aspect-[16/9] bg-agent-black rounded-xl border border-white/5 shadow-2xl overflow-hidden">
       {/* Intro overlay */}
@@ -513,7 +527,7 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
             </p>
             <div className="flex flex-wrap justify-center gap-3">
               <button
-                onClick={handleReload}
+                onClick={handlePageRefresh}
                 className="px-4 py-2 bg-agent-green/20 text-agent-green border border-agent-green/30 rounded-md hover:bg-agent-green/30 transition-colors"
               >
                 Try Again
@@ -655,20 +669,15 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
             </div>
           </div>
         }>
-          <React.Suspense fallback={
-            <div className="w-full h-full bg-agent-dark-gray flex items-center justify-center">
-              <div className="text-white text-center p-4">
-                <h3 className="text-xl font-bold mb-2">Loading Agentarium City...</h3>
-                <p>The 3D simulation is initializing...</p>
-                <div className="mt-4 w-16 h-16 border-t-2 border-agent-green rounded-full animate-spin mx-auto"></div>
-                <p className="text-xs mt-6 text-agent-green/80">If loading takes too long, try refreshing the page.</p>
-              </div>
-            </div>
-          }>
-            <ClientGameScene 
-              onAgentClick={handleAgentClick}
-              onTimeChange={handleTimeChange}
-            />
+          <React.Suspense fallback={<LoadingScreen />}>
+            {!webGLAvailable || use2DFallback ? (
+              <FallbackSimulation onAgentSelect={handleAgentClick} />
+            ) : (
+              <ClientGameScene 
+                onAgentClick={handleAgentClick}
+                onTimeChange={handleTimeChange}
+              />
+            )}
           </React.Suspense>
         </ErrorBoundary>
       </div>
@@ -676,6 +685,18 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
       {/* Selected Agent Details Panel */}
       {selectedAgent && (
         <AgentDetailsPanel agent={selectedAgent} onClose={closeAgentDetails} />
+      )}
+      
+      {/* Mode switcher */}
+      {webGLAvailable && (
+        <div className="absolute top-4 right-4 z-10">
+          <button
+            onClick={use2DFallback ? handle3DMode : handle2DMode}
+            className="px-3 py-1 bg-black/40 backdrop-blur-sm text-white/80 text-xs rounded-full hover:bg-black/60 transition-colors"
+          >
+            {use2DFallback ? 'Switch to 3D Mode' : 'Switch to 2D Mode'}
+          </button>
+        </div>
       )}
     </div>
   );
