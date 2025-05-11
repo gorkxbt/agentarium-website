@@ -2921,6 +2921,7 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
   // Control day/night cycle - state moved to parent to avoid hooks outside Canvas
   const [timeOfDay, setTimeOfDay] = useState('day');
   const [hasError, setHasError] = useState(false);
+  const [canvasLoaded, setCanvasLoaded] = useState(false);
   
   // Handle WebGL and Three.js initialization errors
   useEffect(() => {
@@ -2963,16 +2964,26 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
       <Canvas 
         shadows
         className="w-full h-full"
-        camera={{ position: [100, 100, 100], fov: 45 }}
-        gl={{ antialias: true, alpha: false }}
-        dpr={[1, 2]} // Dynamic pixel ratio for better performance
+        camera={{ position: [80, 80, 80], fov: 50 }}
+        gl={{ 
+          antialias: true, 
+          alpha: false,
+          powerPreference: "high-performance"
+        }}
+        dpr={[1, 1.5]} // Reduced max DPR for better performance
+        onCreated={state => {
+          console.log("Canvas initialized");
+          setCanvasLoaded(true);
+        }}
       >
-        <SceneContent 
-          onAgentClick={onAgentClick} 
-          timeOfDay={timeOfDay} 
-          setTimeOfDay={setTimeOfDay} 
-          onTimeChange={onTimeChange}
-        />
+        {canvasLoaded && (
+          <SceneContent 
+            onAgentClick={onAgentClick} 
+            timeOfDay={timeOfDay} 
+            setTimeOfDay={setTimeOfDay} 
+            onTimeChange={onTimeChange}
+          />
+        )}
       </Canvas>
     );
   } catch (error) {
