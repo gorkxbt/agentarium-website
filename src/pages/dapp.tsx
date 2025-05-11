@@ -429,173 +429,42 @@ const DappPage = () => {
               <div className="container-responsive py-6">
                 <h2 className="text-2xl font-bold text-white mb-6">Agent Marketplace</h2>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {agentData.map(agent => (
-                    <GlassCard 
-                      key={agent.id} 
-                      className="p-4"
-                      glowColor={selectedAgent === agent.id ? 'rgba(29, 185, 84, 0.2)' : undefined}
-                      borderGlow={selectedAgent === agent.id}
+                <div className="flex flex-col items-center justify-center py-16 px-4 bg-agent-black/40 rounded-xl border border-white/5">
+                  <div className="w-24 h-24 mb-6 rounded-full bg-agent-dark-gray/50 flex items-center justify-center">
+                    <svg className="w-12 h-12 text-agent-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">Marketplace Coming Soon</h3>
+                  <p className="text-white/70 text-center max-w-md mb-6">
+                    The Agentarium Marketplace is currently under development and will be launched in Q2 2025. 
+                    Here you'll be able to trade resources, customize agents, and analyze performance metrics.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <a 
+                      href="https://t.me/agentarium" 
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-6 py-2 bg-agent-dark-gray hover:bg-agent-gray text-white rounded-md transition-colors flex items-center justify-center"
                     >
-                      <div 
-                        className={`cursor-pointer transition-all duration-300 ${
-                          selectedAgent === agent.id ? 'scale-105' : 'hover:scale-105'
-                        }`}
-                        onClick={() => setSelectedAgent(agent.id)}
-                      >
-                        <div className="flex items-center mb-3">
-                          <div 
-                            className="w-10 h-10 rounded-full flex items-center justify-center mr-3 text-xl"
-                            style={{ backgroundColor: 'rgba(29, 185, 84, 0.2)' }}
-                          >
-                            {agent.avatar}
-                          </div>
-                          <div>
-                            <h4 className="text-white font-bold">{agent.name}</h4>
-                            <p className="text-white/70 text-xs">{agent.role}</p>
-                          </div>
-                        </div>
-                        
-                        <div className="mb-3">
-                          <div className="flex justify-between text-sm mb-1">
-                            <span className="text-white/70">Level</span>
-                            <span className="text-white">{agent.level}</span>
-                          </div>
-                          <div className="h-1.5 bg-agent-gray/30 rounded-full overflow-hidden">
-                            <div 
-                              className="h-full bg-agent-green rounded-full"
-                              style={{ width: `${agent.level * 10}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
-                          <div className="bg-agent-dark-gray/50 p-2 rounded">
-                            <div className="text-white/50">Energy</div>
-                            <div className="text-white font-medium">{agent.energy}%</div>
-                          </div>
-                          <div className="bg-agent-dark-gray/50 p-2 rounded">
-                            <div className="text-white/50">APY</div>
-                            <div className="text-agent-green font-medium">{agent.apy}%</div>
-                          </div>
-                        </div>
-                        
-                        <p className="text-white/60 text-xs line-clamp-2 h-10">{agent.description}</p>
-                      </div>
-                    </GlassCard>
-                  ))}
+                      <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                      </svg>
+                      Join our Telegram
+                    </a>
+                    <a 
+                      href="https://twitter.com/agentarium" 
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-6 py-2 bg-agent-dark-gray hover:bg-agent-gray text-white rounded-md transition-colors flex items-center justify-center"
+                    >
+                      <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84" />
+                      </svg>
+                      Follow on Twitter
+                    </a>
+                  </div>
                 </div>
-                
-                {/* Staking Interface */}
-                {selectedAgent && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="mt-8"
-                  >
-                    <GlassCard className="p-6">
-                      <h3 className="text-xl font-bold text-white mb-4">
-                        Stake {agentData.find(a => a.id === selectedAgent)?.name}
-                      </h3>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <div className="mb-4">
-                            <label className="block text-white/70 text-sm mb-2">Amount to Stake</label>
-                            <div className="flex items-center bg-agent-gray/20 rounded-lg overflow-hidden border border-white/5 focus-within:border-agent-green/50 transition-colors">
-                              <input
-                                type="number"
-                                value={stakeAmount}
-                                onChange={(e) => setStakeAmount(e.target.value)}
-                                placeholder="0"
-                                className="bg-transparent text-white px-4 py-3 flex-1 focus:outline-none"
-                              />
-                              <div className="px-4 text-white/50">$AGENT</div>
-                            </div>
-                            <div className="flex justify-between mt-2 text-xs">
-                              <button 
-                                className="text-agent-green hover:text-agent-green-muted transition-colors"
-                                onClick={() => setStakeAmount((userBalance / 4).toString())}
-                              >
-                                25%
-                              </button>
-                              <button 
-                                className="text-agent-green hover:text-agent-green-muted transition-colors"
-                                onClick={() => setStakeAmount((userBalance / 2).toString())}
-                              >
-                                50%
-                              </button>
-                              <button 
-                                className="text-agent-green hover:text-agent-green-muted transition-colors"
-                                onClick={() => setStakeAmount((userBalance * 0.75).toString())}
-                              >
-                                75%
-                              </button>
-                              <button 
-                                className="text-agent-green hover:text-agent-green-muted transition-colors"
-                                onClick={() => setStakeAmount(userBalance.toString())}
-                              >
-                                MAX
-                              </button>
-                            </div>
-                          </div>
-                          
-                          <button
-                            onClick={handleStake}
-                            disabled={isLoading || !selectedAgent || parseFloat(stakeAmount) <= 0 || parseFloat(stakeAmount) > userBalance}
-                            className={`w-full py-3 rounded-md font-medium transition-all ${
-                              isLoading || !selectedAgent || parseFloat(stakeAmount) <= 0 || parseFloat(stakeAmount) > userBalance
-                                ? 'bg-agent-gray/30 text-white/30 cursor-not-allowed'
-                                : 'bg-agent-green text-black hover:bg-agent-green-muted'
-                            }`}
-                          >
-                            {isLoading ? 'Processing...' : 'Stake Agent'}
-                          </button>
-                          
-                          <p className="mt-3 text-white/50 text-xs">
-                            Staking this agent will lock your tokens for a minimum of 7 days.
-                            You will earn rewards based on the agent's performance in the simulation.
-                          </p>
-                        </div>
-                        
-                        <div className="bg-agent-black/40 p-4 rounded-lg">
-                          <h4 className="text-white font-bold mb-3">Staking Details</h4>
-                          
-                          <div className="space-y-3">
-                            <div className="flex justify-between">
-                              <span className="text-white/70">Agent Type</span>
-                              <span className="text-white">{agentData.find(a => a.id === selectedAgent)?.role}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-white/70">APY</span>
-                              <span className="text-agent-green">{agentData.find(a => a.id === selectedAgent)?.apy}%</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-white/70">Lock Period</span>
-                              <span className="text-white">7 days</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-white/70">Early Unstake Fee</span>
-                              <span className="text-white">10%</span>
-                            </div>
-                            
-                            <div className="pt-3 border-t border-white/10">
-                              <div className="flex justify-between font-bold">
-                                <span className="text-white">Estimated Rewards (30d)</span>
-                                <span className="text-agent-green">
-                                  {parseFloat(stakeAmount) > 0 
-                                    ? ((parseFloat(stakeAmount) * (agentData.find(a => a.id === selectedAgent)?.apy || 0) / 100) / 12).toFixed(2)
-                                    : '0'} $AGENT
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </GlassCard>
-                  </motion.div>
-                )}
               </div>
             )}
           </div>
