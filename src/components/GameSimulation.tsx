@@ -5,6 +5,7 @@ import { useState, useEffect, Component } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import React from 'react';
+import { isWebGLAvailable, fixBlackScreen } from '@/utils/webgl-helper';
 
 // Import the client component with no SSR and a fallback
 const ClientGameScene = dynamic(() => import('./game/ClientGameScene').catch(err => {
@@ -13,11 +14,22 @@ const ClientGameScene = dynamic(() => import('./game/ClientGameScene').catch(err
   return () => <div className="w-full h-full bg-agent-dark-gray flex items-center justify-center">
     <div className="text-white text-center p-4">
       <h3 className="text-xl font-bold mb-2">Agentarium City</h3>
-      <p>Interactive 3D simulation coming soon.</p>
-      <p className="text-xs mt-4 text-agent-green">Optimizing for your device...</p>
+      <p>Interactive 3D simulation unavailable. {err.message}</p>
+      <p className="text-xs mt-4 text-agent-green">Please refresh the page to try again.</p>
     </div>
   </div>;
-}), { ssr: false });
+}), { 
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full bg-agent-dark-gray flex items-center justify-center">
+      <div className="text-white text-center p-4">
+        <h3 className="text-xl font-bold mb-2">Loading Agentarium City...</h3>
+        <p>The 3D simulation is initializing...</p>
+        <div className="mt-4 w-16 h-16 border-t-2 border-agent-green rounded-full animate-spin mx-auto"></div>
+      </div>
+    </div>
+  )
+});
 
 // Guide component
 function SimulationGuide({ onClose }: { onClose: () => void }) {
@@ -305,8 +317,28 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
   const [showIntro, setShowIntro] = useState(true);
   const [showGuide, setShowGuide] = useState(false);
   const [timeOfDay, setTimeOfDay] = useState('day');
+  const [webGLAvailable, setWebGLAvailable] = useState(true);
+  const [loadingFailed, setLoadingFailed] = useState(false);
+  const [loadAttempts, setLoadAttempts] = useState(0);
   
-  // Hide intro after 5 seconds
+  // Check for WebGL support
+  useEffect(() => {
+    setWebGLAvailable(isWebGLAvailable());
+    
+    // Try to fix any black screen issues
+    fixBlackScreen();
+    
+    // Set up loading timeout detection
+    const loadingTimeout = setTimeout(() => {
+      if (loadAttempts === 0) {
+        setLoadingFailed(true);
+      }
+    }, 15000); // 15 second timeout
+    
+    return () => clearTimeout(loadingTimeout);
+  }, [loadAttempts]);
+  
+  // Hide intro after 2 seconds
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowIntro(false);
@@ -328,6 +360,18 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
 
   const handleTimeChange = (newTime: string) => {
     setTimeOfDay(newTime);
+  };
+  
+  const handleReload = () => {
+    setLoadingFailed(false);
+    setLoadAttempts(prev => prev + 1);
+    // Force a reload of the dynamic component
+    const canvas = document.querySelector('canvas');
+    if (canvas) {
+      canvas.remove();
+    }
+    // Also try fixing WebGL context
+    fixBlackScreen();
   };
   
   return (
@@ -391,6 +435,53 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
           <span className="text-white/80 text-xs">Guide</span>
         </button>
       </div>
+      
+      {/* WebGL error message */}
+      {!webGLAvailable && (
+        <div className="absolute inset-0 z-30 bg-agent-black/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-agent-dark-gray/80 rounded-lg border border-red-500/30 p-6 max-w-md text-center">
+            <h3 className="text-xl font-bold text-white mb-3">3D Rendering Not Available</h3>
+            <p className="text-white/80 mb-4">
+              We couldn't initialize WebGL on your device, which is required for the 3D simulation.
+            </p>
+            <p className="text-white/60 text-sm mb-6">
+              Try using a modern browser with WebGL support or check if hardware acceleration is enabled.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-agent-green/20 text-agent-green border border-agent-green/30 rounded-md hover:bg-agent-green/30 transition-colors"
+            >
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {/* Loading failure message with retry button */}
+      {loadingFailed && webGLAvailable && (
+        <div className="absolute inset-0 z-25 bg-agent-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-agent-dark-gray/60 rounded-lg border border-yellow-500/30 p-6 max-w-md text-center">
+            <h3 className="text-xl font-bold text-white mb-3">Loading Taking Too Long</h3>
+            <p className="text-white/80 mb-4">
+              The 3D city simulation is taking longer than expected to load.
+            </p>
+            <div className="flex justify-center space-x-4">
+              <button
+                onClick={handleReload}
+                className="px-4 py-2 bg-agent-green/20 text-agent-green border border-agent-green/30 rounded-md hover:bg-agent-green/30 transition-colors"
+              >
+                Try Again
+              </button>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-white/10 text-white/80 border border-white/20 rounded-md hover:bg-white/20 transition-colors"
+              >
+                Refresh Page
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Social links - restored */}
       <div className="absolute top-4 right-4 z-10 flex space-x-2">

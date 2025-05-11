@@ -2478,67 +2478,6 @@ const City: React.FC<{ onAgentClick: (agent: any) => void }> = ({ onAgentClick }
       resources: 90,
       earnings: 2100,
       level: 8
-    },
-    // Add 5 more agents for a larger city
-    {
-      id: 11,
-      name: "Cyrus",
-      role: "Trader",
-      icon: "👨‍💼",
-      color: "#42A5F5",
-      state: "walking",
-      location: "Shopping Mall",
-      resources: 82,
-      earnings: 980,
-      level: 3
-    },
-    {
-      id: 12,
-      name: "Iris",
-      role: "Engineer",
-      icon: "👩‍🔧",
-      color: "#FF7043",
-      state: "idle",
-      location: "Factory",
-      resources: 95,
-      earnings: 1750,
-      level: 6
-    },
-    {
-      id: 13,
-      name: "Felix",
-      role: "Hacker",
-      icon: "👨‍💻",
-      color: "#78909C",
-      state: "walking",
-      location: "Tech Hub",
-      resources: 88,
-      earnings: 1480,
-      level: 5
-    },
-    {
-      id: 14,
-      name: "Desiree",
-      role: "Mystic",
-      icon: "🧙",
-      color: "#B39DDB",
-      state: "working",
-      location: "Lucky Star Casino",
-      resources: 93,
-      earnings: 2250,
-      level: 8
-    },
-    {
-      id: 15,
-      name: "Jasper",
-      role: "Explorer",
-      icon: "🧭",
-      color: "#66BB6A",
-      state: "idle",
-      location: "Hospital",
-      resources: 79,
-      earnings: 1120,
-      level: 4
     }
   ], []);
   
@@ -2739,6 +2678,15 @@ const SceneContent: React.FC<{ onAgentClick: (agent: any) => void, timeOfDay: st
     ({ onAgentClick, timeOfDay, setTimeOfDay, onTimeChange }) => {
   // For time cycle tracking
   const timeRef = useRef({ time: 0, cycleLength: 300 }); // 5-minute cycle
+  const [optimizedMode, setOptimizedMode] = useState(false);
+  
+  // Detect if we should use optimized mode (for lower-end devices)
+  useEffect(() => {
+    // Check for mobile device or slow GPU
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const isLowPerfMode = window.innerWidth < 1024 || isMobile;
+    setOptimizedMode(isLowPerfMode);
+  }, []);
   
   // Update time of day - this is safe inside Canvas
   useFrame((state) => {
@@ -2827,12 +2775,12 @@ const SceneContent: React.FC<{ onAgentClick: (agent: any) => void, timeOfDay: st
       
       <ambientLight intensity={settings.ambientIntensity} />
       <directionalLight
-        castShadow
+        castShadow={!optimizedMode}
         position={settings.directionalPosition}
         intensity={settings.directionalIntensity}
         color={settings.directionalColor}
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
+        shadow-mapSize-width={optimizedMode ? 1024 : 2048}
+        shadow-mapSize-height={optimizedMode ? 1024 : 2048}
         shadow-camera-far={300}
         shadow-camera-left={-100}
         shadow-camera-right={100}
@@ -2844,9 +2792,9 @@ const SceneContent: React.FC<{ onAgentClick: (agent: any) => void, timeOfDay: st
       <Sky distance={450000} sunPosition={settings.sunPosition} />
       
       {/* Add stars at night */}
-      {timeOfDay === 'night' && (
+      {timeOfDay === 'night' && !optimizedMode && (
         <group>
-          {Array.from({ length: 200 }).map((_, i) => {
+          {Array.from({ length: 100 }).map((_, i) => {
             const x = Math.random() * 400 - 200;
             const y = Math.random() * 200 + 50;
             const z = Math.random() * 400 - 200;
@@ -2862,14 +2810,16 @@ const SceneContent: React.FC<{ onAgentClick: (agent: any) => void, timeOfDay: st
         </group>
       )}
       
-      {/* Clouds */}
-      <group position={[0, 60, 0]}>
-        <Cloud position={[-40, 20, -20]} speed={0.2} opacity={0.7} />
-        <Cloud position={[40, 10, 30]} speed={0.1} opacity={0.6} />
-        <Cloud position={[-60, 0, 40]} speed={0.3} opacity={0.5} />
-        <Cloud position={[20, 20, -50]} speed={0.15} opacity={0.6} />
-        <Cloud position={[-10, 10, 60]} speed={0.25} opacity={0.7} />
-      </group>
+      {/* Clouds - only show in high performance mode */}
+      {!optimizedMode && (
+        <group position={[0, 60, 0]}>
+          <Cloud position={[-40, 20, -20]} speed={0.2} opacity={0.7} />
+          <Cloud position={[40, 10, 30]} speed={0.1} opacity={0.6} />
+          <Cloud position={[-60, 0, 40]} speed={0.3} opacity={0.5} />
+          <Cloud position={[20, 20, -50]} speed={0.15} opacity={0.6} />
+          <Cloud position={[-10, 10, 60]} speed={0.25} opacity={0.7} />
+        </group>
+      )}
       
       <City onAgentClick={onAgentClick} />
       
@@ -2984,17 +2934,22 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
         gl={{ 
           antialias: true, 
           alpha: false,
-          powerPreference: "high-performance" 
+          powerPreference: "high-performance",
+          failIfMajorPerformanceCaveat: false // Allow lower performance
         }}
-        dpr={[1, 1.5]} // Reduced max DPR for better performance
+        dpr={window.devicePixelRatio > 2 ? 1 : window.devicePixelRatio} // Limit DPR for better performance
         onCreated={state => {
           console.log("Canvas initialized");
-          // Force a single render to ensure everything is visible
+          // Force an initial render
           state.gl.render(state.scene, state.camera);
-          setCanvasLoaded(true);
+          // Mark as loaded after a short delay to ensure everything is rendered
+          setTimeout(() => {
+            setCanvasLoaded(true);
+          }, 100);
         }}
         style={{ background: "#87ceeb" }} // Default sky blue background
         linear
+        flat // Use flat shading for better performance
       >
         {/* Fallback content while loading */}
         {!canvasLoaded && (
@@ -3017,8 +2972,8 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
             onTimeChange={onTimeChange}
           />
         )}
-      </Canvas>
-    );
+    </Canvas>
+  );
   } catch (error) {
     console.error("Error rendering Three.js Canvas:", error);
     return <FallbackScene />;
