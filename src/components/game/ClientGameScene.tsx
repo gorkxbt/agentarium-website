@@ -3046,7 +3046,9 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
     // Check for WebGL support more thoroughly
     try {
       const canvas = document.createElement('canvas');
-      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      // Explicitly type the WebGL context
+      const gl = canvas.getContext('webgl') as WebGLRenderingContext | null || 
+                 canvas.getContext('experimental-webgl') as WebGLRenderingContext | null;
       
       if (!gl) {
         console.error("WebGL not supported by browser");
@@ -3054,10 +3056,14 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick = () => {}
         return;
       }
       
-      // Check for minimal WebGL capabilities
-      const extensions = gl.getSupportedExtensions();
-      if (!extensions || extensions.length < 5) {
-        console.warn("Limited WebGL support detected");
+      // Check for minimal WebGL capabilities with proper typing
+      try {
+        const extensions = gl.getSupportedExtensions();
+        if (!extensions || extensions.length < 5) {
+          console.warn("Limited WebGL support detected");
+        }
+      } catch (webglError) {
+        console.warn("Could not check WebGL extensions:", webglError);
       }
       
       // Force a re-render attempt if the canvas hasn't loaded yet
