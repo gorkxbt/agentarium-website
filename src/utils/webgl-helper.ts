@@ -320,6 +320,7 @@ export function getWebGLInfo(): {
   available: boolean; 
   renderer?: string; 
   vendor?: string;
+  maxTextureSize?: number;
 } {
   try {
     const canvas = document.createElement('canvas');
@@ -333,16 +334,21 @@ export function getWebGLInfo(): {
     
     let renderer = 'unknown';
     let vendor = 'unknown';
+    let maxTextureSize = 0;
     
     if (debugInfo) {
       renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
       vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
     }
     
+    // Get max texture size
+    maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+    
     return {
       available: true,
       renderer,
-      vendor
+      vendor,
+      maxTextureSize
     };
   } catch (e) {
     return { available: false };
