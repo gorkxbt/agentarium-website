@@ -164,30 +164,15 @@ export const fixBlackScreen = (): void => {
 /**
  * Get the user's preference for rendering quality
  */
-export const getPreferredQuality = (): 'high' | 'medium' | 'low' | 'minimal' | 'ultraMinimal' => {
-  // Check for forced reduced quality
-  if (typeof window !== 'undefined') {
-    const reducedQuality = localStorage.getItem('agentarium_reduced_quality');
-    if (reducedQuality === 'true') {
-      return 'ultraMinimal';
-    }
-  }
-  
-  // Check for stored preference
-  const storedPref = localStorage.getItem('agentarium_quality');
-  if (storedPref && ['high', 'medium', 'low', 'minimal', 'ultraMinimal'].includes(storedPref)) {
-    return storedPref as 'high' | 'medium' | 'low' | 'minimal' | 'ultraMinimal';
-  }
-  
-  // Auto-detect best quality if no preference
-  return detectBestQualityLevel();
+export const getPreferredQuality = (): 'high' | 'medium' => {
+  return 'medium';
 };
 
 /**
  * Set the user's preference for rendering quality
  */
-export const setPreferredQuality = (quality: 'high' | 'medium' | 'low' | 'minimal' | 'ultraMinimal'): void => {
-  localStorage.setItem('agentarium_quality', quality);
+export const setPreferredQuality = (quality: string): void => {
+  // This function is simplified
 };
 
 // Extend the Window interface with properties we might access
@@ -206,87 +191,43 @@ export const resetWebGLContext = (): void => {
   try {
     console.log("Attempting to reset WebGL context");
     
-    // Clean up any existing ThreeJS renderers
-    if (typeof window !== 'undefined' && window.THREE_INSTANCES) {
-      window.THREE_INSTANCES.forEach((renderer: any) => {
-        try {
-          if (renderer && renderer.dispose) {
-            renderer.dispose();
-          }
-        } catch (e) {
-          console.warn("Error disposing renderer:", e);
-        }
-      });
-    }
-    
     // Find all canvas elements
     const canvases = document.querySelectorAll('canvas');
     canvases.forEach(canvas => {
-      // Try to get all possible contexts and reset them
-      ['webgl', 'experimental-webgl', 'webgl2'].forEach(contextType => {
-        try {
-          const gl = canvas.getContext(contextType) as WebGLRenderingContext | null;
-          
-          if (gl) {
-            // Clear the context
-            gl.clearColor(0, 0, 0, 0);
-            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-            
-            // Try to use the context loss extension
-            const loseContextExt = gl.getExtension('WEBGL_lose_context');
-            if (loseContextExt) {
-              loseContextExt.loseContext();
-              
-              // Optional: try to restore after a delay
-              setTimeout(() => {
-                try {
-                  loseContextExt.restoreContext();
-                } catch (e) {
-                  console.warn("Could not restore context:", e);
-                }
-              }, 300);
-            }
-          }
-        } catch (e) {
-          console.warn(`Failed to reset ${contextType} context:`, e);
-        }
-      });
-      
-      // Replace the canvas with a fresh copy if needed
       try {
-        const newCanvas = canvas.cloneNode(false) as HTMLCanvasElement;
+        // Get the WebGL context
+        const gl = canvas.getContext('webgl') as WebGLRenderingContext | null;
+        
+        if (gl) {
+          // Clear the context
+          gl.clearColor(0, 0, 0, 0);
+          gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+          
+          // Try to use the context loss extension
+          const loseContextExt = gl.getExtension('WEBGL_lose_context');
+          if (loseContextExt) {
+            loseContextExt.loseContext();
+            setTimeout(() => {
+              try {
+                loseContextExt.restoreContext();
+              } catch (e) {}
+            }, 300);
+          }
+        }
+      } catch (e) {}
+      
+      // Replace the canvas (brute force approach)
+      try {
         if (canvas.parentNode) {
+          const newCanvas = document.createElement('canvas');
+          newCanvas.width = canvas.width;
+          newCanvas.height = canvas.height;
+          newCanvas.className = canvas.className;
+          newCanvas.id = canvas.id;
           canvas.parentNode.replaceChild(newCanvas, canvas);
         }
-      } catch (e) {
-        console.warn("Failed to replace canvas:", e);
-      }
-    });
-    
-    // Force garbage collection if available (only in some browsers)
-    if (typeof window !== 'undefined' && window.gc) {
-      try {
-        window.gc();
       } catch (e) {}
-    }
-
-    // Initialize a new WebGL context for immediate use
-    try {
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = 1;
-      tempCanvas.height = 1;
-      const tempContext = tempCanvas.getContext('webgl', { 
-        failIfMajorPerformanceCaveat: false,
-        powerPreference: 'default' 
-      });
-      
-      if (tempContext) {
-        tempContext.clearColor(0, 0, 0, 1);
-        tempContext.clear(tempContext.COLOR_BUFFER_BIT);
-      }
-    } catch (e) {
-      console.warn("Failed to create temporary WebGL context:", e);
-    }
+    });
     
     // Force a repaint
     setTimeout(() => {
@@ -311,14 +252,11 @@ export const createFallbackScene = (container: HTMLElement): void => {
   fallbackContainer.className = 'w-full h-full bg-black flex items-center justify-center';
   fallbackContainer.innerHTML = `
     <div class="text-center p-6">
-      <h3 class="text-2xl font-bold text-white mb-4">Agentarium City</h3>
-      <p class="text-lg text-white/80 mb-6">3D simulation unavailable on your device</p>
+      <h3 class="text-2xl font-bold text-white mb-4">3D Rendering Error</h3>
+      <p class="text-lg text-white/80 mb-6">We encountered an issue loading the 3D simulation.</p>
       <div class="flex flex-wrap justify-center gap-4">
         <button id="refresh-btn" class="px-4 py-2 bg-green-700 text-white rounded">
           Refresh Page
-        </button>
-        <button id="simple-btn" class="px-4 py-2 bg-blue-700 text-white rounded">
-          Try Simple Mode
         </button>
       </div>
     </div>
@@ -330,11 +268,6 @@ export const createFallbackScene = (container: HTMLElement): void => {
   document.getElementById('refresh-btn')?.addEventListener('click', () => {
     window.location.reload();
   });
-  
-  document.getElementById('simple-btn')?.addEventListener('click', () => {
-    localStorage.setItem('agentarium_reduced_quality', 'true');
-    window.location.reload();
-  });
 };
 
 /**
@@ -342,61 +275,39 @@ export const createFallbackScene = (container: HTMLElement): void => {
  * This function should be called early in the application lifecycle
  */
 export const initializeWebGL = (): void => {
-  try {
-    if (typeof window !== 'undefined') {
-      // Create a pre-init canvas to help with some hardware/drivers
-      const preInitCanvas = document.createElement('canvas');
-      preInitCanvas.width = 16;
-      preInitCanvas.height = 16;
-      
-      // Try to initialize WebGL context with conservative settings
-      const ctx = preInitCanvas.getContext('webgl', {
-        alpha: false,
-        antialias: false,
-        depth: true,
-        failIfMajorPerformanceCaveat: false,
-        powerPreference: 'default',
-        preserveDrawingBuffer: false,
-        stencil: false
-      });
-      
-      if (ctx) {
-        // Force the context to initialize
-        ctx.clearColor(0, 0, 0, 1);
-        ctx.clear(ctx.COLOR_BUFFER_BIT);
-        
-        // Create a small triangle to ensure hardware acceleration is engaged
-        const vertices = new Float32Array([
-          -1.0, -1.0, 0.0,
-           1.0, -1.0, 0.0,
-           0.0,  1.0, 0.0
-        ]);
-        
-        const buffer = ctx.createBuffer();
-        ctx.bindBuffer(ctx.ARRAY_BUFFER, buffer);
-        ctx.bufferData(ctx.ARRAY_BUFFER, vertices, ctx.STATIC_DRAW);
-        
-        // Prevent black screens on some mobile devices
-        setTimeout(() => {
-          try {
-            ctx.clear(ctx.COLOR_BUFFER_BIT);
-            
-            // Force cleanup after initialization
-            const loseExt = ctx.getExtension('WEBGL_lose_context');
-            if (loseExt) loseExt.loseContext();
-          } catch (e) {}
-        }, 100);
-      }
-      
-      // Set up global flags for monitoring WebGL instances
-      window.THREE_INSTANCES = window.THREE_INSTANCES || [];
+  if (typeof window === 'undefined') return;
+  
+  // Add GPU acceleration hints
+  const style = document.createElement('style');
+  style.textContent = `
+    canvas { 
+      transform: translateZ(0);
+      backface-visibility: hidden;
+      perspective: 1000px;
     }
-  } catch (e) {
-    console.warn("WebGL pre-initialization failed:", e);
+  `;
+  document.head.appendChild(style);
+  
+  // Force WebGL context creation
+  const canvas = document.createElement('canvas');
+  canvas.width = 1;
+  canvas.height = 1;
+  const gl = canvas.getContext('webgl', { 
+    failIfMajorPerformanceCaveat: false,
+    powerPreference: 'default',
+    alpha: false,
+    stencil: false,
+    antialias: false,
+    depth: true
+  });
+  
+  if (gl) {
+    gl.clearColor(0, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
   }
 };
 
-// Initialize immediately if we're on the client
+// Call initialization immediately
 if (typeof window !== 'undefined') {
   setTimeout(initializeWebGL, 0);
 }
@@ -408,14 +319,11 @@ if (typeof window !== 'undefined') {
 export function getWebGLInfo(): { 
   available: boolean; 
   renderer?: string; 
-  vendor?: string; 
-  version?: string;
-  extensions?: string[];
-  maxTextureSize?: number;
+  vendor?: string;
 } {
   try {
     const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl') as WebGLRenderingContext | null;
+    const gl = canvas.getContext('webgl') as WebGLRenderingContext | null;
     
     if (!gl) {
       return { available: false };
@@ -431,20 +339,12 @@ export function getWebGLInfo(): {
       vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
     }
     
-    const version = gl.getParameter(gl.VERSION);
-    const extensions = gl.getSupportedExtensions() || [];
-    const maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
-    
     return {
       available: true,
       renderer,
-      vendor,
-      version,
-      extensions,
-      maxTextureSize
+      vendor
     };
   } catch (e) {
-    console.error('Error getting WebGL info:', e);
     return { available: false };
   }
 } 
