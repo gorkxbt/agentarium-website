@@ -85,7 +85,9 @@ export const detectBestQualityLevel = (): 'high' | 'medium' | 'low' | 'minimal' 
                         webGLInfo.renderer?.toLowerCase().includes('swiftshader');
     
     // Check max texture size (good indicator of GPU capability)
-    const hasWeakGPU = (webGLInfo.maxTextureSize || 0) < 8192;
+    // Use a safe default of 0 if the property doesn't exist
+    const maxTexSize = typeof webGLInfo.maxTextureSize === 'number' ? webGLInfo.maxTextureSize : 0;
+    const hasWeakGPU = maxTexSize < 8192;
     
     // Check hardware limitations
     if (isLowEndDevice()) {

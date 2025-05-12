@@ -1,9 +1,5 @@
 import * as THREE from 'three';
-
-// Define constants if they're missing from imported file
-const CITY_SIZE = 240;
-const BLOCK_SIZE = 60;
-const ROAD_WIDTH = 20;
+import { CITY_SIZE, BLOCK_SIZE, ROAD_WIDTH } from './CityConstants';
 
 // Road layout helpers
 const getRoadPoints = (roadCoordinates?: any[], spacing?: number): THREE.Vector3[] => {
