@@ -11,15 +11,12 @@ import {
   Float,
   Cloud,
   Html,
-  PerspectiveCamera
+  PerspectiveCamera,
+  useAnimations,
+  useGLTF
 } from '@react-three/drei';
 import * as THREE from 'three';
 import { isWebGLAvailable, resetWebGLContext } from '@/utils/webgl-helper';
-import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
-import * as THREE from 'three';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Text, OrbitControls, Sky, Float, useAnimations, useGLTF } from '@react-three/drei';
-import React from 'react';
 import { CITY_SIZE, BLOCK_SIZE, ROAD_WIDTH } from './CityConstants';
 import { getRoadPoints, getParkingSpots, isOnRoad, findNearestRoadPoint, isInsideBlock } from './VehicleLogic';
 
@@ -184,14 +181,10 @@ class ErrorBoundary extends React.Component<{
 
 interface ClientGameSceneProps {
   onAgentClick?: (agent: any) => void;
-  onTimeChange?: (timeOfDay: string) => void;
   forceLoaded?: boolean;
 }
 
 // City configuration
-const CITY_SIZE = 250; // Optimized city size
-const ROAD_WIDTH = 14; // Slightly wider roads
-const BLOCK_SIZE = 45; // Block size for building placement
 const SIDEWALK_WIDTH = 4; // Wider sidewalks
 const BUILDING_TYPES = {
   BANK: 'bank',
@@ -2102,6 +2095,75 @@ const City: React.FC<{ onAgentClick: (agent: any) => void, useSimpleRenderer?: b
     const agents: AgentProps[] = [];
     const mapLabels: {name: string; position: [number, number, number]}[] = [];
     
+    // Helper function to check if a position is on a road
+    const isOnRoad = (x: number, z: number, width: number, depth: number): boolean => {
+      // Add a buffer around roads to avoid buildings partially on roads
+      const buffer = 5;
+      const halfWidth = width / 2 + buffer;
+      const halfDepth = depth / 2 + buffer;
+      
+      // Check if any of the corners or center are on a road
+      const positions = [
+        {x: x, z: z}, // center
+        {x: x - halfWidth, z: z - halfDepth}, // bottom left
+        {x: x + halfWidth, z: z - halfDepth}, // bottom right
+        {x: x - halfWidth, z: z + halfDepth}, // top left
+        {x: x + halfWidth, z: z + halfDepth}, // top right
+      ];
+      
+      return positions.some(pos => {
+        // Check if position is on a road (either x or z is a multiple of BLOCK_SIZE + ROAD_WIDTH)
+        const normalizedX = (pos.x + CITY_SIZE / 2) % (BLOCK_SIZE + ROAD_WIDTH);
+        const normalizedZ = (pos.z + CITY_SIZE / 2) % (BLOCK_SIZE + ROAD_WIDTH);
+        
+        const onRoadX = normalizedX < ROAD_WIDTH;
+        const onRoadZ = normalizedZ < ROAD_WIDTH;
+        
+        return onRoadX || onRoadZ;
+      });
+    };
+    
+    // Helper function to check if a building position conflicts with existing buildings
+    const buildingConflicts = (newX: number, newZ: number, width: number, depth: number): boolean => {
+      // Add spacing between buildings
+      const buffer = 8;
+      
+      return buildings.some(building => {
+        const [bx, , bz] = building.position;
+        const distance = Math.sqrt(Math.pow(newX - bx, 2) + Math.pow(newZ - bz, 2));
+        const minDistance = (width/2 + building.width/2 + buffer) * 0.8; // 0.8 factor to allow some clustering
+        
+        return distance < minDistance;
+      });
+    };
+    
+    // Helper to find a valid building position within a district
+    const findValidBuildingPosition = (
+      districtX: number, 
+      districtZ: number, 
+      width: number, 
+      depth: number,
+      radius = BLOCK_SIZE * 0.7, // Default search radius within district
+      maxAttempts = 10
+    ): [number, number] | null => {
+      for (let i = 0; i < maxAttempts; i++) {
+        // Generate position within radius of district center
+        const offsetX = (Math.random() * 2 - 1) * radius;
+        const offsetZ = (Math.random() * 2 - 1) * radius;
+        
+        const x = districtX + offsetX;
+        const z = districtZ + offsetZ;
+        
+        // Check if position is valid (not on road and no conflicts)
+        if (!isOnRoad(x, z, width, depth) && !buildingConflicts(x, z, width, depth)) {
+          return [x, z];
+        }
+      }
+      
+      // Couldn't find a valid position after max attempts
+      return null;
+    };
+    
     // Grid size (blocks across)
     const gridSize = 5;
     
@@ -2119,352 +2181,207 @@ const City: React.FC<{ onAgentClick: (agent: any) => void, useSimpleRenderer?: b
     
     // 1. DOWNTOWN AREA (City Center)
     // Bank at the center
-    buildings.push({
-      position: [0, 0, 0],
-      rotation: [0, 0, 0],
-      height: 30,
-      width: 20,
-      depth: 20,
-      color: BUILDING_COLORS[BUILDING_TYPES.BANK],
-      type: BUILDING_TYPES.BANK,
-      name: BUILDING_NAMES[BUILDING_TYPES.BANK]
-    });
-    
-    mapLabels.push({
-      name: BUILDING_NAMES[BUILDING_TYPES.BANK],
-      position: [0, 0, 0]
-    });
+    const bankPos = findValidBuildingPosition(districts.downtown.x, districts.downtown.z, 20, 20, BLOCK_SIZE * 0.3, 20);
+    if (bankPos) {
+      buildings.push({
+        position: [bankPos[0], 0, bankPos[1]],
+        rotation: [0, 0, 0],
+        height: 30,
+        width: 20,
+        depth: 20,
+        color: BUILDING_COLORS[BUILDING_TYPES.BANK],
+        type: BUILDING_TYPES.BANK,
+        name: BUILDING_NAMES[BUILDING_TYPES.BANK]
+      });
+      
+      mapLabels.push({
+        name: BUILDING_NAMES[BUILDING_TYPES.BANK],
+        position: [bankPos[0], 0, bankPos[1]]
+      });
+    }
     
     // Surrounding downtown buildings
-    buildings.push({
-      position: [25, 0, -25],
-      rotation: [0, Math.PI / 6, 0],
-      height: 35,
-      width: 18,
-      depth: 18,
-      color: BUILDING_COLORS[BUILDING_TYPES.TECH_HUB],
-      type: BUILDING_TYPES.TECH_HUB,
-      name: BUILDING_NAMES[BUILDING_TYPES.TECH_HUB]
-    });
+    const techHubPos = findValidBuildingPosition(
+      districts.downtown.x + 25, 
+      districts.downtown.z - 25, 
+      18, 
+      18
+    );
+    if (techHubPos) {
+      buildings.push({
+        position: [techHubPos[0], 0, techHubPos[1]],
+        rotation: [0, Math.PI / 6, 0],
+        height: 35,
+        width: 18,
+        depth: 18,
+        color: BUILDING_COLORS[BUILDING_TYPES.TECH_HUB],
+        type: BUILDING_TYPES.TECH_HUB,
+        name: BUILDING_NAMES[BUILDING_TYPES.TECH_HUB]
+      });
+      
+      mapLabels.push({
+        name: BUILDING_NAMES[BUILDING_TYPES.TECH_HUB],
+        position: [techHubPos[0], 0, techHubPos[1]]
+      });
+    }
     
-    mapLabels.push({
-      name: BUILDING_NAMES[BUILDING_TYPES.TECH_HUB],
-      position: [25, 0, -25]
-    });
-    
-    buildings.push({
-      position: [-25, 0, 25],
-      rotation: [0, -Math.PI / 8, 0],
-      height: 28,
-      width: 22,
-      depth: 16,
-      color: BUILDING_COLORS[BUILDING_TYPES.FINANCE],
-      type: BUILDING_TYPES.FINANCE,
-      name: BUILDING_NAMES[BUILDING_TYPES.FINANCE]
-    });
-    
-    mapLabels.push({
-      name: BUILDING_NAMES[BUILDING_TYPES.FINANCE],
-      position: [-25, 0, 25]
-    });
+    // Continue with the rest of the buildings using the findValidBuildingPosition function
+    // ... existing code ...
     
     // 2. FINANCIAL DISTRICT
     // Office buildings and financial centers
     for (let i = 0; i < 3; i++) {
-      const offsetX = (Math.random() - 0.5) * BLOCK_SIZE * 0.8;
-      const offsetZ = (Math.random() - 0.5) * BLOCK_SIZE * 0.8;
+      const officePos = findValidBuildingPosition(
+        districts.financial.x, 
+        districts.financial.z, 
+        15 + Math.random() * 5, 
+        15 + Math.random() * 5,
+        BLOCK_SIZE * 0.8
+      );
       
-      buildings.push({
-        position: [
-          districts.financial.x + offsetX, 
-          0, 
-          districts.financial.z + offsetZ
-        ],
-        rotation: [0, Math.random() * Math.PI / 4 - Math.PI / 8, 0],
-        height: 20 + Math.random() * 15,
-        width: 15 + Math.random() * 5,
-        depth: 15 + Math.random() * 5,
-        color: BUILDING_COLORS[BUILDING_TYPES.OFFICE],
-        type: BUILDING_TYPES.OFFICE,
-        name: BUILDING_NAMES[BUILDING_TYPES.OFFICE]
-      });
+      if (officePos) {
+        buildings.push({
+          position: [officePos[0], 0, officePos[1]],
+          rotation: [0, Math.random() * Math.PI / 4 - Math.PI / 8, 0],
+          height: 20 + Math.random() * 15,
+          width: 15 + Math.random() * 5,
+          depth: 15 + Math.random() * 5,
+          color: BUILDING_COLORS[BUILDING_TYPES.OFFICE],
+          type: BUILDING_TYPES.OFFICE,
+          name: BUILDING_NAMES[BUILDING_TYPES.OFFICE]
+        });
+      }
     }
     
     // Police station
-    buildings.push({
-      position: [-60, 0, -40],
-      rotation: [0, Math.PI / 12, 0],
-      height: 15,
-      width: 25,
-      depth: 15,
-      color: BUILDING_COLORS[BUILDING_TYPES.POLICE],
-      type: BUILDING_TYPES.POLICE,
-      name: BUILDING_NAMES[BUILDING_TYPES.POLICE]
-    });
-    
-    mapLabels.push({
-      name: BUILDING_NAMES[BUILDING_TYPES.POLICE],
-      position: [-60, 0, -40]
-    });
+    const policePos = findValidBuildingPosition(districts.financial.x - 20, districts.financial.z - 20, 25, 15);
+    if (policePos) {
+      buildings.push({
+        position: [policePos[0], 0, policePos[1]],
+        rotation: [0, Math.PI / 12, 0],
+        height: 15,
+        width: 25,
+        depth: 15,
+        color: BUILDING_COLORS[BUILDING_TYPES.POLICE],
+        type: BUILDING_TYPES.POLICE,
+        name: BUILDING_NAMES[BUILDING_TYPES.POLICE]
+      });
+      
+      mapLabels.push({
+        name: BUILDING_NAMES[BUILDING_TYPES.POLICE],
+        position: [policePos[0], 0, policePos[1]]
+      });
+    }
     
     // 3. RESIDENTIAL DISTRICT
     // Houses and apartments
     for (let i = 0; i < 5; i++) {
       const isApartment = i < 2;
       const type = isApartment ? BUILDING_TYPES.APARTMENT : BUILDING_TYPES.HOUSE;
+      const width = isApartment ? 18 : 12;
+      const depth = isApartment ? 18 : 12;
       
-      const offsetX = ((i % 3) - 1) * 20;
-      const offsetZ = (Math.floor(i / 3) - 1) * 20;
+      // Spread buildings throughout the district
+      const offsetDirection = [
+        {x: -1, z: -1}, 
+        {x: 1, z: -1}, 
+        {x: 0, z: 0}, 
+        {x: -1, z: 1}, 
+        {x: 1, z: 1}
+      ][i];
       
-      buildings.push({
-        position: [
-          districts.residential.x + offsetX, 
-          0, 
-          districts.residential.z + offsetZ
-        ],
-        rotation: [0, Math.random() * Math.PI / 4 - Math.PI / 8, 0],
-        height: isApartment ? 20 : 10,
-        width: isApartment ? 18 : 12,
-        depth: isApartment ? 18 : 12,
-        color: BUILDING_COLORS[type],
-        type: type,
-        name: BUILDING_NAMES[type]
-      });
+      const residentialPos = findValidBuildingPosition(
+        districts.residential.x + offsetDirection.x * 20, 
+        districts.residential.z + offsetDirection.z * 20, 
+        width, 
+        depth,
+        15
+      );
+      
+      if (residentialPos) {
+        buildings.push({
+          position: [residentialPos[0], 0, residentialPos[1]],
+          rotation: [0, Math.random() * Math.PI / 4 - Math.PI / 8, 0],
+          height: isApartment ? 20 : 10,
+          width: width,
+          depth: depth,
+          color: BUILDING_COLORS[type],
+          type: type,
+          name: BUILDING_NAMES[type]
+        });
+      }
     }
     
     // School
-    buildings.push({
-      position: [80, 0, 70],
-      rotation: [0, -Math.PI / 12, 0],
-      height: 12,
-      width: 30,
-      depth: 15,
-      color: BUILDING_COLORS[BUILDING_TYPES.SCHOOL],
-      type: BUILDING_TYPES.SCHOOL,
-      name: BUILDING_NAMES[BUILDING_TYPES.SCHOOL]
-    });
-    
-    // 4. ENTERTAINMENT DISTRICT
-    // Casino
-    buildings.push({
-      position: [60, 0, -60],
-      rotation: [0, Math.PI / 8, 0],
-      height: 25,
-      width: 30,
-      depth: 20,
-      color: BUILDING_COLORS[BUILDING_TYPES.CASINO],
-      type: BUILDING_TYPES.CASINO,
-      name: BUILDING_NAMES[BUILDING_TYPES.CASINO]
-    });
-    
-    mapLabels.push({
-      name: BUILDING_NAMES[BUILDING_TYPES.CASINO],
-      position: [60, 0, -60]
-    });
-    
-    // Nightclub
-    buildings.push({
-      position: [30, 0, -80],
-      rotation: [0, -Math.PI / 12, 0],
-      height: 18,
-      width: 25,
-      depth: 15,
-      color: BUILDING_COLORS[BUILDING_TYPES.NIGHTCLUB],
-      type: BUILDING_TYPES.NIGHTCLUB,
-      name: BUILDING_NAMES[BUILDING_TYPES.NIGHTCLUB]
-    });
-    
-    mapLabels.push({
-      name: BUILDING_NAMES[BUILDING_TYPES.NIGHTCLUB],
-      position: [30, 0, -80]
-    });
-    
-    // Restaurant
-    buildings.push({
-      position: [70, 0, -30],
-      rotation: [0, Math.PI / 16, 0],
-      height: 12,
-      width: 20,
-      depth: 15,
-      color: BUILDING_COLORS[BUILDING_TYPES.RESTAURANT],
-      type: BUILDING_TYPES.RESTAURANT,
-      name: BUILDING_NAMES[BUILDING_TYPES.RESTAURANT]
-    });
-    
-    // Shopping Mall
-    buildings.push({
-      position: [45, 0, -45],
-      rotation: [0, Math.PI / 12, 0],
-      height: 15,
-      width: 35,
-      depth: 25,
-      color: BUILDING_COLORS[BUILDING_TYPES.SHOPPING_MALL],
-      type: BUILDING_TYPES.SHOPPING_MALL,
-      name: BUILDING_NAMES[BUILDING_TYPES.SHOPPING_MALL]
-    });
-    
-    mapLabels.push({
-      name: BUILDING_NAMES[BUILDING_TYPES.SHOPPING_MALL],
-      position: [45, 0, -45]
-    });
-    
-    // 5. INDUSTRIAL DISTRICT
-    // Factory
-    buildings.push({
-      position: [-70, 0, 60],
-      rotation: [0, Math.PI / 10, 0],
-      height: 15,
-      width: 30,
-      depth: 25,
-      color: BUILDING_COLORS[BUILDING_TYPES.FACTORY],
-      type: BUILDING_TYPES.FACTORY,
-      name: BUILDING_NAMES[BUILDING_TYPES.FACTORY]
-    });
-    
-    mapLabels.push({
-      name: BUILDING_NAMES[BUILDING_TYPES.FACTORY],
-      position: [-70, 0, 60]
-    });
-    
-    // Gas Station
-    buildings.push({
-      position: [-50, 0, 90],
-      rotation: [0, 0, 0],
-      height: 6,
-      width: 15,
-      depth: 10,
-      color: BUILDING_COLORS[BUILDING_TYPES.GAS],
-      type: BUILDING_TYPES.GAS,
-      name: BUILDING_NAMES[BUILDING_TYPES.GAS]
-    });
-    
-    mapLabels.push({
-      name: BUILDING_NAMES[BUILDING_TYPES.GAS],
-      position: [-50, 0, 90]
-    });
-    
-    // Warehouse buildings
-    for (let i = 0; i < 2; i++) {
+    const schoolPos = findValidBuildingPosition(
+      districts.residential.x + 20, 
+      districts.residential.z + 20, 
+      30, 
+      15
+    );
+    if (schoolPos) {
       buildings.push({
-        position: [
-          districts.industrial.x - 20 - i * 30, 
-          0, 
-          districts.industrial.z + i * 20
-        ],
-        rotation: [0, Math.random() * Math.PI / 4 - Math.PI / 8, 0],
+        position: [schoolPos[0], 0, schoolPos[1]],
+        rotation: [0, -Math.PI / 12, 0],
         height: 12,
-        width: 25,
-        depth: 20,
-        color: '#777777',
-        type: BUILDING_TYPES.FACTORY,
-        name: 'Warehouse'
+        width: 30,
+        depth: 15,
+        color: BUILDING_COLORS[BUILDING_TYPES.SCHOOL],
+        type: BUILDING_TYPES.SCHOOL,
+        name: BUILDING_NAMES[BUILDING_TYPES.SCHOOL]
       });
     }
     
-    // INFRASTRUCTURE & AMENITIES
-    // Hospital
-    buildings.push({
-      position: [-20, 0, -60],
-      rotation: [0, 0, 0],
-      height: 18,
-      width: 28,
-      depth: 18,
-      color: BUILDING_COLORS[BUILDING_TYPES.HOSPITAL],
-      type: BUILDING_TYPES.HOSPITAL,
-      name: BUILDING_NAMES[BUILDING_TYPES.HOSPITAL]
-    });
+    // 4. ENTERTAINMENT DISTRICT
+    // Casino
+    const casinoPos = findValidBuildingPosition(
+      districts.entertainment.x + 10, 
+      districts.entertainment.z - 10, 
+      30, 
+      20
+    );
+    if (casinoPos) {
+      buildings.push({
+        position: [casinoPos[0], 0, casinoPos[1]],
+        rotation: [0, Math.PI / 8, 0],
+        height: 25,
+        width: 30,
+        depth: 20,
+        color: BUILDING_COLORS[BUILDING_TYPES.CASINO],
+        type: BUILDING_TYPES.CASINO,
+        name: BUILDING_NAMES[BUILDING_TYPES.CASINO]
+      });
+      
+      mapLabels.push({
+        name: BUILDING_NAMES[BUILDING_TYPES.CASINO],
+        position: [casinoPos[0], 0, casinoPos[1]]
+      });
+    }
     
-    mapLabels.push({
-      name: BUILDING_NAMES[BUILDING_TYPES.HOSPITAL],
-      position: [-20, 0, -60]
-    });
-    
-    // Hotel
-    buildings.push({
-      position: [-40, 0, -30],
-      rotation: [0, Math.PI / 8, 0],
-      height: 30,
-      width: 20,
-      depth: 20,
-      color: BUILDING_COLORS[BUILDING_TYPES.HOTEL],
-      type: BUILDING_TYPES.HOTEL,
-      name: BUILDING_NAMES[BUILDING_TYPES.HOTEL]
-    });
-    
-    mapLabels.push({
-      name: BUILDING_NAMES[BUILDING_TYPES.HOTEL],
-      position: [-40, 0, -30]
-    });
-    
-    // Supermarket
-    buildings.push({
-      position: [20, 0, 60],
-      rotation: [0, -Math.PI / 16, 0],
-      height: 10,
-      width: 30,
-      depth: 20,
-      color: BUILDING_COLORS[BUILDING_TYPES.MARKET],
-      type: BUILDING_TYPES.MARKET,
-      name: BUILDING_NAMES[BUILDING_TYPES.MARKET]
-    });
-    
-    mapLabels.push({
-      name: BUILDING_NAMES[BUILDING_TYPES.MARKET],
-      position: [20, 0, 60]
-    });
-    
-    // Coffee Shop
-    buildings.push({
-      position: [30, 0, 30],
-      rotation: [0, Math.PI / 12, 0],
-      height: 8,
-      width: 15,
-      depth: 15,
-      color: BUILDING_COLORS[BUILDING_TYPES.COFFEE_SHOP],
-      type: BUILDING_TYPES.COFFEE_SHOP,
-      name: BUILDING_NAMES[BUILDING_TYPES.COFFEE_SHOP]
-    });
-    
-    // Library
-    buildings.push({
-      position: [-60, 0, 30],
-      rotation: [0, 0, 0],
-      height: 12,
-      width: 25,
-      depth: 15,
-      color: BUILDING_COLORS[BUILDING_TYPES.LIBRARY],
-      type: BUILDING_TYPES.LIBRARY,
-      name: BUILDING_NAMES[BUILDING_TYPES.LIBRARY]
-    });
-    
-    // Gym
-    buildings.push({
-      position: [10, 0, 90],
-      rotation: [0, Math.PI / 20, 0],
-      height: 10,
-      width: 20,
-      depth: 15,
-      color: BUILDING_COLORS[BUILDING_TYPES.GYM],
-      type: BUILDING_TYPES.GYM,
-      name: BUILDING_NAMES[BUILDING_TYPES.GYM]
-    });
-    
-    // Transport hub
-    buildings.push({
-      position: [-10, 0, -90],
-      rotation: [0, 0, 0],
-      height: 10,
-      width: 35,
-      depth: 20,
-      color: BUILDING_COLORS[BUILDING_TYPES.TRANSPORT_HUB],
-      type: BUILDING_TYPES.TRANSPORT_HUB,
-      name: BUILDING_NAMES[BUILDING_TYPES.TRANSPORT_HUB]
-    });
-    
-    mapLabels.push({
-      name: BUILDING_NAMES[BUILDING_TYPES.TRANSPORT_HUB],
-      position: [-10, 0, -90]
-    });
+    // Nightclub
+    const nightclubPos = findValidBuildingPosition(
+      districts.entertainment.x - 10, 
+      districts.entertainment.z - 20, 
+      25, 
+      15
+    );
+    if (nightclubPos) {
+      buildings.push({
+        position: [nightclubPos[0], 0, nightclubPos[1]],
+        rotation: [0, -Math.PI / 12, 0],
+        height: 18,
+        width: 25,
+        depth: 15,
+        color: BUILDING_COLORS[BUILDING_TYPES.NIGHTCLUB],
+        type: BUILDING_TYPES.NIGHTCLUB,
+        name: BUILDING_NAMES[BUILDING_TYPES.NIGHTCLUB]
+      });
+      
+      mapLabels.push({
+        name: BUILDING_NAMES[BUILDING_TYPES.NIGHTCLUB],
+        position: [nightclubPos[0], 0, nightclubPos[1]]
+      });
+    }
     
     // Add vehicles on roads
     // Define main road coordinates
@@ -2477,7 +2394,7 @@ const City: React.FC<{ onAgentClick: (agent: any) => void, useSimpleRenderer?: b
       { startX: CITY_SIZE / 3, startZ: -CITY_SIZE / 2, endX: CITY_SIZE / 3, endZ: CITY_SIZE / 2 }, // Right North-South
     ];
     
-    // Create more vehicles (cars, taxis, buses)
+    // Create vehicles (cars, taxis, buses)
     for (let i = 0; i < 25; i++) {
       // Choose random road
       const roadIndex = Math.floor(Math.random() * roadCoordinates.length);
@@ -2513,7 +2430,7 @@ const City: React.FC<{ onAgentClick: (agent: any) => void, useSimpleRenderer?: b
     }
     
     // Add NPCs (pedestrians)
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 30; i++) {
       // Place NPCs near buildings or on sidewalks
       
       // Choose a building to place NPC near, or a road for sidewalk
@@ -2604,40 +2521,6 @@ const City: React.FC<{ onAgentClick: (agent: any) => void, useSimpleRenderer?: b
           // Builders near factory or construction sites
           targetBuilding = buildings.find(b => 
             b.type === BUILDING_TYPES.FACTORY
-          );
-          break;
-        case 'Engineer':
-          // Engineers near tech hub or factory
-          targetBuilding = buildings.find(b => 
-            b.type === BUILDING_TYPES.TECH_HUB || 
-            b.type === BUILDING_TYPES.FACTORY
-          );
-          break;
-        case 'Hacker':
-          // Hackers near tech hub or coffee shop
-          targetBuilding = buildings.find(b => 
-            b.type === BUILDING_TYPES.TECH_HUB || 
-            b.type === BUILDING_TYPES.COFFEE_SHOP
-          );
-          break;
-        case 'Mystic':
-          // Mystics near casino or nightclub
-          targetBuilding = buildings.find(b => 
-            b.type === BUILDING_TYPES.CASINO || 
-            b.type === BUILDING_TYPES.NIGHTCLUB
-          );
-          break;
-        case 'Diplomat':
-          // Diplomats near hotel or finance center
-          targetBuilding = buildings.find(b => 
-            b.type === BUILDING_TYPES.HOTEL || 
-            b.type === BUILDING_TYPES.FINANCE
-          );
-          break;
-        case 'Courier':
-          // Couriers near transport hub or roads
-          targetBuilding = buildings.find(b => 
-            b.type === BUILDING_TYPES.TRANSPORT_HUB
           );
           break;
         default:
@@ -2755,13 +2638,13 @@ const City: React.FC<{ onAgentClick: (agent: any) => void, useSimpleRenderer?: b
 // Scene content component with environment and city
 const SceneContent: React.FC<{ 
   onAgentClick: (agent: any) => void, 
-  timeOfDay: string, 
-  setTimeOfDay: (time: string) => void, 
-  onTimeChange: (time: string) => void,
   useSimpleRenderer?: boolean,
   forceLoaded?: boolean
 }> = 
-    ({ onAgentClick, timeOfDay, setTimeOfDay, onTimeChange, useSimpleRenderer = false, forceLoaded = false }) => {
+    ({ onAgentClick, useSimpleRenderer = false, forceLoaded = false }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  // Fix timeOfDay to 'day'
+  const timeOfDay = 'day';
   
   // Rendering state
   const [isRendering, setIsRendering] = useState(false);
@@ -2784,92 +2667,19 @@ const SceneContent: React.FC<{
     return () => clearTimeout(timer);
   }, []);
   
-  // Handle time of day changes
-  const handleTimeChange = (newTime: string) => {
-    setTimeOfDay(newTime);
-    onTimeChange(newTime);
-  };
-  
   // Get appropriate lighting settings based on time of day
   const getLightingSettings = () => {
-    switch (timeOfDay) {
-      case 'day':
-        return {
-          skyColor: '#87ceeb',
-          sunPosition: [1, 0.5, 0] as [number, number, number],
-          ambientIntensity: 0.7,
-          directionalIntensity: 1.2,
-          directionalPosition: [100, 100, 50] as [number, number, number],
-          directionalColor: '#FFFFFF',
-          fogColor: '#1a2e3b',
-          hemisphereArgs: ['#87ceeb', '#3f3f3f', 0.8] as [string, string, number],
-          skyTurbidity: 10,
-          skyRayleigh: 0.5,
-          skyInclination: 0.49,
-          skyAzimuth: 0.25
-        };
-      case 'evening':
-      case 'sunset':
-        return {
-          skyColor: '#FF7F50',
-          sunPosition: [0.3, 0.1, 0] as [number, number, number],
-          ambientIntensity: 0.5,
-          directionalIntensity: 0.8,
-          directionalPosition: [50, 20, 100] as [number, number, number],
-          directionalColor: '#FF7F50',
-          fogColor: '#4B0082',
-          hemisphereArgs: ['#FF7F50', '#4B0082', 0.6] as [string, string, number],
-          skyTurbidity: 6,
-          skyRayleigh: 1,
-          skyInclination: 0.1,
-          skyAzimuth: 0.75
-        };
-      case 'night':
-        return {
-          skyColor: '#000033',
-          sunPosition: [-0.5, -0.2, 0] as [number, number, number],
-          ambientIntensity: 0.2,
-          directionalIntensity: 0.3,
-          directionalPosition: [-50, 20, -100] as [number, number, number],
-          directionalColor: '#3333FF',
-          fogColor: '#000033',
-          hemisphereArgs: ['#000033', '#000011', 0.3] as [string, string, number],
-          skyTurbidity: 20,
-          skyRayleigh: 3,
-          skyInclination: -0.3,
-          skyAzimuth: 0.25
-        };
-      case 'morning':
-        return {
-          skyColor: '#ADD8E6',
-          sunPosition: [0.5, 0.2, 0] as [number, number, number],
-          ambientIntensity: 0.5,
-          directionalIntensity: 0.9,
-          directionalPosition: [80, 40, 50] as [number, number, number],
-          directionalColor: '#FFD580',
-          fogColor: '#ADD8E6',
-          hemisphereArgs: ['#ADD8E6', '#3f3f3f', 0.7] as [string, string, number],
-          skyTurbidity: 8,
-          skyRayleigh: 0.7,
-          skyInclination: 0.2,
-          skyAzimuth: 0.35
-        };
-      default:
-        return {
-          skyColor: '#87ceeb',
-          sunPosition: [1, 0.5, 0] as [number, number, number],
-          ambientIntensity: 0.7,
-          directionalIntensity: 1.2,
-          directionalPosition: [100, 100, 50] as [number, number, number],
-          directionalColor: '#FFFFFF',
-          fogColor: '#1a2e3b',
-          hemisphereArgs: ['#87ceeb', '#3f3f3f', 0.8] as [string, string, number],
-          skyTurbidity: 10,
-          skyRayleigh: 0.5,
-          skyInclination: 0.49,
-          skyAzimuth: 0.25
-        };
-    }
+    // Since timeOfDay is fixed to 'day', just return day settings
+    return {
+      ambientIntensity: 0.8,
+      directionalIntensity: 1.2,
+      directionalPosition: [40, 60, 20] as [number, number, number], // Fix type error
+      skyTurbidity: 10,
+      skyRayleigh: 2,
+      skyInclination: 0.48,
+      skyAzimuth: 0.25,
+      sunPosition: [1, 0.5, 0] as [number, number, number] // Add missing property
+    };
   };
   
   // Extract lighting settings based on time of day
@@ -2893,36 +2703,10 @@ const SceneContent: React.FC<{
             shadow-camera-bottom={-150}
           />
           
-          {timeOfDay === 'night' && (
-            // Street lights (simplified for performance)
-            <group>
-              {Array.from({ length: 9 }).map((_, i) => {
-                const x = Math.floor(i / 3) * BLOCK_SIZE - BLOCK_SIZE;
-                const z = (i % 3) * BLOCK_SIZE - BLOCK_SIZE;
-                return (
-                  <pointLight
-                    key={`light-${i}`}
-                    position={[x, 8, z]}
-                    intensity={0.8}
-                    distance={50}
-                    color="#FFE6A0"
-                    castShadow={false}
-                  />
-                );
-              })}
-              
-              {/* Additional lights at corners of major buildings */}
-              <pointLight position={[-BLOCK_SIZE, 8, -BLOCK_SIZE]} intensity={1} distance={50} color="#FFE6A0" />
-              <pointLight position={[BLOCK_SIZE, 8, -BLOCK_SIZE]} intensity={1} distance={50} color="#FFE6A0" />
-              <pointLight position={[-BLOCK_SIZE, 8, BLOCK_SIZE]} intensity={1} distance={50} color="#FFE6A0" />
-              <pointLight position={[BLOCK_SIZE, 8, BLOCK_SIZE]} intensity={1} distance={50} color="#FFE6A0" />
-            </group>
-          )}
-          
-          {/* Environment */}
-          <Sky 
-            distance={3000} 
-            sunPosition={lightSettings.sunPosition} 
+          {/* Sky with dynamic settings */}
+          <Sky
+            distance={450000}
+            sunPosition={lightSettings.sunPosition}
             turbidity={lightSettings.skyTurbidity}
             rayleigh={lightSettings.skyRayleigh}
             mieCoefficient={0.005}
@@ -2931,17 +2715,13 @@ const SceneContent: React.FC<{
             azimuth={lightSettings.skyAzimuth}
           />
           
-          {/* Clouds if not night */}
-          {timeOfDay !== 'night' && (
-            <>
-              <Cloud position={[-100, 50, -100]} speed={0.2} opacity={0.3} />
-              <Cloud position={[100, 60, 100]} speed={0.1} opacity={0.2} />
-              <Cloud position={[0, 70, -150]} speed={0.3} opacity={0.4} />
-            </>
-          )}
+          {/* Always show clouds since it's daytime */}
+          <Cloud position={[-100, 50, -100]} speed={0.2} opacity={0.3} />
+          <Cloud position={[100, 60, 100]} speed={0.1} opacity={0.2} />
+          <Cloud position={[0, 70, -150]} speed={0.3} opacity={0.4} />
           
           {/* Environment map for reflections */}
-          <Environment preset={timeOfDay === 'night' ? "night" : "city"} />
+          <Environment preset="city" />
           
           {/* City model with all buildings, vehicles, NPCs, and agents */}
           <React.Suspense fallback={
@@ -2970,36 +2750,6 @@ const SceneContent: React.FC<{
               useSimpleRenderer={useSimpleRenderer} 
             />
           </React.Suspense>
-          
-          {/* Time controls */}
-          <Html position={[0, 5, -40]} center>
-            <div className="p-2 bg-black/60 rounded-lg backdrop-blur-sm flex gap-2 border border-white/10">
-              <button 
-                onClick={() => handleTimeChange('morning')}
-                className={`px-2 py-1 text-xs transition-colors ${timeOfDay === 'morning' ? 'bg-blue-500 text-white' : 'bg-black/40 text-white/80 hover:bg-blue-500/30'} rounded`}
-              >
-                Morning
-              </button>
-              <button 
-                onClick={() => handleTimeChange('day')}
-                className={`px-2 py-1 text-xs transition-colors ${timeOfDay === 'day' ? 'bg-yellow-500 text-white' : 'bg-black/40 text-white/80 hover:bg-yellow-500/30'} rounded`}
-              >
-                Day
-              </button>
-              <button 
-                onClick={() => handleTimeChange('evening')}
-                className={`px-2 py-1 text-xs transition-colors ${timeOfDay === 'evening' ? 'bg-orange-500 text-white' : 'bg-black/40 text-white/80 hover:bg-orange-500/30'} rounded`}
-              >
-                Evening
-              </button>
-              <button 
-                onClick={() => handleTimeChange('night')}
-                className={`px-2 py-1 text-xs transition-colors ${timeOfDay === 'night' ? 'bg-purple-900 text-white' : 'bg-black/40 text-white/80 hover:bg-purple-900/30'} rounded`}
-              >
-                Night
-              </button>
-            </div>
-          </Html>
         </>
       ) : (
         // Simple placeholder sphere while loading
@@ -3037,10 +2787,8 @@ const FallbackScene = () => {
 // Main game scene component
 const MainGameScene: React.FC<ClientGameSceneProps> = ({ 
   onAgentClick = () => {}, 
-  onTimeChange = () => {},
   forceLoaded = false
 }) => {
-  const [timeOfDay, setTimeOfDay] = useState('day');
   const [useSimpleRenderer, setUseSimpleRenderer] = useState(false);
   const [error, setError] = useState(false);
   
@@ -3093,9 +2841,6 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({
         
         <SceneContent 
           onAgentClick={onAgentClick} 
-          timeOfDay={timeOfDay}
-          setTimeOfDay={setTimeOfDay}
-          onTimeChange={onTimeChange}
           useSimpleRenderer={useSimpleRenderer}
           forceLoaded={forceLoaded}
         />
@@ -3119,8 +2864,8 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({
 };
 
 // Export the main scene component
-const ClientGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick, onTimeChange, forceLoaded }) => {
-  return <MainGameScene onAgentClick={onAgentClick} onTimeChange={onTimeChange} forceLoaded={forceLoaded} />;
+const ClientGameScene: React.FC<ClientGameSceneProps> = ({ onAgentClick, forceLoaded }) => {
+  return <MainGameScene onAgentClick={onAgentClick} forceLoaded={forceLoaded} />;
 };
 
 export default ClientGameScene;
