@@ -217,18 +217,6 @@ export const resetWebGLContext = (): void => {
           }
         }
       } catch (e) {}
-      
-      // Replace the canvas (brute force approach)
-      try {
-        if (canvas.parentNode) {
-          const newCanvas = document.createElement('canvas');
-          newCanvas.width = canvas.width;
-          newCanvas.height = canvas.height;
-          newCanvas.className = canvas.className;
-          newCanvas.id = canvas.id;
-          canvas.parentNode.replaceChild(newCanvas, canvas);
-        }
-      } catch (e) {}
     });
     
     // Force a repaint
@@ -343,8 +331,13 @@ export function getWebGLInfo(): {
       vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
     }
     
-    // Get max texture size
-    maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+    // Get max texture size safely
+    try {
+      maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+    } catch (e) {
+      console.warn("Failed to get MAX_TEXTURE_SIZE:", e);
+      maxTextureSize = 0;
+    }
     
     return {
       available: true,
@@ -353,6 +346,7 @@ export function getWebGLInfo(): {
       maxTextureSize
     };
   } catch (e) {
+    console.error("Error getting WebGL info:", e);
     return { available: false };
   }
 } 
