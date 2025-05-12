@@ -151,6 +151,15 @@ interface AgentData {
   level: number;
 }
 
+// Create a ref for storing map data to be accessible by various components
+const mapDataRef = React.createRef<{
+  buildings: BuildingProps[];
+  npcs: NPCProps[];
+  vehicles: VehicleProps[];
+  agents: AgentProps[];
+  mapLabels: {name: string; position: [number, number, number]}[];
+}>();
+
 // Error boundary to catch rendering errors
 class ErrorBoundary extends React.Component<{
   children: React.ReactNode, 
@@ -415,13 +424,13 @@ const Agent: React.FC<AgentProps> = ({ position, color, speed, agentData, onAgen
   
   // Check if a position is inside a building
   const isInsideBuilding = (x: number, z: number): boolean => {
-    // Get reference to city's building list through mapData
-    const buildingsList = mapData?.buildings || [];
+    // Get reference to city's building list through mapDataRef
+    const buildingsList = mapDataRef.current?.buildings || [];
     
     // Add a small buffer around buildings to prevent getting too close
     const buffer = 3;
     
-    return buildingsList.some(building => {
+    return buildingsList.some((building: BuildingProps) => {
       const [bx, , bz] = building.position;
       
       // Calculate half dimensions with buffer
@@ -1774,7 +1783,7 @@ const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
     Array.isArray(position) && position.length >= 3 ? position[1] : 0,
     Array.isArray(position) && position.length >= 3 ? position[2] : 0
   ));
-  const [state, setState] = useState<'idle' | 'walking' | 'sitting' | 'talking' | 'shopping'>(
+  const [npcState, setState] = useState<'idle' | 'walking' | 'sitting' | 'talking' | 'shopping'>(
     Math.random() > 0.7 ? 'idle' : 'walking'
   );
   const [stateTimer, setStateTimer] = useState(Math.random() * 3);
@@ -1905,13 +1914,13 @@ const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
   
   // Check if a position is inside a building
   const isInsideBuilding = (x: number, z: number): boolean => {
-    // Get reference to city's building list through mapData
-    const buildingsList = mapData?.buildings || [];
+    // Get reference to city's building list through mapDataRef
+    const buildingsList = mapDataRef.current?.buildings || [];
     
     // Add a small buffer around buildings to prevent getting too close
     const buffer = 3;
     
-    return buildingsList.some(building => {
+    return buildingsList.some((building: BuildingProps) => {
       const [bx, , bz] = building.position;
       
       // Calculate half dimensions with buffer
@@ -1930,7 +1939,7 @@ const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
   // Update target when NPC reaches current target or changes state
   const updateTarget = () => {
     // Only get new target if walking
-    if (state !== 'walking') return;
+    if (npcState !== 'walking') return;
     
     // Decide if heading to a gathering point or random sidewalk
     const goToGatheringPoint = Math.random() > 0.6; // 40% chance to head to a gathering point
@@ -2028,11 +2037,11 @@ const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
   }, [stateTimer]);
   
   // Update NPC position and animation 
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
     if (!meshRef.current) return;
     
     // Update idle timer if we're idle
-    if (state === 'idle') {
+    if (npcState === 'idle') {
       setStateTimer(prev => {
         const newTimer = prev - delta;
         if (newTimer <= 0) {
@@ -2120,14 +2129,14 @@ const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
       </mesh>
       
       {/* State indicators */}
-      {state === 'talking' && (
+      {npcState === 'talking' && (
         <mesh position={[0, 1.1, 0]} castShadow>
           <sphereGeometry args={[0.08, 8, 8]} />
           <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.5} />
         </mesh>
       )}
       
-      {state === 'shopping' && (
+      {npcState === 'shopping' && (
         <mesh position={[0.3, 0.4, 0.1]} castShadow rotation={[0, 0, Math.PI/4]}>
           <boxGeometry args={[0.2, 0.3, 0.1]} />
           <meshStandardMaterial color="#f0f0f0" />
@@ -2909,14 +2918,24 @@ const City: React.FC<{ onAgentClick: (agent: any) => void, useSimpleRenderer?: b
     });
     
     // Set the generated map data
-    setMapData({
+    const newMapData = {
       buildings,
       npcs,
       vehicles,
       agents,
       mapLabels
-    });
+    };
+    
+    setMapData(newMapData);
+    mapDataRef.current = newMapData;
   }, [onAgentClick]);
+  
+  // Update mapDataRef whenever mapData changes
+  useEffect(() => {
+    if (mapData) {
+      mapDataRef.current = mapData;
+    }
+  }, [mapData]);
   
   if (!mapData) return null;
   

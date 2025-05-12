@@ -1,7 +1,7 @@
 // City dimensions
-export const CITY_SIZE = 250; // Overall city size
-export const BLOCK_SIZE = 45; // Size of city blocks
-export const ROAD_WIDTH = 12; // Width of roads
+export const CITY_SIZE = 240; // Overall city size
+export const BLOCK_SIZE = 60; // Size of city blocks
+export const ROAD_WIDTH = 20; // Width of roads
 
 // Building parameters
 export const MIN_BUILDING_HEIGHT = 8;
