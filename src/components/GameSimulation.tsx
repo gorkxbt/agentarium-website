@@ -14,22 +14,37 @@ declare global {
   }
 }
 
-// Define the interface for the ClientGameScene props
-interface ClientGameSceneProps {
-  onAgentClick?: (agent: any) => void;
-  onTimeChange?: (timeOfDay: string) => void;
-  forceLoaded?: boolean;
-  qualityLevel?: 'high' | 'medium';
-}
-
-// Dynamically import the ClientGameScene to avoid SSR
-const ClientGameScene = dynamic(
-  () => import('./game/ClientGameScene'),
-  { 
-    ssr: false,
-    loading: () => <LoadingScreen />
-  }
-);
+// Import the client component with no SSR and proper basic renderer
+const ClientGameScene = dynamic(() => import('./game/ClientGameScene'), { 
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full bg-agent-dark-gray flex items-center justify-center">
+      <div className="text-white text-center p-8 bg-black/40 rounded-lg backdrop-blur-sm border border-white/10 max-w-md">
+        <h3 className="text-2xl font-bold mb-4">Loading Agentarium City...</h3>
+        <p className="mb-4">The 3D simulation is initializing...</p>
+        <div className="mt-6 w-20 h-20 border-t-4 border-agent-green rounded-full animate-spin mx-auto"></div>
+        <p className="text-xs mt-8 text-agent-green/80">This may take a moment on first load.</p>
+        <div className="mt-6 flex justify-center space-x-4">
+          <button 
+            onClick={() => {
+              localStorage.setItem('agentarium_reduced_quality', 'true');
+              window.location.reload();
+            }}
+            className="px-4 py-2 bg-purple-600/90 text-white rounded-md hover:bg-purple-600"
+          >
+            Low Quality Mode
+          </button>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-agent-green/20 text-agent-green border border-agent-green/30 rounded-md hover:bg-agent-green/30 transition-colors"
+          >
+            Reload
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+});
 
 // Guide component
 function SimulationGuide({ onClose }: { onClose: () => void }) {
@@ -290,20 +305,16 @@ function AgentDetailsPanel({ agent, onClose }: { agent: any | null, onClose: () 
   );
 }
 
-// Error boundary component
-class ErrorBoundary extends Component<{
-  children: React.ReactNode;
-  fallback: React.ReactNode;
-}> {
+// Error boundary to catch rendering errors
+class ErrorBoundary extends Component<{children: React.ReactNode, fallback: React.ReactNode}> {
   state = { hasError: false, error: null };
   
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+  
   componentDidCatch(error: any, errorInfo: any) {
-    console.error("Rendering error in GameSimulation:", error, errorInfo);
-    
-    // Set a cookie to indicate a WebGL error occurred
-    document.cookie = "webgl_error=true; path=/; max-age=3600";
-    
-    this.setState({ hasError: true, error });
+    console.error("Error in 3D scene:", error, errorInfo);
   }
   
   render() {
@@ -337,35 +348,52 @@ const LoadingScreen = () => {
   }, [loadingTime]);
   
   // Show additional options if loading takes too long
-  const showAdditionalOptions = loadingTime > 5;
+  const showAdditionalOptions = loadingTime > 6;
   
   return (
-    <div className="w-full h-full bg-agent-dark-gray flex flex-col items-center justify-center">
-      <h3 className="text-2xl font-bold mb-4">Loading Agentarium City...</h3>
-      <p className="mb-4">The 3D simulation is initializing...</p>
-      <div className="mt-6 w-20 h-20 border-t-4 border-agent-green rounded-full animate-spin mx-auto"></div>
-      
-      {showAdditionalOptions && (
-        <>
-          <div className="mt-6 w-64 bg-gray-700/30 h-2 rounded-full">
-            <div className="bg-agent-green h-full rounded-full" style={{ width: `${Math.min(100, loadingTime * 8)}%` }}></div>
-          </div>
-          <p className="text-xs mt-4 text-yellow-400/80">
-            Loading is taking longer than usual.
-          </p>
-          <div className="mt-4 flex justify-center gap-3">
-            <button 
-              onClick={() => {
-                // Redirect to our special WebGL initialization page
-                window.location.href = '/webgl-init.html';
-              }}
-              className="px-4 py-2 bg-agent-green/20 text-agent-green border border-agent-green/30 rounded-md hover:bg-agent-green/30 transition-colors"
-            >
-              Initialize WebGL
-            </button>
-          </div>
-        </>
-      )}
+    <div className="w-full h-full bg-agent-dark-gray flex items-center justify-center">
+      <div className="text-white text-center p-8 bg-black/40 rounded-lg backdrop-blur-sm border border-white/10 max-w-md">
+        <h3 className="text-2xl font-bold mb-4">Loading Agentarium City...</h3>
+        <p className="mb-4">The 3D simulation is initializing...</p>
+        <div className="mt-6 w-20 h-20 border-t-4 border-agent-green rounded-full animate-spin mx-auto"></div>
+        
+        {showAdditionalOptions ? (
+          <>
+            <div className="mt-6 w-full bg-gray-700/30 h-2 rounded-full">
+              <div className="bg-agent-green h-full rounded-full" style={{ width: `${Math.min(100, loadingTime * 6)}%` }}></div>
+            </div>
+            <p className="text-xs mt-4 text-yellow-400/80">
+              Loading is taking longer than usual. You can try these options:
+            </p>
+            <div className="mt-4 flex flex-col md:flex-row justify-center gap-3">
+              <button 
+                onClick={() => {
+                  localStorage.setItem('agentarium_reduced_quality', 'true');
+                  window.location.reload();
+                }}
+                className="px-4 py-2 bg-purple-600/90 text-white rounded-md hover:bg-purple-600"
+              >
+                Low Quality Mode
+              </button>
+              <button 
+                onClick={() => {
+                  // Call resetWebGL function if available on window
+                  if (typeof window !== 'undefined' && window.resetWebGL) {
+                    window.resetWebGL();
+                  } else {
+                    window.location.reload();
+                  }
+                }}
+                className="px-4 py-2 bg-agent-green/20 text-agent-green border border-agent-green/30 rounded-md hover:bg-agent-green/30 transition-colors"
+              >
+                Reset & Continue
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="text-xs mt-8 text-agent-green/80">First load may take a moment...</p>
+        )}
+      </div>
     </div>
   );
 };
@@ -376,16 +404,23 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
   const [showIntro, setShowIntro] = useState(true);
   const [showGuide, setShowGuide] = useState(false);
   const [showControls, setShowControls] = useState(false);
+  const [timeOfDay, setTimeOfDay] = useState('day');
+  const [useReducedQuality, setUseReducedQuality] = useState(false);
+  const [loadingRetries, setLoadingRetries] = useState(0);
   const [forceLoaded, setForceLoaded] = useState(false);
   const sceneRef = useRef<HTMLDivElement>(null);
   
-  // Handle page refresh
-  const handlePageRefresh = () => {
-    window.location.reload();
-  };
-  
   // Apply WebGL optimizations on mount
   useEffect(() => {
+    // Check if reduced quality was selected previously
+    const storedQualityPref = localStorage.getItem('agentarium_reduced_quality');
+    if (storedQualityPref === 'true') {
+      setUseReducedQuality(true);
+    }
+    
+    // Ensure WebGL is properly initialized
+    fixBlackScreen();
+    
     // Force a hardware acceleration trigger
     if (sceneRef.current) {
       sceneRef.current.style.transform = 'translateZ(0)';
@@ -396,13 +431,6 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
       sceneRef.current.style.minHeight = '600px';
     }
     
-    // Check if we need to use the WebGL initialization page
-    const hasWebGLError = document.cookie.includes('webgl_error=true');
-    if (hasWebGLError) {
-      // Set cookie to redirect to WebGL init page
-      document.cookie = "use_webgl_init=true; path=/; max-age=3600";
-    }
-    
     // Add global reset function
     window.resetWebGL = () => {
       console.log("Force loading the scene...");
@@ -410,14 +438,98 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
       resetWebGLContext();
     };
     
-    // Cleanup function
-    return () => {
-      if (window.resetWebGL) {
-        window.resetWebGL = undefined;
+    // Add global error handler for WebGL issues
+    const handleWebGLError = (event: ErrorEvent) => {
+      if (event.message && (
+        event.message.includes('WebGL') || 
+        event.message.includes('GL_') || 
+        event.message.includes('GPU process') ||
+        event.message.includes('threejs') ||
+        event.message.includes('context')
+      )) {
+        console.error("WebGL error detected:", event.message);
+        
+        // If we're already using reduced quality but still having issues, 
+        // retry with a forced delay to give GPU time to initialize
+        if (useReducedQuality) {
+          setLoadingRetries(prev => prev + 1);
+          resetWebGLContext();
+        } else {
+          // Try reduced quality if normal mode fails
+          setUseReducedQuality(true);
+          localStorage.setItem('agentarium_reduced_quality', 'true');
+          resetWebGLContext();
+        }
       }
     };
-  }, []);
+    
+    window.addEventListener('error', handleWebGLError);
+    
+    // Set a backup timer to force load after 8 seconds if still loading
+    const loadingTimer = setTimeout(() => {
+      setForceLoaded(true);
+      if (window.resetWebGL) window.resetWebGL();
+    }, 8000);
+    
+    return () => {
+      window.removeEventListener('error', handleWebGLError);
+      clearTimeout(loadingTimer);
+    };
+  }, [useReducedQuality]);
   
+  // Reset WebGL if retries are needed
+  useEffect(() => {
+    if (loadingRetries > 0 && loadingRetries < 3) {
+      resetWebGLContext();
+      console.log(`Retry attempt ${loadingRetries} to initialize WebGL`);
+      
+      // Force load after 2 retries
+      if (loadingRetries >= 2) {
+        setForceLoaded(true);
+      }
+    }
+  }, [loadingRetries]);
+  
+  // Handle agent selection
+  const handleAgentClick = (agent: any) => {
+    setSelectedAgent(agent);
+    
+    if (onAgentSelect) {
+      onAgentSelect(agent.role);
+    }
+  };
+  
+  // Close agent details panel
+  const closeAgentDetails = () => {
+    setSelectedAgent(null);
+  };
+  
+  // Handle time changes
+  const handleTimeChange = (time: string) => {
+    setTimeOfDay(time);
+    onAgentSelect && onAgentSelect(time);
+  };
+  
+  // Handle page refresh
+  const handlePageRefresh = () => {
+    localStorage.removeItem('agentarium_reduced_quality');
+    window.location.reload();
+  };
+  
+  // Switch to reduced quality mode
+  const handleReducedQuality = () => {
+    localStorage.setItem('agentarium_reduced_quality', 'true');
+    setUseReducedQuality(true);
+    resetWebGLContext();
+    window.location.reload();
+  };
+  
+  // Force continue even if not fully loaded
+  const handleForceContinue = () => {
+    setForceLoaded(true);
+    if (window.resetWebGL) window.resetWebGL();
+  };
+
   return (
     <div 
       className="w-full relative overflow-hidden mx-auto my-4 bg-agent-black/95 rounded-xl shadow-xl border border-white/5" 
@@ -427,7 +539,7 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
         maxHeight: '80vh',
         minWidth: '800px',
         maxWidth: '95%',
-        aspectRatio: '16 / 9'
+        aspectRatio: '16 / 9' // More standard widescreen ratio
       }} 
       ref={sceneRef}
     >
@@ -459,12 +571,12 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
               <span className="block mt-2 text-agent-green">Navigate the city, observe agent behaviors, and see how they interact with buildings and NPCs.</span>
             </motion.p>
             
-            <motion.button 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 2, duration: 0.5 }}
+            <motion.button
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.5, duration: 0.5 }}
               onClick={() => setShowIntro(false)}
-              className="mt-8 px-6 py-3 bg-agent-green font-medium text-black rounded-md hover:bg-agent-green/90 transition-colors shadow-lg shadow-agent-green/20"
+              className="mt-6 px-4 py-2 bg-agent-green/20 text-agent-green border border-agent-green/30 rounded-md hover:bg-agent-green/30 transition-colors"
             >
               Enter City Simulation
             </motion.button>
@@ -489,6 +601,40 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
         >
           <span className="text-white/80 text-xs">Guide</span>
         </button>
+      </div>
+      
+      {/* Social links */}
+      <div className="absolute top-4 right-4 z-10 flex space-x-2">
+        <a 
+          href="https://t.me/agentarium" 
+          target="_blank"
+          rel="noopener noreferrer" 
+          className="flex items-center justify-center w-8 h-8 rounded-full bg-agent-dark-gray/60 backdrop-blur-sm hover:bg-agent-gray transition-colors"
+        >
+          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+          </svg>
+        </a>
+        <a 
+          href="https://github.com/gorkxbt/agentarium-website" 
+          target="_blank"
+          rel="noopener noreferrer" 
+          className="flex items-center justify-center w-8 h-8 rounded-full bg-agent-dark-gray/60 backdrop-blur-sm hover:bg-agent-gray transition-colors"
+        >
+          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+            <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
+          </svg>
+        </a>
+        <a 
+          href="https://twitter.com/agentarium" 
+          target="_blank"
+          rel="noopener noreferrer" 
+          className="flex items-center justify-center w-8 h-8 rounded-full bg-agent-dark-gray/60 backdrop-blur-sm hover:bg-agent-gray transition-colors"
+        >
+          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84" />
+          </svg>
+        </a>
       </div>
       
       {/* Legend */}
@@ -519,6 +665,36 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
         </div>
       </div>
       
+      {/* Time of day indicator */}
+      <div className="absolute bottom-4 right-4 z-10">
+        <div className="px-3 py-2 bg-agent-black/60 backdrop-blur-sm rounded-lg border border-white/10 flex items-center space-x-2">
+          {timeOfDay === 'day' && (
+            <>
+              <svg className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+              </svg>
+              <span className="text-white/80 text-xs">Daytime</span>
+            </>
+          )}
+          {timeOfDay === 'sunset' && (
+            <>
+              <svg className="w-4 h-4 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+              </svg>
+              <span className="text-white/80 text-xs">Sunset</span>
+            </>
+          )}
+          {timeOfDay === 'night' && (
+            <>
+              <svg className="w-4 h-4 text-indigo-300" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+              </svg>
+              <span className="text-white/80 text-xs">Night</span>
+            </>
+          )}
+        </div>
+      </div>
+      
       {/* Controls for WebGL optimization */}
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 flex items-center space-x-2">
         <button
@@ -546,6 +722,13 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
               </button>
               
               <button
+                onClick={handleReducedQuality}
+                className="px-3 py-2 bg-purple-600/60 backdrop-blur-sm rounded-md text-white text-sm hover:bg-purple-600/70 transition-colors"
+              >
+                {useReducedQuality ? "Already Using Low Quality" : "Reduce Quality"}
+              </button>
+              
+              <button
                 onClick={handlePageRefresh}
                 className="px-3 py-2 bg-blue-600/60 backdrop-blur-sm rounded-md text-white text-sm hover:bg-blue-600/70 transition-colors"
               >
@@ -570,48 +753,68 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
         }}
       >
         <ErrorBoundary fallback={
-          <div className="w-full h-full bg-agent-dark-gray flex flex-col items-center justify-center p-6 text-center">
-            <h3 className="text-xl font-bold mb-4">3D Rendering Error</h3>
-            <p className="mb-5">We encountered an issue loading the 3D simulation.</p>
-            <div className="flex flex-wrap justify-center gap-4 mb-8">
-              <button 
-                onClick={handlePageRefresh}
-                className="px-4 py-2 bg-agent-green/90 text-black rounded-md hover:bg-agent-green transition-colors"
-              >
-                Refresh Page
-              </button>
-              
-              <button 
-                onClick={() => {
-                  window.location.href = '/webgl-init.html';
-                }}
-                className="px-4 py-2 bg-blue-600/90 text-white rounded-md hover:bg-blue-600 transition-colors"
-              >
-                Initialize WebGL
-              </button>
+          <div className="w-full h-full bg-agent-dark-gray flex items-center justify-center">
+            <div className="text-white text-center p-8 max-w-md bg-black/40 rounded-lg backdrop-blur-sm border border-white/10">
+              <h3 className="text-xl font-bold mb-4">3D Rendering Error</h3>
+              <p className="mb-5">We encountered an issue loading the 3D simulation. This could be due to WebGL support, browser settings, or graphics drivers.</p>
+              <div className="flex flex-wrap justify-center gap-4">
+                <button 
+                  onClick={handlePageRefresh}
+                  className="px-4 py-2 bg-agent-green/90 text-black rounded-md hover:bg-agent-green transition-colors"
+                >
+                  Refresh Page
+                </button>
+                
+                <button 
+                  onClick={handleReducedQuality}
+                  className="px-4 py-2 bg-purple-600/90 text-white rounded-md hover:bg-purple-600 transition-colors"
+                >
+                  Reduce Graphics Quality
+                </button>
+              </div>
+              <p className="text-white/60 text-sm mt-6">
+                Tip: Try enabling hardware acceleration in your browser settings
+              </p>
             </div>
-            
-            <p className="text-white/60 text-sm mt-6">
-              Tip: Try enabling hardware acceleration in your browser settings
-            </p>
           </div>
         }>
-          <ClientGameScene 
-            forceLoaded={forceLoaded}
-            onAgentClick={(agent) => {
-              setSelectedAgent(agent);
-              if (onAgentSelect) {
-                onAgentSelect(agent.role);
-              }
-            }}
-          />
+          <React.Suspense fallback={
+            <div className="w-full h-full bg-agent-dark-gray flex items-center justify-center">
+              <div className="text-white text-center p-8 bg-black/40 rounded-lg backdrop-blur-sm border border-white/10 max-w-md">
+                <h3 className="text-2xl font-bold mb-4">Loading Agentarium City...</h3>
+                <p className="mb-4">The 3D simulation is initializing...</p>
+                <div className="mt-6 w-20 h-20 border-t-4 border-agent-green rounded-full animate-spin mx-auto"></div>
+                <p className="text-xs mt-8 text-agent-green/80">This may take a moment on first load.</p>
+                <div className="mt-6 flex justify-center space-x-4">
+                  <button 
+                    onClick={handleReducedQuality}
+                    className="px-4 py-2 bg-purple-600/90 text-white rounded-md hover:bg-purple-600"
+                  >
+                    Low Quality Mode
+                  </button>
+                  <button 
+                    onClick={handleForceContinue}
+                    className="px-4 py-2 bg-agent-green/20 text-agent-green border border-agent-green/30 rounded-md hover:bg-agent-green/30 transition-colors"
+                  >
+                    Continue Anyway
+                  </button>
+                </div>
+              </div>
+            </div>
+          }>
+            <ClientGameScene 
+              onAgentClick={handleAgentClick} 
+              onTimeChange={handleTimeChange}
+              forceLoaded={forceLoaded}
+            />
+          </React.Suspense>
         </ErrorBoundary>
       </div>
       
       {/* Selected Agent Details Panel */}
       <AnimatePresence>
         {selectedAgent && (
-          <AgentDetailsPanel agent={selectedAgent} onClose={() => setSelectedAgent(null)} />
+          <AgentDetailsPanel agent={selectedAgent} onClose={closeAgentDetails} />
         )}
       </AnimatePresence>
     </div>
