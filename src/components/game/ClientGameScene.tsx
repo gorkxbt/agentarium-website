@@ -15,6 +15,13 @@ import {
 } from '@react-three/drei';
 import * as THREE from 'three';
 import { isWebGLAvailable, resetWebGLContext } from '@/utils/webgl-helper';
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import * as THREE from 'three';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Text, OrbitControls, Sky, Float, useAnimations, useGLTF } from '@react-three/drei';
+import React from 'react';
+import { CITY_SIZE, BLOCK_SIZE, ROAD_WIDTH } from './CityConstants';
+import { getRoadPoints, getParkingSpots, isOnRoad, findNearestRoadPoint, isInsideBlock } from './VehicleLogic';
 
 // Add interface extension for Window type
 declare global {
@@ -93,8 +100,8 @@ if (typeof window !== 'undefined') {
         }
       });
       
-      // Force a reload after a short delay
-      setTimeout(() => window.location.reload(), 500);
+      // Don't force reload to prevent game disappearing
+      // setTimeout(() => window.location.reload(), 500);
     };
   } catch (e) {
     console.warn('Failed pre-initialization of WebGL context', e);
@@ -487,9 +494,9 @@ const Agent: React.FC<AgentProps> = ({ position, color, speed, agentData, onAgen
           return;
         }
         
-        // Calculate next position
+        // Calculate next position with reduced speed to make movements more visible
         const nextPosition = new THREE.Vector3().copy(meshRef.current.position);
-        direction.normalize().multiplyScalar(delta * speed);
+        direction.normalize().multiplyScalar(delta * speed * 0.5); // Reduced speed multiplier
         nextPosition.add(direction);
         
         // Check if next position is valid (not inside a building)
@@ -1318,16 +1325,41 @@ const Building: React.FC<BuildingProps> = ({
 };
 
 // Vehicle component
-const Vehicle: React.FC<VehicleProps> = ({ position, color, type, speed }) => {
+const Vehicle: React.FC<VehicleProps> = ({ position, color = "#ff0000", type = 'car', speed = 5 }) => {
   const meshRef = useRef<THREE.Group>(null);
-  const targetRef = useRef(new THREE.Vector3(
-    Array.isArray(position) && position.length >= 3 ? position[0] + (Math.random() * 100 - 50) : 0,
-    Array.isArray(position) && position.length >= 3 ? position[1] : 0,
-    Array.isArray(position) && position.length >= 3 ? position[2] + (Math.random() * 100 - 50) : 0
-  ));
-  const [isParked, setIsParked] = useState(Math.random() > 0.7); // 30% chance to start parked
-  const [parkingTimer, setParkingTimer] = useState(0);
-  const [currentLane, setCurrentLane] = useState(Math.random() > 0.5 ? 1 : -1); // Left or right lane
+  const targetRef = useRef(new THREE.Vector3(position[0], position[1], position[2]));
+  const [isParked, setIsParked] = useState(false);
+  const [parkingTimer, setParkingTimer] = useState(Math.random() < 0.3 ? 10 + Math.random() * 20 : 0);
+  const [currentLane, setCurrentLane] = useState(Math.random() > 0.5 ? 1 : -1);
+  
+  // Keep references to road and parking points
+  const roadPointsRef = useRef<THREE.Vector3[]>([]);
+  const parkingSpotsRef = useRef<THREE.Vector3[]>([]);
+  
+  // Initialize vehicle target and points
+  useEffect(() => {
+    try {
+      // Generate road and parking spots
+      const roadPoints = getRoadPoints();
+      const parkingSpots = getParkingSpots();
+      
+      roadPointsRef.current = roadPoints;
+      parkingSpotsRef.current = parkingSpots;
+      
+      // Set initial target based on vehicle state
+      if (parkingTimer > 0) {
+        // Find a parking spot to target
+        const randomParkingIndex = Math.floor(Math.random() * parkingSpots.length);
+        targetRef.current.copy(parkingSpots[randomParkingIndex]);
+      } else {
+        // Find a road point to target
+        const randomRoadIndex = Math.floor(Math.random() * roadPoints.length);
+        targetRef.current.copy(roadPoints[randomRoadIndex]);
+      }
+    } catch (error) {
+      console.error("Error initializing vehicle:", error);
+    }
+  }, []);
   
   // List of possible destinations (road points)
   const roadPoints = useMemo(() => {
@@ -1486,7 +1518,9 @@ const Vehicle: React.FC<VehicleProps> = ({ position, color, type, speed }) => {
           const newTimer = prev - delta;
           if (newTimer <= 0) {
             setIsParked(false);
-            updateTarget();
+            // Choose a road point when leaving parking
+            const roadPoint = roadPoints[Math.floor(Math.random() * roadPoints.length)];
+            targetRef.current.copy(roadPoint);
             return 0;
           }
           return newTimer;
@@ -1501,7 +1535,7 @@ const Vehicle: React.FC<VehicleProps> = ({ position, color, type, speed }) => {
         return;
       }
       
-      // Move towards target when not parked
+      // Move towards target when not parked - reduce speed to make movement more visible
       const direction = new THREE.Vector3().subVectors(targetRef.current, meshRef.current.position);
       
       // If close to target, update target unless parking
@@ -1520,8 +1554,8 @@ const Vehicle: React.FC<VehicleProps> = ({ position, color, type, speed }) => {
         targetRef.current.copy(nearestRoadPoint);
       }
       
-      // Calculate next position
-      direction.normalize().multiplyScalar(delta * speed);
+      // Calculate next position with slower speed
+      direction.normalize().multiplyScalar(delta * speed * 0.5); // Reduced speed multiplier
       meshRef.current.position.add(direction);
       
       // Rotate to face direction of movement
@@ -1967,7 +2001,7 @@ const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
       // Reset height if was sitting
       meshRef.current.position.y = position[1] + Math.sin(frameState.clock.getElapsedTime() * 5) * 0.05;
       
-      // Move towards target
+      // Move towards target with slower speed
       const direction = new THREE.Vector3().subVectors(targetRef.current, meshRef.current.position);
       
       // If close to target, become idle
@@ -1988,8 +2022,8 @@ const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
         }
       }
       
-      // Calculate next position
-      direction.normalize().multiplyScalar(delta * speed);
+      // Calculate next position with reduced speed
+      direction.normalize().multiplyScalar(delta * speed * 0.5); // Reduced speed multiplier
       
       // Calculate next position
       const nextPosition = new THREE.Vector3().copy(meshRef.current.position).add(direction);
@@ -3049,8 +3083,11 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({
           depth: true,
           stencil: false,
           powerPreference: useSimpleRenderer ? 'low-power' : 'high-performance',
+          preserveDrawingBuffer: true, // Add this to prevent disappearing
+          failIfMajorPerformanceCaveat: false, // Add this to prevent rendering issues
         }}
         dpr={useSimpleRenderer ? 1 : (window.devicePixelRatio < 2 ? window.devicePixelRatio : 2)}
+        frameloop="always" // Ensure animation loop runs continuously
       >
         {renderBasicElements()}
         
