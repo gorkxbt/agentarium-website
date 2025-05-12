@@ -209,6 +209,13 @@ const BUILDING_TYPES = {
   COFFEE_SHOP: 'coffee_shop',
   GYM: 'gym',
   TRANSPORT_HUB: 'transport_hub',
+  RETAIL: 'retail',
+  SUPERMARKET: 'supermarket',
+  GAS_STATION: 'gas_station',
+  MALL: 'mall',
+  ENTERTAINMENT: 'entertainment',
+  WAREHOUSE: 'warehouse',
+  INDUSTRIAL: 'industrial',
 };
 
 // Building colors with improved aesthetics
@@ -235,6 +242,13 @@ const BUILDING_COLORS = {
   [BUILDING_TYPES.COFFEE_SHOP]: '#bb9977',
   [BUILDING_TYPES.GYM]: '#dd7766',
   [BUILDING_TYPES.TRANSPORT_HUB]: '#66aadd',
+  [BUILDING_TYPES.RETAIL]: '#ffcc00',
+  [BUILDING_TYPES.SUPERMARKET]: '#ff6600',
+  [BUILDING_TYPES.GAS_STATION]: '#cc0000',
+  [BUILDING_TYPES.MALL]: '#ff9900',
+  [BUILDING_TYPES.ENTERTAINMENT]: '#00ff00',
+  [BUILDING_TYPES.WAREHOUSE]: '#808080',
+  [BUILDING_TYPES.INDUSTRIAL]: '#444444',
 };
 
 // Building names mapping
@@ -261,6 +275,13 @@ const BUILDING_NAMES = {
   [BUILDING_TYPES.COFFEE_SHOP]: 'Coffee Shop',
   [BUILDING_TYPES.GYM]: 'Fitness Center',
   [BUILDING_TYPES.TRANSPORT_HUB]: 'Transport Hub',
+  [BUILDING_TYPES.RETAIL]: 'Retail Store',
+  [BUILDING_TYPES.SUPERMARKET]: 'Supermarket',
+  [BUILDING_TYPES.GAS_STATION]: 'Gas Station',
+  [BUILDING_TYPES.MALL]: 'Shopping Mall',
+  [BUILDING_TYPES.ENTERTAINMENT]: 'Entertainment Venue',
+  [BUILDING_TYPES.WAREHOUSE]: 'Warehouse',
+  [BUILDING_TYPES.INDUSTRIAL]: 'Industrial Building',
 };
 
 // Agent component with animation
@@ -394,13 +415,25 @@ const Agent: React.FC<AgentProps> = ({ position, color, speed, agentData, onAgen
   
   // Check if a position is inside a building
   const isInsideBuilding = (x: number, z: number): boolean => {
-    return buildingBoundaries.some(boundary => {
-      return (
-        x > boundary.center.x - boundary.size.x/2 &&
-        x < boundary.center.x + boundary.size.x/2 &&
-        z > boundary.center.y - boundary.size.y/2 &&
-        z < boundary.center.y + boundary.size.y/2
-      );
+    // Get reference to city's building list through mapData
+    const buildingsList = mapData?.buildings || [];
+    
+    // Add a small buffer around buildings to prevent getting too close
+    const buffer = 3;
+    
+    return buildingsList.some(building => {
+      const [bx, , bz] = building.position;
+      
+      // Calculate half dimensions with buffer
+      const halfWidth = building.width / 2 + buffer;
+      const halfDepth = building.depth / 2 + buffer;
+      
+      // Check if point is inside building (accounting for rotation)
+      // For simplicity, we'll use a distance-based check that approximates the rotated building
+      const distance = Math.sqrt(Math.pow(x - bx, 2) + Math.pow(z - bz, 2));
+      const maxRadius = Math.sqrt(halfWidth * halfWidth + halfDepth * halfDepth);
+      
+      return distance < maxRadius;
     });
   };
   
@@ -1547,11 +1580,22 @@ const Vehicle: React.FC<VehicleProps> = ({ position, color = "#ff0000", type = '
         targetRef.current.copy(nearestRoadPoint);
       }
       
-      // Calculate next position with slower speed
-      direction.normalize().multiplyScalar(delta * speed * 0.5); // Reduced speed multiplier
-      meshRef.current.position.add(direction);
+      // Calculate next position with slower speed for better visibility
+      direction.normalize().multiplyScalar(delta * speed * 0.8); // Better speed for smoother animation
       
-      // Rotate to face direction of movement
+      // Create a potential next position
+      const nextPosition = new THREE.Vector3().copy(meshRef.current.position).add(direction);
+      
+      // Only move if the next position is on a road
+      if (isOnRoad(nextPosition)) {
+        meshRef.current.position.copy(nextPosition);
+      } else {
+        // If we'd go off-road, find a new target on the road
+        const nearestRoadPoint = findNearestRoadPoint(meshRef.current.position);
+        targetRef.current.copy(nearestRoadPoint);
+      }
+      
+      // Rotate to face direction of movement with smoother rotation
       if (direction.length() > 0.01) {
         const lookAtPos = new THREE.Vector3().addVectors(
           meshRef.current.position,
@@ -1861,13 +1905,25 @@ const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
   
   // Check if a position is inside a building
   const isInsideBuilding = (x: number, z: number): boolean => {
-    return buildingBoundaries.some(boundary => {
-      return (
-        x > boundary.center.x - boundary.size.x/2 &&
-        x < boundary.center.x + boundary.size.x/2 &&
-        z > boundary.center.y - boundary.size.y/2 &&
-        z < boundary.center.y + boundary.size.y/2
-      );
+    // Get reference to city's building list through mapData
+    const buildingsList = mapData?.buildings || [];
+    
+    // Add a small buffer around buildings to prevent getting too close
+    const buffer = 3;
+    
+    return buildingsList.some(building => {
+      const [bx, , bz] = building.position;
+      
+      // Calculate half dimensions with buffer
+      const halfWidth = building.width / 2 + buffer;
+      const halfDepth = building.depth / 2 + buffer;
+      
+      // Check if point is inside building (accounting for rotation)
+      // For simplicity, we'll use a distance-based check that approximates the rotated building
+      const distance = Math.sqrt(Math.pow(x - bx, 2) + Math.pow(z - bz, 2));
+      const maxRadius = Math.sqrt(halfWidth * halfWidth + halfDepth * halfDepth);
+      
+      return distance < maxRadius;
     });
   };
   
@@ -1971,75 +2027,81 @@ const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
     return () => clearInterval(interval);
   }, [stateTimer]);
   
-  useFrame((frameState, delta) => {
-    try {
-      if (!meshRef.current) return;
-      
-      // Only move if in walking state
-      if (state !== 'walking') {
-        // Animations for other states
-        if (state === 'talking') {
-          // Subtle swaying for talking
-          meshRef.current.rotation.y += Math.sin(frameState.clock.getElapsedTime() * 2) * 0.02;
-        } else if (state === 'sitting') {
-          // Adjust height for sitting
-          meshRef.current.position.y = position[1] - 0.3;
-        } else if (state === 'shopping') {
-          // Look around animation for shopping
-          meshRef.current.rotation.y = Math.sin(frameState.clock.getElapsedTime()) * 0.5;
+  // Update NPC position and animation 
+  useFrame((state, delta) => {
+    if (!meshRef.current) return;
+    
+    // Update idle timer if we're idle
+    if (state === 'idle') {
+      setStateTimer(prev => {
+        const newTimer = prev - delta;
+        if (newTimer <= 0) {
+          setState('walking');
+          updateTarget();
+          return 0;
         }
-        return;
-      }
+        return newTimer;
+      });
       
-      // Reset height if was sitting
-      meshRef.current.position.y = position[1] + Math.sin(frameState.clock.getElapsedTime() * 5) * 0.05;
-      
-      // Move towards target with slower speed
-      const direction = new THREE.Vector3().subVectors(targetRef.current, meshRef.current.position);
-      
-      // If close to target, become idle
-      if (direction.length() < 0.5) {
-        if (activityLocation) {
-          // We've reached an activity destination
-          const distanceToActivity = meshRef.current.position.distanceTo(activityLocation);
-          if (distanceToActivity < 1.5) {
-            // Update state based on the activity
-            updateState();
-            return;
-          }
-        } else {
-          // Just reached a regular sidewalk point
-          setState('idle');
-          setStateTimer(Math.random() * 3 + 2); // Idle for 2-5 seconds
-          return;
-        }
-      }
-      
-      // Calculate next position with reduced speed
-      direction.normalize().multiplyScalar(delta * speed * 0.5); // Reduced speed multiplier
-      
-      // Calculate next position
-      const nextPosition = new THREE.Vector3().copy(meshRef.current.position).add(direction);
-      
-      // Only move if not going into a building
-      if (!isInsideBuilding(nextPosition.x, nextPosition.z)) {
-        meshRef.current.position.copy(nextPosition);
-      } else {
-        // Get a new target if we would hit a building
-        updateTarget();
-        return;
-      }
-      
-      // Rotate to face direction of movement
-      if (direction.length() > 0.01) {
-        const lookAtPos = new THREE.Vector3().addVectors(
-          meshRef.current.position,
-          new THREE.Vector3(direction.x, 0, direction.z).normalize()
+      // Rotate randomly while idle for more realistic behavior
+      if (Math.random() < 0.02) {
+        const randomRotation = new THREE.Euler(
+          0,
+          meshRef.current.rotation.y + (Math.random() * 0.1 - 0.05),
+          0
         );
-        meshRef.current.lookAt(lookAtPos);
+        meshRef.current.setRotationFromEuler(randomRotation);
       }
-    } catch (error) {
-      console.error("Error in NPC animation frame:", error);
+      
+      return;
+    }
+    
+    // Move towards target position
+    const currentPos = meshRef.current.position;
+    const direction = new THREE.Vector3().subVectors(targetRef.current, currentPos);
+    
+    // If we reached the target, become idle
+    if (direction.length() < 0.5) {
+      setState('idle');
+      setStateTimer(Math.random() * 10 + 5); // Idle between 5-15 seconds
+      updateState();
+      return;
+    }
+    
+    // Calculate next position
+    direction.normalize().multiplyScalar(delta * speed);
+    
+    // Create a potential next position
+    const nextPosition = new THREE.Vector3().copy(currentPos).add(direction);
+    
+    // Check if next position would be inside a building
+    if (!isInsideBuilding(nextPosition.x, nextPosition.z)) {
+      // If not in a building, check if we'd be on a sidewalk
+      const normalizedX = Math.abs((nextPosition.x + CITY_SIZE / 2) % (BLOCK_SIZE + ROAD_WIDTH));
+      const normalizedZ = Math.abs((nextPosition.z + CITY_SIZE / 2) % (BLOCK_SIZE + ROAD_WIDTH));
+      
+      const onSidewalkX = normalizedX > ROAD_WIDTH && normalizedX < ROAD_WIDTH + 8;
+      const onSidewalkZ = normalizedZ > ROAD_WIDTH && normalizedZ < ROAD_WIDTH + 8;
+      
+      // Try to stay on sidewalks or near buildings
+      if (onSidewalkX || onSidewalkZ || Math.random() < 0.3) {
+        meshRef.current.position.add(direction);
+      } else {
+        // If not on sidewalk, try to find a better target
+        updateTarget();
+      }
+    } else {
+      // If we'd go inside a building, find a new target
+      updateTarget();
+    }
+    
+    // Face the direction of movement
+    if (direction.length() > 0.01) {
+      const lookAtPos = new THREE.Vector3().addVectors(
+        currentPos,
+        new THREE.Vector3(direction.x, 0, direction.z).normalize()
+      );
+      meshRef.current.lookAt(lookAtPos);
     }
   });
   
@@ -2098,7 +2160,7 @@ const City: React.FC<{ onAgentClick: (agent: any) => void, useSimpleRenderer?: b
     // Helper function to check if a position is on a road
     const isOnRoad = (x: number, z: number, width: number, depth: number): boolean => {
       // Add a buffer around roads to avoid buildings partially on roads
-      const buffer = 5;
+      const buffer = 8; // Increased buffer
       const halfWidth = width / 2 + buffer;
       const halfDepth = depth / 2 + buffer;
       
@@ -2109,15 +2171,20 @@ const City: React.FC<{ onAgentClick: (agent: any) => void, useSimpleRenderer?: b
         {x: x + halfWidth, z: z - halfDepth}, // bottom right
         {x: x - halfWidth, z: z + halfDepth}, // top left
         {x: x + halfWidth, z: z + halfDepth}, // top right
+        // Add additional check points along the perimeter for larger buildings
+        {x: x - halfWidth, z: z}, // left center
+        {x: x + halfWidth, z: z}, // right center
+        {x: x, z: z - halfDepth}, // bottom center
+        {x: x, z: z + halfDepth}  // top center
       ];
       
       return positions.some(pos => {
         // Check if position is on a road (either x or z is a multiple of BLOCK_SIZE + ROAD_WIDTH)
-        const normalizedX = (pos.x + CITY_SIZE / 2) % (BLOCK_SIZE + ROAD_WIDTH);
-        const normalizedZ = (pos.z + CITY_SIZE / 2) % (BLOCK_SIZE + ROAD_WIDTH);
+        const normalizedX = Math.abs((pos.x + CITY_SIZE / 2) % (BLOCK_SIZE + ROAD_WIDTH));
+        const normalizedZ = Math.abs((pos.z + CITY_SIZE / 2) % (BLOCK_SIZE + ROAD_WIDTH));
         
-        const onRoadX = normalizedX < ROAD_WIDTH;
-        const onRoadZ = normalizedZ < ROAD_WIDTH;
+        const onRoadX = normalizedX < ROAD_WIDTH + buffer || normalizedX > (BLOCK_SIZE + ROAD_WIDTH) - (ROAD_WIDTH + buffer);
+        const onRoadZ = normalizedZ < ROAD_WIDTH + buffer || normalizedZ > (BLOCK_SIZE + ROAD_WIDTH) - (ROAD_WIDTH + buffer);
         
         return onRoadX || onRoadZ;
       });
@@ -2126,12 +2193,12 @@ const City: React.FC<{ onAgentClick: (agent: any) => void, useSimpleRenderer?: b
     // Helper function to check if a building position conflicts with existing buildings
     const buildingConflicts = (newX: number, newZ: number, width: number, depth: number): boolean => {
       // Add spacing between buildings
-      const buffer = 8;
+      const buffer = 12; // Increase buffer to prevent buildings from being too close
       
       return buildings.some(building => {
         const [bx, , bz] = building.position;
         const distance = Math.sqrt(Math.pow(newX - bx, 2) + Math.pow(newZ - bz, 2));
-        const minDistance = (width/2 + building.width/2 + buffer) * 0.8; // 0.8 factor to allow some clustering
+        const minDistance = (width/2 + building.width/2 + buffer);
         
         return distance < minDistance;
       });
@@ -2144,18 +2211,40 @@ const City: React.FC<{ onAgentClick: (agent: any) => void, useSimpleRenderer?: b
       width: number, 
       depth: number,
       radius = BLOCK_SIZE * 0.7, // Default search radius within district
-      maxAttempts = 10
+      maxAttempts = 20 // Increase max attempts to find valid positions
     ): [number, number] | null => {
+      // Start with more attempts for important buildings
       for (let i = 0; i < maxAttempts; i++) {
         // Generate position within radius of district center
+        // Use a more structured approach with grid-like placement
+        const angle = (i / maxAttempts) * Math.PI * 2; // Distribute around center
+        const distance = radius * (0.3 + 0.7 * Math.random()); // Vary distance from center
+        
+        const offsetX = Math.cos(angle) * distance;
+        const offsetZ = Math.sin(angle) * distance;
+        
+        const x = districtX + offsetX;
+        const z = districtZ + offsetZ;
+        
+        // Add more strict validation to ensure buildings don't overlap with roads
+        const roadBuffer = 8; // Increase buffer from roads
+        const buildingBuffer = 10; // Increase spacing between buildings
+        
+        // Check if position is valid (not on road and no conflicts)
+        if (!isOnRoad(x, z, width + roadBuffer, depth + roadBuffer) && !buildingConflicts(x, z, width, depth)) {
+          return [x, z];
+        }
+      }
+      
+      // If we couldn't find a position with the structured approach, try random as fallback
+      for (let i = 0; i < 10; i++) {
         const offsetX = (Math.random() * 2 - 1) * radius;
         const offsetZ = (Math.random() * 2 - 1) * radius;
         
         const x = districtX + offsetX;
         const z = districtZ + offsetZ;
         
-        // Check if position is valid (not on road and no conflicts)
-        if (!isOnRoad(x, z, width, depth) && !buildingConflicts(x, z, width, depth)) {
+        if (!isOnRoad(x, z, width + 5, depth + 5) && !buildingConflicts(x, z, width, depth)) {
           return [x, z];
         }
       }
@@ -2181,7 +2270,7 @@ const City: React.FC<{ onAgentClick: (agent: any) => void, useSimpleRenderer?: b
     
     // 1. DOWNTOWN AREA (City Center)
     // Bank at the center
-    const bankPos = findValidBuildingPosition(districts.downtown.x, districts.downtown.z, 20, 20, BLOCK_SIZE * 0.3, 20);
+    const bankPos = findValidBuildingPosition(districts.downtown.x, districts.downtown.z, 20, 20, BLOCK_SIZE * 0.3, 30);
     if (bankPos) {
       buildings.push({
         position: [bankPos[0], 0, bankPos[1]],
@@ -2200,7 +2289,8 @@ const City: React.FC<{ onAgentClick: (agent: any) => void, useSimpleRenderer?: b
       });
     }
     
-    // Surrounding downtown buildings
+    // Surrounding downtown buildings - add more smaller buildings
+    // Tech Hub
     const techHubPos = findValidBuildingPosition(
       districts.downtown.x + 25, 
       districts.downtown.z - 25, 
@@ -2225,15 +2315,97 @@ const City: React.FC<{ onAgentClick: (agent: any) => void, useSimpleRenderer?: b
       });
     }
     
-    // Continue with the rest of the buildings using the findValidBuildingPosition function
-    // ... existing code ...
+    // Finance Center
+    const financePos = findValidBuildingPosition(
+      districts.downtown.x - 25, 
+      districts.downtown.z + 25, 
+      22, 
+      16
+    );
+    if (financePos) {
+      buildings.push({
+        position: [financePos[0], 0, financePos[1]],
+        rotation: [0, -Math.PI / 8, 0],
+        height: 28,
+        width: 22,
+        depth: 16,
+        color: BUILDING_COLORS[BUILDING_TYPES.FINANCE],
+        type: BUILDING_TYPES.FINANCE,
+        name: BUILDING_NAMES[BUILDING_TYPES.FINANCE]
+      });
+      
+      mapLabels.push({
+        name: BUILDING_NAMES[BUILDING_TYPES.FINANCE],
+        position: [financePos[0], 0, financePos[1]]
+      });
+    }
+    
+    // Hotel
+    const hotelPos = findValidBuildingPosition(
+      districts.downtown.x - 20, 
+      districts.downtown.z - 20, 
+      20, 
+      15
+    );
+    if (hotelPos) {
+      buildings.push({
+        position: [hotelPos[0], 0, hotelPos[1]],
+        rotation: [0, Math.PI / 12, 0],
+        height: 25,
+        width: 20,
+        depth: 15,
+        color: BUILDING_COLORS[BUILDING_TYPES.HOTEL],
+        type: BUILDING_TYPES.HOTEL,
+        name: BUILDING_NAMES[BUILDING_TYPES.HOTEL]
+      });
+      
+      mapLabels.push({
+        name: BUILDING_NAMES[BUILDING_TYPES.HOTEL],
+        position: [hotelPos[0], 0, hotelPos[1]]
+      });
+    }
+    
+    // Add 5-7 additional downtown buildings
+    const downtownBuildingTypes = [
+      BUILDING_TYPES.OFFICE,
+      BUILDING_TYPES.RETAIL,
+      BUILDING_TYPES.APARTMENT
+    ];
+    
+    for (let i = 0; i < 7; i++) {
+      // Spread throughout downtown with some randomization
+      const angle = (i / 7) * Math.PI * 2;
+      const distance = 30 + Math.random() * 15;
+      
+      const x = districts.downtown.x + Math.cos(angle) * distance;
+      const z = districts.downtown.z + Math.sin(angle) * distance;
+      
+      const buildingType = downtownBuildingTypes[i % downtownBuildingTypes.length];
+      const width = 12 + Math.random() * 8;
+      const depth = 12 + Math.random() * 8;
+      
+      const pos = findValidBuildingPosition(x, z, width, depth, 15);
+      
+      if (pos) {
+        buildings.push({
+          position: [pos[0], 0, pos[1]],
+          rotation: [0, Math.random() * Math.PI / 2 - Math.PI / 4, 0],
+          height: 15 + Math.random() * 20,
+          width: width,
+          depth: depth,
+          color: BUILDING_COLORS[buildingType],
+          type: buildingType,
+          name: BUILDING_NAMES[buildingType] + " " + (i+1)
+        });
+      }
+    }
     
     // 2. FINANCIAL DISTRICT
     // Office buildings and financial centers
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 5; i++) { // Increased from 3 to 5
       const officePos = findValidBuildingPosition(
-        districts.financial.x, 
-        districts.financial.z, 
+        districts.financial.x + (Math.random() * 30 - 15), 
+        districts.financial.z + (Math.random() * 30 - 15), 
         15 + Math.random() * 5, 
         15 + Math.random() * 5,
         BLOCK_SIZE * 0.8
@@ -2248,7 +2420,7 @@ const City: React.FC<{ onAgentClick: (agent: any) => void, useSimpleRenderer?: b
           depth: 15 + Math.random() * 5,
           color: BUILDING_COLORS[BUILDING_TYPES.OFFICE],
           type: BUILDING_TYPES.OFFICE,
-          name: BUILDING_NAMES[BUILDING_TYPES.OFFICE]
+          name: BUILDING_NAMES[BUILDING_TYPES.OFFICE] + " " + (i+1)
         });
       }
     }
@@ -2275,24 +2447,19 @@ const City: React.FC<{ onAgentClick: (agent: any) => void, useSimpleRenderer?: b
     
     // 3. RESIDENTIAL DISTRICT
     // Houses and apartments
-    for (let i = 0; i < 5; i++) {
-      const isApartment = i < 2;
+    for (let i = 0; i < 8; i++) { // Increased from 5 to 8
+      const isApartment = i < 3;
       const type = isApartment ? BUILDING_TYPES.APARTMENT : BUILDING_TYPES.HOUSE;
       const width = isApartment ? 18 : 12;
       const depth = isApartment ? 18 : 12;
       
       // Spread buildings throughout the district
-      const offsetDirection = [
-        {x: -1, z: -1}, 
-        {x: 1, z: -1}, 
-        {x: 0, z: 0}, 
-        {x: -1, z: 1}, 
-        {x: 1, z: 1}
-      ][i];
+      const angle = (i / 8) * Math.PI * 2;
+      const distance = 25 + Math.random() * 20;
       
       const residentialPos = findValidBuildingPosition(
-        districts.residential.x + offsetDirection.x * 20, 
-        districts.residential.z + offsetDirection.z * 20, 
+        districts.residential.x + Math.cos(angle) * distance, 
+        districts.residential.z + Math.sin(angle) * distance, 
         width, 
         depth,
         15
@@ -2301,51 +2468,106 @@ const City: React.FC<{ onAgentClick: (agent: any) => void, useSimpleRenderer?: b
       if (residentialPos) {
         buildings.push({
           position: [residentialPos[0], 0, residentialPos[1]],
-          rotation: [0, Math.random() * Math.PI / 4 - Math.PI / 8, 0],
-          height: isApartment ? 20 : 10,
-          width: width,
-          depth: depth,
+          rotation: [0, Math.random() * Math.PI / 2 - Math.PI / 4, 0],
+          height: isApartment ? 20 + Math.random() * 10 : 8 + Math.random() * 5,
+          width,
+          depth,
           color: BUILDING_COLORS[type],
-          type: type,
-          name: BUILDING_NAMES[type]
+          type,
+          name: BUILDING_NAMES[type] + " " + (i+1)
         });
       }
     }
     
-    // School
-    const schoolPos = findValidBuildingPosition(
-      districts.residential.x + 20, 
-      districts.residential.z + 20, 
-      30, 
-      15
-    );
-    if (schoolPos) {
+    // Supermarket
+    const supermarketPos = findValidBuildingPosition(districts.residential.x - 30, districts.residential.z, 30, 20);
+    if (supermarketPos) {
       buildings.push({
-        position: [schoolPos[0], 0, schoolPos[1]],
-        rotation: [0, -Math.PI / 12, 0],
+        position: [supermarketPos[0], 0, supermarketPos[1]],
+        rotation: [0, Math.PI / 20, 0],
         height: 12,
         width: 30,
+        depth: 20,
+        color: BUILDING_COLORS[BUILDING_TYPES.SUPERMARKET],
+        type: BUILDING_TYPES.SUPERMARKET,
+        name: BUILDING_NAMES[BUILDING_TYPES.SUPERMARKET]
+      });
+      
+      mapLabels.push({
+        name: BUILDING_NAMES[BUILDING_TYPES.SUPERMARKET],
+        position: [supermarketPos[0], 0, supermarketPos[1]]
+      });
+    }
+    
+    // Gas Station
+    const gasStationPos = findValidBuildingPosition(districts.residential.x + 35, districts.residential.z - 15, 20, 15);
+    if (gasStationPos) {
+      buildings.push({
+        position: [gasStationPos[0], 0, gasStationPos[1]],
+        rotation: [0, -Math.PI / 15, 0],
+        height: 8,
+        width: 20,
         depth: 15,
-        color: BUILDING_COLORS[BUILDING_TYPES.SCHOOL],
-        type: BUILDING_TYPES.SCHOOL,
-        name: BUILDING_NAMES[BUILDING_TYPES.SCHOOL]
+        color: BUILDING_COLORS[BUILDING_TYPES.GAS_STATION],
+        type: BUILDING_TYPES.GAS_STATION,
+        name: BUILDING_NAMES[BUILDING_TYPES.GAS_STATION]
+      });
+      
+      mapLabels.push({
+        name: BUILDING_NAMES[BUILDING_TYPES.GAS_STATION],
+        position: [gasStationPos[0], 0, gasStationPos[1]]
       });
     }
     
     // 4. ENTERTAINMENT DISTRICT
+    // Shopping Mall
+    const mallPos = findValidBuildingPosition(districts.entertainment.x, districts.entertainment.z, 35, 25);
+    if (mallPos) {
+      buildings.push({
+        position: [mallPos[0], 0, mallPos[1]],
+        rotation: [0, Math.PI / 10, 0],
+        height: 18,
+        width: 35,
+        depth: 25,
+        color: BUILDING_COLORS[BUILDING_TYPES.MALL],
+        type: BUILDING_TYPES.MALL,
+        name: BUILDING_NAMES[BUILDING_TYPES.MALL]
+      });
+      
+      mapLabels.push({
+        name: BUILDING_NAMES[BUILDING_TYPES.MALL],
+        position: [mallPos[0], 0, mallPos[1]]
+      });
+    }
+    
+    // Restaurant
+    const restaurantPos = findValidBuildingPosition(districts.entertainment.x - 25, districts.entertainment.z + 20, 20, 15);
+    if (restaurantPos) {
+      buildings.push({
+        position: [restaurantPos[0], 0, restaurantPos[1]],
+        rotation: [0, -Math.PI / 8, 0],
+        height: 12,
+        width: 20,
+        depth: 15,
+        color: BUILDING_COLORS[BUILDING_TYPES.RESTAURANT],
+        type: BUILDING_TYPES.RESTAURANT,
+        name: BUILDING_NAMES[BUILDING_TYPES.RESTAURANT]
+      });
+      
+      mapLabels.push({
+        name: BUILDING_NAMES[BUILDING_TYPES.RESTAURANT],
+        position: [restaurantPos[0], 0, restaurantPos[1]]
+      });
+    }
+    
     // Casino
-    const casinoPos = findValidBuildingPosition(
-      districts.entertainment.x + 10, 
-      districts.entertainment.z - 10, 
-      30, 
-      20
-    );
+    const casinoPos = findValidBuildingPosition(districts.entertainment.x + 25, districts.entertainment.z - 30, 25, 20);
     if (casinoPos) {
       buildings.push({
         position: [casinoPos[0], 0, casinoPos[1]],
-        rotation: [0, Math.PI / 8, 0],
-        height: 25,
-        width: 30,
+        rotation: [0, Math.PI / 16, 0],
+        height: 22,
+        width: 25,
         depth: 20,
         color: BUILDING_COLORS[BUILDING_TYPES.CASINO],
         type: BUILDING_TYPES.CASINO,
@@ -2359,12 +2581,7 @@ const City: React.FC<{ onAgentClick: (agent: any) => void, useSimpleRenderer?: b
     }
     
     // Nightclub
-    const nightclubPos = findValidBuildingPosition(
-      districts.entertainment.x - 10, 
-      districts.entertainment.z - 20, 
-      25, 
-      15
-    );
+    const nightclubPos = findValidBuildingPosition(districts.entertainment.x + 15, districts.entertainment.z + 25, 25, 15);
     if (nightclubPos) {
       buildings.push({
         position: [nightclubPos[0], 0, nightclubPos[1]],
@@ -2383,81 +2600,210 @@ const City: React.FC<{ onAgentClick: (agent: any) => void, useSimpleRenderer?: b
       });
     }
     
-    // Add vehicles on roads
-    // Define main road coordinates
-    const roadCoordinates = [
-      { startX: -CITY_SIZE / 2, startZ: 0, endX: CITY_SIZE / 2, endZ: 0 }, // East-West 
-      { startX: 0, startZ: -CITY_SIZE / 2, endX: 0, endZ: CITY_SIZE / 2 }, // North-South
-      { startX: -CITY_SIZE / 2, startZ: -CITY_SIZE / 3, endX: CITY_SIZE / 2, endZ: -CITY_SIZE / 3 }, // Upper East-West
-      { startX: -CITY_SIZE / 2, startZ: CITY_SIZE / 3, endX: CITY_SIZE / 2, endZ: CITY_SIZE / 3 }, // Lower East-West
-      { startX: -CITY_SIZE / 3, startZ: -CITY_SIZE / 2, endX: -CITY_SIZE / 3, endZ: CITY_SIZE / 2 }, // Left North-South
-      { startX: CITY_SIZE / 3, startZ: -CITY_SIZE / 2, endX: CITY_SIZE / 3, endZ: CITY_SIZE / 2 }, // Right North-South
-    ];
-    
-    // Create vehicles (cars, taxis, buses)
-    for (let i = 0; i < 25; i++) {
-      // Choose random road
-      const roadIndex = Math.floor(Math.random() * roadCoordinates.length);
-      const road = roadCoordinates[roadIndex];
+    // Add some retail and entertainment venues
+    for (let i = 0; i < 4; i++) {
+      const type = Math.random() > 0.5 ? BUILDING_TYPES.RETAIL : BUILDING_TYPES.ENTERTAINMENT;
       
-      // Position along the road
-      const t = Math.random();
-      const x = road.startX + (road.endX - road.startX) * t;
-      const z = road.startZ + (road.endZ - road.startZ) * t;
+      const angle = (i / 4) * Math.PI * 2;
+      const distance = 20 + Math.random() * 15;
       
-      // Type and color
-      const vehicleTypes: ('car' | 'taxi' | 'bus')[] = ['car', 'car', 'car', 'car', 'taxi', 'taxi', 'bus'];
-      const type = vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)];
+      const pos = findValidBuildingPosition(
+        districts.entertainment.x + Math.cos(angle) * distance,
+        districts.entertainment.z + Math.sin(angle) * distance,
+        15 + Math.random() * 5,
+        15 + Math.random() * 5
+      );
       
-      // Colors based on type
-      let color = '#4455AA'; // default blue for cars
-      if (type === 'taxi') {
-        color = '#FFBB00'; // yellow for taxis
-      } else if (type === 'bus') {
-        color = '#BB4444'; // red for buses
-      } else {
-        // Random car colors
-        const carColors = ['#4455AA', '#226622', '#663333', '#111111', '#888888', '#FFFFFF', '#AA5500'];
-        color = carColors[Math.floor(Math.random() * carColors.length)];
+      if (pos) {
+        buildings.push({
+          position: [pos[0], 0, pos[1]],
+          rotation: [0, Math.random() * Math.PI / 2 - Math.PI / 4, 0],
+          height: 12 + Math.random() * 8,
+          width: 15 + Math.random() * 5,
+          depth: 15 + Math.random() * 5,
+          color: BUILDING_COLORS[type],
+          type,
+          name: BUILDING_NAMES[type] + " " + (i+1)
+        });
       }
+    }
+    
+    // 5. INDUSTRIAL DISTRICT
+    // Factory
+    const factoryPos = findValidBuildingPosition(districts.industrial.x, districts.industrial.z, 30, 20);
+    if (factoryPos) {
+      buildings.push({
+        position: [factoryPos[0], 0, factoryPos[1]],
+        rotation: [0, -Math.PI / 20, 0],
+        height: 15,
+        width: 30,
+        depth: 20,
+        color: BUILDING_COLORS[BUILDING_TYPES.FACTORY],
+        type: BUILDING_TYPES.FACTORY,
+        name: BUILDING_NAMES[BUILDING_TYPES.FACTORY]
+      });
       
-      vehicles.push({
-        position: [x, 0.5, z],
-        color,
-        type,
-        speed: 0.05 + Math.random() * 0.1
+      mapLabels.push({
+        name: BUILDING_NAMES[BUILDING_TYPES.FACTORY],
+        position: [factoryPos[0], 0, factoryPos[1]]
       });
     }
     
-    // Add NPCs (pedestrians)
-    for (let i = 0; i < 30; i++) {
-      // Place NPCs near buildings or on sidewalks
+    // City Hospital
+    const hospitalPos = findValidBuildingPosition(districts.industrial.x + 30, districts.industrial.z + 30, 25, 20);
+    if (hospitalPos) {
+      buildings.push({
+        position: [hospitalPos[0], 0, hospitalPos[1]],
+        rotation: [0, Math.PI / 14, 0],
+        height: 20,
+        width: 25,
+        depth: 20,
+        color: BUILDING_COLORS[BUILDING_TYPES.HOSPITAL],
+        type: BUILDING_TYPES.HOSPITAL,
+        name: BUILDING_NAMES[BUILDING_TYPES.HOSPITAL]
+      });
       
-      // Choose a building to place NPC near, or a road for sidewalk
-      const useBuilding = Math.random() > 0.5;
+      mapLabels.push({
+        name: BUILDING_NAMES[BUILDING_TYPES.HOSPITAL],
+        position: [hospitalPos[0], 0, hospitalPos[1]]
+      });
+    }
+    
+    // Warehouses and industrial buildings
+    for (let i = 0; i < 5; i++) {
+      const isWarehouse = i < 3;
+      const type = isWarehouse ? BUILDING_TYPES.WAREHOUSE : BUILDING_TYPES.INDUSTRIAL;
+      
+      const angle = (i / 5) * Math.PI * 2;
+      const distance = 20 + Math.random() * 20;
+      
+      const pos = findValidBuildingPosition(
+        districts.industrial.x + Math.cos(angle) * distance,
+        districts.industrial.z + Math.sin(angle) * distance,
+        20 + Math.random() * 10,
+        15 + Math.random() * 10
+      );
+      
+      if (pos) {
+        buildings.push({
+          position: [pos[0], 0, pos[1]],
+          rotation: [0, Math.random() * Math.PI / 4 - Math.PI / 8, 0],
+          height: 10 + Math.random() * 10,
+          width: 20 + Math.random() * 10,
+          depth: 15 + Math.random() * 10,
+          color: BUILDING_COLORS[type],
+          type,
+          name: BUILDING_NAMES[type] + " " + (i+1)
+        });
+      }
+    }
+    
+    // Add vehicles on roads
+    // Define main road coordinates
+    const roadCoordinates = [
+      { startX: -CITY_SIZE / 2, startZ: 0, endX: CITY_SIZE / 2, endZ: 0 }, // East-West main road
+      { startX: 0, startZ: -CITY_SIZE / 2, endX: 0, endZ: CITY_SIZE / 2 }, // North-South main road
+      // Grid roads - horizontal
+      { startX: -CITY_SIZE / 2, startZ: -BLOCK_SIZE * 2 - ROAD_WIDTH / 2, endX: CITY_SIZE / 2, endZ: -BLOCK_SIZE * 2 - ROAD_WIDTH / 2 },
+      { startX: -CITY_SIZE / 2, startZ: -BLOCK_SIZE - ROAD_WIDTH / 2, endX: CITY_SIZE / 2, endZ: -BLOCK_SIZE - ROAD_WIDTH / 2 },
+      { startX: -CITY_SIZE / 2, startZ: BLOCK_SIZE + ROAD_WIDTH / 2, endX: CITY_SIZE / 2, endZ: BLOCK_SIZE + ROAD_WIDTH / 2 },
+      { startX: -CITY_SIZE / 2, startZ: BLOCK_SIZE * 2 + ROAD_WIDTH / 2, endX: CITY_SIZE / 2, endZ: BLOCK_SIZE * 2 + ROAD_WIDTH / 2 },
+      // Grid roads - vertical
+      { startX: -BLOCK_SIZE * 2 - ROAD_WIDTH / 2, startZ: -CITY_SIZE / 2, endX: -BLOCK_SIZE * 2 - ROAD_WIDTH / 2, endZ: CITY_SIZE / 2 },
+      { startX: -BLOCK_SIZE - ROAD_WIDTH / 2, startZ: -CITY_SIZE / 2, endX: -BLOCK_SIZE - ROAD_WIDTH / 2, endZ: CITY_SIZE / 2 },
+      { startX: BLOCK_SIZE + ROAD_WIDTH / 2, startZ: -CITY_SIZE / 2, endX: BLOCK_SIZE + ROAD_WIDTH / 2, endZ: CITY_SIZE / 2 },
+      { startX: BLOCK_SIZE * 2 + ROAD_WIDTH / 2, startZ: -CITY_SIZE / 2, endX: BLOCK_SIZE * 2 + ROAD_WIDTH / 2, endZ: CITY_SIZE / 2 }
+    ];
+    
+    // Get all road points for vehicle paths
+    const allRoadPoints = getRoadPoints(roadCoordinates, 15); // Points every 15 units
+    const parkingSpots = getParkingSpots(buildings, 5); // 5 parking spots per building
+    
+    // Add vehicles on roads - increase the number for more traffic
+    for (let i = 0; i < 30; i++) {
+      const roadPoint = allRoadPoints[Math.floor(Math.random() * allRoadPoints.length)];
+      
+      // Different vehicle types with appropriate distribution
+      const vehicleType = i < 5 ? 'taxi' : (i < 25 ? 'car' : 'bus');
+      
+      // Colors based on vehicle type
+      let color = '#' + Math.floor(Math.random() * 16777215).toString(16);
+      if (vehicleType === 'taxi') {
+        color = '#FFD700'; // Yellow for taxis
+      } else if (vehicleType === 'bus') {
+        // Bus colors - city buses are often blue, green, or red
+        const busColors = ['#3B5998', '#2E8B57', '#B22222'];
+        color = busColors[Math.floor(Math.random() * busColors.length)];
+      } else {
+        // Common car colors
+        const carColors = [
+          '#FF0000', // red
+          '#0000FF', // blue
+          '#FFFFFF', // white
+          '#000000', // black
+          '#808080', // gray
+          '#C0C0C0', // silver
+          '#00008B', // dark blue
+          '#800000', // maroon
+          '#008000'  // green
+        ];
+        color = carColors[Math.floor(Math.random() * carColors.length)];
+      }
+      
+      const vehicleSpeed = vehicleType === 'bus' ? 2 : (vehicleType === 'taxi' ? 6 : 4);
+      
+      vehicles.push({
+        position: [roadPoint.x, 0, roadPoint.z],
+        color,
+        type: vehicleType as 'car' | 'taxi' | 'bus',
+        speed: vehicleSpeed
+      });
+    }
+    
+    // Add NPCs near buildings and on sidewalks
+    for (let i = 0; i < 50; i++) {
       let x, z;
       
-      if (useBuilding && buildings.length > 0) {
-        // Near a random building
-        const building = buildings[Math.floor(Math.random() * buildings.length)];
-        const distance = Math.random() * 15 + 5; // 5-20 units from building
-        const angle = Math.random() * Math.PI * 2; // Random angle around building
+      // 60% chance to spawn near a building, 40% chance to spawn on sidewalk
+      if (Math.random() < 0.6 && buildings.length > 0) {
+        // Pick a random building
+        const randomBuilding = buildings[Math.floor(Math.random() * buildings.length)];
+        const [bx, , bz] = randomBuilding.position;
         
-        x = building.position[0] + Math.cos(angle) * distance;
-        z = building.position[2] + Math.sin(angle) * distance;
+        // Position NPC near the building but not inside it
+        const distance = randomBuilding.width / 2 + 5 + Math.random() * 8;
+        const angle = Math.random() * Math.PI * 2;
+        
+        x = bx + Math.cos(angle) * distance;
+        z = bz + Math.sin(angle) * distance;
       } else {
-        // On a sidewalk along a road
-        const road = roadCoordinates[Math.floor(Math.random() * roadCoordinates.length)];
-        const t = Math.random();
-        x = road.startX + (road.endX - road.startX) * t;
-        z = road.startZ + (road.endZ - road.startZ) * t;
+        // Position on sidewalk
+        // Get a grid cell
+        const cellX = Math.floor(Math.random() * gridSize) - Math.floor(gridSize / 2);
+        const cellZ = Math.floor(Math.random() * gridSize) - Math.floor(gridSize / 2);
         
-        // Offset to sidewalk
-        const isHorizontal = Math.abs(road.endX - road.startX) > Math.abs(road.endZ - road.startZ);
-        if (isHorizontal) {
-          z += (Math.random() > 0.5 ? 1 : -1) * (ROAD_WIDTH / 2 + 1 + Math.random() * 2);
-        } else {
-          x += (Math.random() > 0.5 ? 1 : -1) * (ROAD_WIDTH / 2 + 1 + Math.random() * 2);
+        // Sidewalk is just outside the road
+        const sideOfRoad = Math.floor(Math.random() * 4); // 0: north, 1: east, 2: south, 3: west
+        
+        const offset = ROAD_WIDTH + 3 + Math.random() * 5; // Offset from road
+        
+        // Base position at center of grid cell
+        const baseX = cellX * (BLOCK_SIZE + ROAD_WIDTH);
+        const baseZ = cellZ * (BLOCK_SIZE + ROAD_WIDTH);
+        
+        // Adjust based on which side of the road
+        if (sideOfRoad === 0) { // North
+          x = baseX + (Math.random() * BLOCK_SIZE - BLOCK_SIZE / 2);
+          z = baseZ + BLOCK_SIZE / 2 + offset;
+        } else if (sideOfRoad === 1) { // East
+          x = baseX + BLOCK_SIZE / 2 + offset;
+          z = baseZ + (Math.random() * BLOCK_SIZE - BLOCK_SIZE / 2);
+        } else if (sideOfRoad === 2) { // South
+          x = baseX + (Math.random() * BLOCK_SIZE - BLOCK_SIZE / 2);
+          z = baseZ - BLOCK_SIZE / 2 - offset;
+        } else { // West
+          x = baseX - BLOCK_SIZE / 2 - offset;
+          z = baseZ + (Math.random() * BLOCK_SIZE - BLOCK_SIZE / 2);
         }
       }
       
