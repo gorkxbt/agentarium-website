@@ -19,6 +19,7 @@ interface ClientGameSceneProps {
   onAgentClick?: (agent: any) => void;
   onTimeChange?: (timeOfDay: string) => void;
   forceLoaded?: boolean;
+  qualityLevel?: 'high' | 'medium' | 'low' | 'minimal';
 }
 
 // Import the client component with no SSR and proper basic renderer
@@ -411,7 +412,7 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
   const [showIntro, setShowIntro] = useState(true);
   const [showGuide, setShowGuide] = useState(false);
   const [showControls, setShowControls] = useState(false);
-  const [useReducedQuality, setUseReducedQuality] = useState(false);
+  const [qualityLevel, setQualityLevel] = useState<'high' | 'medium' | 'low' | 'minimal'>('high');
   const [loadingRetries, setLoadingRetries] = useState(0);
   const [forceLoaded, setForceLoaded] = useState(false);
   const sceneRef = useRef<HTMLDivElement>(null);
@@ -419,9 +420,9 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
   // Apply WebGL optimizations on mount
   useEffect(() => {
     // Check if reduced quality was selected previously
-    const storedQualityPref = localStorage.getItem('agentarium_reduced_quality');
-    if (storedQualityPref === 'true') {
-      setUseReducedQuality(true);
+    const storedQualityPref = localStorage.getItem('agentarium_quality_level');
+    if (storedQualityPref) {
+      setQualityLevel(storedQualityPref as 'high' | 'medium' | 'low' | 'minimal');
     }
     
     // Ensure WebGL is properly initialized
@@ -456,14 +457,22 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
         console.error("WebGL error detected:", event.message);
         
         // If we're already using reduced quality but still having issues, 
-        // retry with a forced delay to give GPU time to initialize
-        if (useReducedQuality) {
-          setLoadingRetries(prev => prev + 1);
+        // try lowering it further or retry
+        if (qualityLevel === 'low') {
+          setQualityLevel('minimal');
+          localStorage.setItem('agentarium_quality_level', 'minimal');
           resetWebGLContext();
-        } else {
-          // Try reduced quality if normal mode fails
-          setUseReducedQuality(true);
-          localStorage.setItem('agentarium_reduced_quality', 'true');
+        } else if (qualityLevel === 'medium') {
+          setQualityLevel('low');
+          localStorage.setItem('agentarium_quality_level', 'low');
+          resetWebGLContext();
+        } else if (qualityLevel === 'high') {
+          setQualityLevel('medium');
+          localStorage.setItem('agentarium_quality_level', 'medium');
+          resetWebGLContext();
+        } else if (qualityLevel === 'minimal') {
+          // Already at minimal, retry with a forced delay
+          setLoadingRetries(prev => prev + 1);
           resetWebGLContext();
         }
       }
@@ -481,7 +490,7 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
       window.removeEventListener('error', handleWebGLError);
       clearTimeout(loadingTimer);
     };
-  }, [useReducedQuality]);
+  }, [qualityLevel]);
   
   // Reset WebGL if retries are needed
   useEffect(() => {
@@ -512,18 +521,18 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
   
   // Handle page refresh
   const handlePageRefresh = () => {
-    localStorage.removeItem('agentarium_reduced_quality');
+    localStorage.removeItem('agentarium_quality_level');
     window.location.reload();
   };
   
-  // Switch to reduced quality mode
-  const handleReducedQuality = () => {
-    localStorage.setItem('agentarium_reduced_quality', 'true');
-    setUseReducedQuality(true);
+  // Switch to different quality levels
+  const handleSetQuality = (level: 'high' | 'medium' | 'low' | 'minimal') => {
+    localStorage.setItem('agentarium_quality_level', level);
+    setQualityLevel(level);
     resetWebGLContext();
     window.location.reload();
   };
-  
+
   // Force continue even if not fully loaded
   const handleForceContinue = () => {
     setForceLoaded(true);
@@ -657,12 +666,35 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
                 Guide
               </button>
               
-              <button
-                onClick={handleReducedQuality}
-                className="px-3 py-2 bg-purple-600/60 backdrop-blur-sm rounded-md text-white text-sm hover:bg-purple-600/70 transition-colors"
-              >
-                {useReducedQuality ? "Already Using Low Quality" : "Reduce Quality"}
-              </button>
+              <div className="px-3 py-2 bg-black/50 backdrop-blur-sm rounded-md text-white text-sm flex space-x-2">
+                <span>Quality:</span>
+                <div className="flex space-x-1">
+                  <button 
+                    onClick={() => handleSetQuality('high')}
+                    className={`px-2 py-0.5 rounded text-xs ${qualityLevel === 'high' ? 'bg-agent-green text-black' : 'bg-white/10'}`}
+                  >
+                    High
+                  </button>
+                  <button 
+                    onClick={() => handleSetQuality('medium')}
+                    className={`px-2 py-0.5 rounded text-xs ${qualityLevel === 'medium' ? 'bg-agent-green text-black' : 'bg-white/10'}`}
+                  >
+                    Medium
+                  </button>
+                  <button 
+                    onClick={() => handleSetQuality('low')}
+                    className={`px-2 py-0.5 rounded text-xs ${qualityLevel === 'low' ? 'bg-agent-green text-black' : 'bg-white/10'}`}
+                  >
+                    Low
+                  </button>
+                  <button 
+                    onClick={() => handleSetQuality('minimal')}
+                    className={`px-2 py-0.5 rounded text-xs ${qualityLevel === 'minimal' ? 'bg-agent-green text-black' : 'bg-white/10'}`}
+                  >
+                    Minimal
+                  </button>
+                </div>
+              </div>
               
               <button
                 onClick={handlePageRefresh}
@@ -701,12 +733,29 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
                   Refresh Page
                 </button>
                 
-                <button 
-                  onClick={handleReducedQuality}
-                  className="px-4 py-2 bg-purple-600/90 text-white rounded-md hover:bg-purple-600 transition-colors"
-                >
-                  Reduce Graphics Quality
-                </button>
+                <div className="flex flex-col space-y-2 items-center">
+                  <p className="text-sm text-white/80">Try a lower quality setting:</p>
+                  <div className="flex space-x-2">
+                    <button 
+                      onClick={() => handleSetQuality('medium')}
+                      className="px-3 py-1 bg-blue-600/80 text-white rounded-md text-sm"
+                    >
+                      Medium
+                    </button>
+                    <button 
+                      onClick={() => handleSetQuality('low')}
+                      className="px-3 py-1 bg-purple-600/80 text-white rounded-md text-sm"
+                    >
+                      Low
+                    </button>
+                    <button 
+                      onClick={() => handleSetQuality('minimal')}
+                      className="px-3 py-1 bg-red-600/80 text-white rounded-md text-sm"
+                    >
+                      Minimal
+                    </button>
+                  </div>
+                </div>
               </div>
               <p className="text-white/60 text-sm mt-6">
                 Tip: Try enabling hardware acceleration in your browser settings
@@ -722,14 +771,31 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
                 <div className="mt-6 w-20 h-20 border-t-4 border-agent-green rounded-full animate-spin mx-auto"></div>
                 <p className="text-xs mt-8 text-agent-green/80">This may take a moment on first load.</p>
                 <div className="mt-6 flex justify-center space-x-4">
+                  <div className="flex flex-col space-y-2 items-center">
+                    <p className="text-sm text-white/80">Try a lower quality setting:</p>
+                    <div className="flex space-x-2">
+                      <button 
+                        onClick={() => handleSetQuality('medium')}
+                        className="px-3 py-1 bg-blue-600/80 text-white rounded-md text-sm"
+                      >
+                        Medium
+                      </button>
+                      <button 
+                        onClick={() => handleSetQuality('low')}
+                        className="px-3 py-1 bg-purple-600/80 text-white rounded-md text-sm"
+                      >
+                        Low
+                      </button>
+                      <button 
+                        onClick={() => handleSetQuality('minimal')}
+                        className="px-3 py-1 bg-red-600/80 text-white rounded-md text-sm"
+                      >
+                        Minimal
+                      </button>
+                    </div>
+                  </div>
                   <button 
-                    onClick={handleReducedQuality}
-                    className="px-4 py-2 bg-purple-600/90 text-white rounded-md hover:bg-purple-600"
-                  >
-                    Low Quality Mode
-                  </button>
-                  <button 
-                    onClick={handleForceContinue}
+                    onClick={() => setForceLoaded(true)}
                     className="px-4 py-2 bg-agent-green/20 text-agent-green border border-agent-green/30 rounded-md hover:bg-agent-green/30 transition-colors"
                   >
                     Continue Anyway
@@ -741,6 +807,7 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
             <ClientGameScene 
               onAgentClick={handleAgentClick} 
               forceLoaded={forceLoaded}
+              qualityLevel={qualityLevel}
             />
           </React.Suspense>
         </ErrorBoundary>
