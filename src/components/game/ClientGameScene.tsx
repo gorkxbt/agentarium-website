@@ -182,9 +182,9 @@ interface ClientGameSceneProps {
 }
 
 // City configuration
-const CITY_SIZE = 300; // Larger city (was 240)
+const CITY_SIZE = 250; // Reduced city size (was 300)
 const ROAD_WIDTH = 12;
-const BLOCK_SIZE = 50; // Larger blocks (was 40)
+const BLOCK_SIZE = 45; // Slightly smaller blocks (was 50)
 const SIDEWALK_WIDTH = 3;
 const BUILDING_TYPES = {
   BANK: 'bank',
@@ -2958,7 +2958,7 @@ const SceneContent: React.FC<{
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsRendering(true);
-    }, 800);
+    }, 1500);
     
     return () => clearTimeout(timer);
   }, []);
@@ -3124,10 +3124,25 @@ const SceneContent: React.FC<{
           
           {/* City model with all buildings, vehicles, NPCs, and agents */}
           <React.Suspense fallback={
-            <mesh position={[0, 10, 0]}>
-              <sphereGeometry args={[2, 16, 16]} />
-              <meshStandardMaterial color="#00ff00" />
-            </mesh>
+            <group>
+              <mesh position={[0, 1, 0]}>
+                <boxGeometry args={[20, 0.1, 20]} />
+                <meshStandardMaterial color="#333333" />
+              </mesh>
+              <Text
+                position={[0, 5, 0]}
+                fontSize={2}
+                color="#FFFFFF"
+                anchorX="center"
+                anchorY="middle"
+              >
+                Loading City...
+              </Text>
+              <mesh position={[0, 10, 0]} rotation={[0, performance.now() * 0.001, 0]}>
+                <boxGeometry args={[2, 2, 2]} />
+                <meshStandardMaterial color="#00aaff" />
+              </mesh>
+            </group>
           }>
             <City 
               onAgentClick={onAgentClick} 
@@ -3240,7 +3255,7 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({
     <ErrorBoundary fallback={<FallbackScene />} onError={handleError}>
       <Canvas
         shadows
-        camera={{ position: [50, 50, 50], fov: 50, near: 0.1, far: 1000 }}
+        camera={{ position: [80, 80, 80], fov: 45, near: 0.1, far: 1000 }}
         gl={{ 
           antialias: !useSimpleRenderer,
           alpha: false,
@@ -3265,8 +3280,13 @@ const MainGameScene: React.FC<ClientGameSceneProps> = ({
           enablePan={true} 
           enableZoom={true} 
           maxPolarAngle={Math.PI / 2 - 0.1}
-          minDistance={5}
-          maxDistance={150}
+          minDistance={20}
+          maxDistance={200}
+          target={[0, 0, 0]}
+          enableDamping={true}
+          dampingFactor={0.05}
+          rotateSpeed={0.5}
+          zoomSpeed={0.8}
         />
       </Canvas>
     </ErrorBoundary>

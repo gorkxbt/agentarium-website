@@ -534,11 +534,11 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
     <div 
       className="w-full relative overflow-hidden mx-auto my-4 bg-agent-black/95 rounded-xl shadow-xl border border-white/5" 
       style={{ 
-        minHeight: '700px', 
-        height: 'calc(100vh - 180px)',
+        minHeight: '500px', 
+        height: 'calc(100vh - 250px)',
+        maxHeight: '80vh',
         minWidth: '800px',
         maxWidth: '95%',
-        maxHeight: '90vh',
         aspectRatio: '16 / 9' // More standard widescreen ratio
       }} 
       ref={sceneRef}
