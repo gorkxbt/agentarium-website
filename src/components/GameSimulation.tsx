@@ -14,8 +14,15 @@ declare global {
   }
 }
 
+// Define the interface for the ClientGameScene props
+interface ClientGameSceneProps {
+  onAgentClick?: (agent: any) => void;
+  onTimeChange?: (timeOfDay: string) => void;
+  forceLoaded?: boolean;
+}
+
 // Import the client component with no SSR and proper basic renderer
-const ClientGameScene = dynamic(() => import('./game/ClientGameScene'), { 
+const ClientGameScene = dynamic<ClientGameSceneProps>(() => import('./game/ClientGameScene') as any, { 
   ssr: false,
   loading: () => (
     <div className="w-full h-full bg-agent-dark-gray flex items-center justify-center">
