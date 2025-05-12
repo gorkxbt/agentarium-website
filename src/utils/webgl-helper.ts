@@ -41,8 +41,75 @@ export const isLowEndDevice = (): boolean => {
   // Check if it's a small screen
   const isSmallScreen = window.innerWidth < 768;
   
+  // Check for battery API if available
+  let isBatteryLow = false;
+  if (navigator.userAgent.toLowerCase().indexOf("mobile") !== -1 && 'getBattery' in navigator) {
+    const batteryManager = (navigator as any).getBattery();
+    if (batteryManager && batteryManager.level < 0.2) {
+      isBatteryLow = true;
+    }
+  }
+  
+  // Check for memory constraints
+  let isMemoryLimited = false;
+  if ('deviceMemory' in navigator) {
+    isMemoryLimited = (navigator as any).deviceMemory < 4;
+  }
+  
   // Consider low-end if mobile, Safari, or small screen
-  return isMobile || (isSafari && isMobile) || isSmallScreen;
+  return isMobile || (isSafari && isMobile) || isSmallScreen || isBatteryLow || isMemoryLimited;
+};
+
+/**
+ * Auto-detect the best quality level for the device
+ */
+export const detectBestQualityLevel = (): 'high' | 'medium' | 'low' | 'minimal' | 'ultraMinimal' => {
+  // Check if WebGL is available at all
+  if (!isWebGLAvailable()) {
+    return 'ultraMinimal';
+  }
+  
+  try {
+    // Get WebGL info
+    const webGLInfo = getWebGLInfo();
+    
+    // If WebGL is not available, force ultra minimal
+    if (!webGLInfo.available) {
+      return 'ultraMinimal';
+    }
+    
+    // Check for mobile or embedded GPUs
+    const isMobileGPU = webGLInfo.renderer?.toLowerCase().includes('mobile') || 
+                        webGLInfo.renderer?.toLowerCase().includes('intel') ||
+                        webGLInfo.renderer?.toLowerCase().includes('mesa') ||
+                        webGLInfo.renderer?.toLowerCase().includes('swiftshader');
+    
+    // Check max texture size (good indicator of GPU capability)
+    const hasWeakGPU = (webGLInfo.maxTextureSize || 0) < 8192;
+    
+    // Check hardware limitations
+    if (isLowEndDevice()) {
+      if (hasWeakGPU || isMobileGPU) {
+        return 'ultraMinimal';
+      }
+      return 'minimal';
+    }
+    
+    // Check renderer string for powerful GPUs
+    const hasPowerfulGPU = webGLInfo.renderer?.toLowerCase().includes('nvidia') || 
+                          webGLInfo.renderer?.toLowerCase().includes('amd') ||
+                          webGLInfo.renderer?.toLowerCase().includes('radeon');
+    
+    if (hasPowerfulGPU && !hasWeakGPU) {
+      return 'high';
+    }
+    
+    // Default to medium for most devices
+    return 'medium';
+  } catch (e) {
+    console.warn('Error detecting quality level:', e);
+    return 'minimal'; // Safe fallback
+  }
 };
 
 /**
@@ -52,7 +119,26 @@ export const fixBlackScreen = (): void => {
   try {
     // Force hardware acceleration
     const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl', { powerPreference: 'high-performance' });
+    
+    // Try with default WebGL using type assertion
+    let gl = null;
+    try {
+      gl = canvas.getContext('webgl', { powerPreference: 'high-performance' }) as WebGLRenderingContext | null;
+    } catch (e) {}
+    
+    // If failed, try with WebGL2
+    if (!gl) {
+      try {
+        gl = canvas.getContext('webgl2', { powerPreference: 'high-performance' }) as WebGL2RenderingContext | null;
+      } catch (e) {}
+    }
+    
+    // If still failed, try with experimental WebGL
+    if (!gl) {
+      try {
+        gl = canvas.getContext('experimental-webgl', { failIfMajorPerformanceCaveat: false }) as WebGLRenderingContext | null;
+      } catch (e) {}
+    }
     
     if (gl) {
       // Force GPU to initialize
@@ -78,25 +164,29 @@ export const fixBlackScreen = (): void => {
 /**
  * Get the user's preference for rendering quality
  */
-export const getPreferredQuality = (): 'high' | 'medium' | 'low' => {
+export const getPreferredQuality = (): 'high' | 'medium' | 'low' | 'minimal' | 'ultraMinimal' => {
+  // Check for forced reduced quality
+  if (typeof window !== 'undefined') {
+    const reducedQuality = localStorage.getItem('agentarium_reduced_quality');
+    if (reducedQuality === 'true') {
+      return 'ultraMinimal';
+    }
+  }
+  
   // Check for stored preference
   const storedPref = localStorage.getItem('agentarium_quality');
-  if (storedPref && ['high', 'medium', 'low'].includes(storedPref)) {
-    return storedPref as 'high' | 'medium' | 'low';
+  if (storedPref && ['high', 'medium', 'low', 'minimal', 'ultraMinimal'].includes(storedPref)) {
+    return storedPref as 'high' | 'medium' | 'low' | 'minimal' | 'ultraMinimal';
   }
   
-  // Default to low for low-end devices
-  if (isLowEndDevice()) {
-    return 'low';
-  }
-  
-  return 'high';
+  // Auto-detect best quality if no preference
+  return detectBestQualityLevel();
 };
 
 /**
  * Set the user's preference for rendering quality
  */
-export const setPreferredQuality = (quality: 'high' | 'medium' | 'low'): void => {
+export const setPreferredQuality = (quality: 'high' | 'medium' | 'low' | 'minimal' | 'ultraMinimal'): void => {
   localStorage.setItem('agentarium_quality', quality);
 };
 

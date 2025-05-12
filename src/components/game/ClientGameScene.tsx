@@ -14,9 +14,10 @@ import {
   PerspectiveCamera
 } from '@react-three/drei';
 import * as THREE from 'three';
-import { isWebGLAvailable, resetWebGLContext } from '@/utils/webgl-helper';
+import { isWebGLAvailable, resetWebGLContext, createFallbackScene, getPreferredQuality } from '@/utils/webgl-helper';
 import { CITY_SIZE, BLOCK_SIZE, ROAD_WIDTH, AGENT_COUNT, NPC_COUNT, VEHICLE_COUNT } from './CityConstants';
 import { getRoadPoints, getParkingSpots, isOnRoad, findNearestRoadPoint, isInsideBlock } from './VehicleLogic';
+import WebGLErrorModal from './WebGLErrorModal';
 
 // Define quality presets for different performance levels
 const QUALITY_PRESETS = {
@@ -87,12 +88,37 @@ const QUALITY_PRESETS = {
     particleCount: 0,
     reflections: false,
     drawDistance: CITY_SIZE * 0.8,
+  },
+  ultraMinimal: {
+    shadows: false,
+    shadowMapSize: 128,
+    environment: false,
+    pixelRatio: 0.5,
+    maxAgents: Math.floor(AGENT_COUNT * 0.2),
+    maxNPCs: 0,
+    maxVehicles: 0,
+    showClouds: false,
+    showSky: false,
+    anisotropy: 1,
+    antialias: false,
+    maxLights: 2,
+    particleCount: 0,
+    reflections: false,
+    drawDistance: CITY_SIZE * 0.5,
   }
 };
 
 // Helper to get quality settings with fallback to high
-const getQualitySettings = (qualityLevel?: 'high' | 'medium' | 'low' | 'minimal') => {
-  return QUALITY_PRESETS[qualityLevel || 'high'];
+const getQualitySettings = (qualityLevel?: 'high' | 'medium' | 'low' | 'minimal' | 'ultraMinimal') => {
+  // Check for local storage setting for reduced quality
+  if (typeof window !== 'undefined') {
+    const reducedQuality = localStorage.getItem('agentarium_reduced_quality');
+    if (reducedQuality === 'true') {
+      return QUALITY_PRESETS['ultraMinimal'];
+    }
+  }
+  
+  return QUALITY_PRESETS[qualityLevel || 'medium'];
 };
 
 // Add interface extension for Window type
@@ -106,6 +132,17 @@ declare global {
 // Force a better initialization of WebGL context
 if (typeof window !== 'undefined') {
   try {
+    // Add a GPU acceleration hint
+    const accelerationStyle = document.createElement('style');
+    accelerationStyle.textContent = `
+      canvas { 
+        transform: translateZ(0);
+        backface-visibility: hidden;
+        perspective: 1000px;
+      }
+    `;
+    document.head.appendChild(accelerationStyle);
+    
     // Clear any previous WebGL contexts that might be stuck
     const existingCanvases = document.querySelectorAll('canvas');
     existingCanvases.forEach(canvas => {
@@ -120,8 +157,8 @@ if (typeof window !== 'undefined') {
     // Create a canvas element to pre-initialize WebGL context
     const preInitCanvas = document.createElement('canvas');
     // Set canvas size to ensure proper context creation
-    preInitCanvas.width = 512;
-    preInitCanvas.height = 384;
+    preInitCanvas.width = 256;  // Reduced from 512
+    preInitCanvas.height = 192; // Reduced from 384
     
     // Try multiple context options
     let preInitContext = preInitCanvas.getContext('webgl', { 
@@ -129,14 +166,26 @@ if (typeof window !== 'undefined') {
       powerPreference: 'default',
       alpha: false,
       antialias: false,
-      depth: true
+      depth: true,
+      stencil: false, // Disable stencil buffer for performance
+      preserveDrawingBuffer: false
     }) as WebGLRenderingContext | null;
     
     // If that failed, try another approach
     if (!preInitContext) {
       preInitContext = preInitCanvas.getContext('webgl', { 
         powerPreference: 'low-power',
-        depth: true
+        depth: true,
+        antialias: false
+      }) as WebGLRenderingContext | null;
+    }
+    
+    // If still failing, try with WebGL2
+    if (!preInitContext) {
+      preInitContext = preInitCanvas.getContext('webgl2', {
+        powerPreference: 'low-power',
+        depth: true,
+        antialias: false
       }) as WebGLRenderingContext | null;
     }
     
@@ -160,6 +209,10 @@ if (typeof window !== 'undefined') {
     // Add a globally accessible debugging function
     window.resetWebGL = () => {
       console.log("Manual WebGL reset triggered");
+      
+      // Set to ultraMinimal mode
+      localStorage.setItem('agentarium_reduced_quality', 'true');
+      
       const canvases = document.querySelectorAll('canvas');
       canvases.forEach(canvas => {
         const gl = canvas.getContext('webgl') as WebGLRenderingContext | null;
@@ -172,8 +225,8 @@ if (typeof window !== 'undefined') {
         }
       });
       
-      // Don't force reload to prevent game disappearing
-      // setTimeout(() => window.location.reload(), 500);
+      // Force reload after 300ms
+      setTimeout(() => window.location.reload(), 300);
     };
   } catch (e) {
     console.warn('Failed pre-initialization of WebGL context', e);
@@ -258,7 +311,7 @@ interface ClientGameSceneProps {
   onAgentClick?: (agent: any) => void;
   onTimeChange?: (timeOfDay: string) => void;
   forceLoaded?: boolean;
-  qualityLevel?: 'high' | 'medium' | 'low' | 'minimal';
+  qualityLevel?: 'high' | 'medium' | 'low' | 'minimal' | 'ultraMinimal';
 }
 
 // Additional constants
@@ -315,3 +368,181 @@ const BUILDING_COLORS: Record<string, string> = {
   [BUILDING_TYPES.GYM]: '#dd7766',
   [BUILDING_TYPES.TRANSPORT_HUB]: '#66aadd',
 };
+
+// Main ClientGameScene component
+const ClientGameScene: React.FC<ClientGameSceneProps> = ({ 
+  onAgentClick, 
+  onTimeChange,
+  forceLoaded = false,
+  qualityLevel
+}) => {
+  // Track loading and error states
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [showWebGLErrorModal, setShowWebGLErrorModal] = useState(false);
+  // Get a ref to the container to create fallback if needed
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Handle WebGL errors
+  const handleWebGLError = useCallback(() => {
+    setHasError(true);
+    setShowWebGLErrorModal(true);
+    
+    // If no WebGL is available, show fallback scene
+    if (!isWebGLAvailable() && containerRef.current) {
+      createFallbackScene(containerRef.current);
+    }
+  }, []);
+  
+  // Reset WebGL context and retry loading
+  const handleRetry = useCallback(() => {
+    resetWebGLContext();
+    // Use a short delay to allow context to reset
+    setTimeout(() => {
+      setHasError(false);
+      setIsLoading(true);
+      setShowWebGLErrorModal(false);
+    }, 100);
+  }, []);
+  
+  // Handle loading progress
+  const handleLoadingComplete = useCallback(() => {
+    setIsLoading(false);
+  }, []);
+  
+  // Use the quality settings from the user preference or props
+  const actualQualityLevel = qualityLevel || getPreferredQuality();
+  const settings = getQualitySettings(actualQualityLevel);
+
+  return (
+    <div className="relative w-full h-full" ref={containerRef}>
+      {/* Show loading screen while loading */}
+      {isLoading && !hasError && !forceLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70 z-10">
+          <div className="text-center">
+            <div className="w-16 h-16 border-t-4 border-blue-500 border-solid rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-white text-lg">Loading City Simulation...</p>
+          </div>
+        </div>
+      )}
+      
+      {/* WebGL Error Modal */}
+      {showWebGLErrorModal && (
+        <WebGLErrorModal 
+          onRetry={handleRetry}
+          onClose={() => {
+            setShowWebGLErrorModal(false);
+            if (containerRef.current) {
+              createFallbackScene(containerRef.current);
+            }
+          }}
+        />
+      )}
+      
+      {/* Main scene with error boundary */}
+      {!hasError && (
+        <ErrorBoundary 
+          fallback={
+            <div className="w-full h-full bg-black flex items-center justify-center">
+              <div className="text-center p-6">
+                <h3 className="text-2xl font-bold text-white mb-4">Rendering Error</h3>
+                <p className="text-lg text-white/80 mb-6">Failed to load 3D scene</p>
+                <button 
+                  onClick={() => setShowWebGLErrorModal(true)}
+                  className="px-4 py-2 bg-blue-700 text-white rounded"
+                >
+                  Try Low Quality Mode
+                </button>
+              </div>
+            </div>
+          }
+          onError={handleWebGLError}
+        >
+          {/* Canvas with quality settings */}
+          <Canvas
+            shadows={settings.shadows}
+            dpr={settings.pixelRatio}
+            gl={{
+              antialias: settings.antialias,
+              alpha: false,
+              stencil: false,
+              depth: true,
+              powerPreference: 'default',
+            }}
+            camera={{ position: [20, 20, 20], fov: 60 }}
+            onCreated={({ gl }) => {
+              // Register the renderer instance for cleanup later
+              if (typeof window !== 'undefined') {
+                window.THREE_INSTANCES = window.THREE_INSTANCES || [];
+                window.THREE_INSTANCES.push(gl);
+              }
+              
+              // Set shadow map size based on quality
+              if (settings.shadows) {
+                gl.shadowMap.enabled = true;
+                gl.shadowMap.type = THREE.PCFSoftShadowMap;
+              }
+
+              // Signal loading complete
+              handleLoadingComplete();
+            }}
+          >
+            <SceneContent 
+              settings={settings}
+              onAgentClick={onAgentClick}
+              onTimeChange={onTimeChange}
+            />
+          </Canvas>
+        </ErrorBoundary>
+      )}
+    </div>
+  );
+};
+
+// Actual scene content component (used inside Canvas)
+const SceneContent: React.FC<{
+  settings: any,
+  onAgentClick?: (agent: any) => void,
+  onTimeChange?: (timeOfDay: string) => void
+}> = ({ settings, onAgentClick, onTimeChange }) => {
+  // ... existing code for scene content ...
+  return (
+    <Suspense fallback={null}>
+      {/* Camera controls */}
+      <OrbitControls 
+        enablePan={true}
+        enableZoom={true}
+        enableRotate={true}
+        maxPolarAngle={Math.PI / 2 - 0.1}
+        minDistance={5}
+        maxDistance={settings.drawDistance}
+      />
+      
+      {/* Environment lighting */}
+      <ambientLight intensity={0.4} />
+      <directionalLight
+        castShadow={settings.shadows}
+        position={[10, 20, 15]}
+        intensity={0.8}
+        shadow-mapSize-width={settings.shadowMapSize}
+        shadow-mapSize-height={settings.shadowMapSize}
+      />
+      
+      {/* Sky and environment */}
+      {settings.showSky && <Sky distance={450000} sunPosition={[1, 0.5, 0]} />}
+      {settings.showClouds && (
+        <>
+          <Cloud position={[-40, 20, -10]} speed={0.2} opacity={0.8} />
+          <Cloud position={[40, 25, 20]} speed={0.1} opacity={0.6} />
+        </>
+      )}
+      
+      {/* Only add environment if enabled in settings */}
+      {settings.environment && <Environment preset="city" />}
+      
+      {/* City content would go here */}
+    </Suspense>
+  );
+};
+
+export default ClientGameScene;
