@@ -151,15 +151,6 @@ interface AgentData {
   level: number;
 }
 
-// Create a ref for storing map data to be accessible by various components
-const mapDataRef = React.createRef<{
-  buildings: BuildingProps[];
-  npcs: NPCProps[];
-  vehicles: VehicleProps[];
-  agents: AgentProps[];
-  mapLabels: {name: string; position: [number, number, number]}[];
-}>();
-
 // Error boundary to catch rendering errors
 class ErrorBoundary extends React.Component<{
   children: React.ReactNode, 
@@ -424,23 +415,40 @@ const Agent: React.FC<AgentProps> = ({ position, color, speed, agentData, onAgen
   
   // Check if a position is inside a building
   const isInsideBuilding = (x: number, z: number): boolean => {
-    // Get reference to city's building list through mapDataRef
-    const buildingsList = mapDataRef.current?.buildings || [];
+    // Use the buildings from the City component's mapData
+    // This is a simplified implementation that will be called directly from the component
+    // Get all buildings from city
+    const buildingsList: BuildingProps[] = [];
     
-    // Add a small buffer around buildings to prevent getting too close
+    // If we have access to buildings through context or props, use them
+    // Otherwise, just use the static check below
+    
+    // Even without a list of buildings, we can do basic collision detection
+    // using coordinates of known building locations
+    const buildingLocations = [
+      { x: -BLOCK_SIZE, z: -BLOCK_SIZE, width: 20, depth: 20 }, // Bank
+      { x: BLOCK_SIZE, z: -BLOCK_SIZE, width: 15, depth: 15 }, // Police
+      { x: -BLOCK_SIZE, z: BLOCK_SIZE, width: 20, depth: 20 }, // Market
+      { x: BLOCK_SIZE, z: BLOCK_SIZE, width: 15, depth: 15 }, // Hotel
+      { x: 0, z: -2 * BLOCK_SIZE, width: 10, depth: 8 }, // Gas station
+      { x: -2 * BLOCK_SIZE, z: 0, width: 12, depth: 12 }, // Office 1
+      { x: 2 * BLOCK_SIZE, z: 0, width: 15, depth: 15 }, // Office 2
+      { x: 0, z: 2 * BLOCK_SIZE, width: 30, depth: 15 }, // Houses
+      { x: -2 * BLOCK_SIZE, z: -2 * BLOCK_SIZE, width: 18, depth: 18 }, // Nightclub
+      { x: 2 * BLOCK_SIZE, z: 2 * BLOCK_SIZE, width: 35, depth: 25 }, // Shopping Mall
+      { x: -BLOCK_SIZE/2, z: -2 * BLOCK_SIZE, width: 12, depth: 12 }, // Restaurant
+      { x: 2 * BLOCK_SIZE, z: -2 * BLOCK_SIZE, width: 25, depth: 20 }, // Hospital
+      { x: -2 * BLOCK_SIZE, z: 2 * BLOCK_SIZE, width: 30, depth: 20 }, // Factory
+      { x: BLOCK_SIZE/2, z: -2 * BLOCK_SIZE, width: 15, depth: 15 } // Casino
+    ];
+    
+    // Buffer to prevent getting too close to buildings
     const buffer = 3;
     
-    return buildingsList.some((building: BuildingProps) => {
-      const [bx, , bz] = building.position;
-      
-      // Calculate half dimensions with buffer
-      const halfWidth = building.width / 2 + buffer;
-      const halfDepth = building.depth / 2 + buffer;
-      
-      // Check if point is inside building (accounting for rotation)
-      // For simplicity, we'll use a distance-based check that approximates the rotated building
-      const distance = Math.sqrt(Math.pow(x - bx, 2) + Math.pow(z - bz, 2));
-      const maxRadius = Math.sqrt(halfWidth * halfWidth + halfDepth * halfDepth);
+    // Check if point is within any building's bounds (plus buffer)
+    return buildingLocations.some(building => {
+      const distance = Math.sqrt(Math.pow(x - building.x, 2) + Math.pow(z - building.z, 2));
+      const maxRadius = Math.sqrt(Math.pow(building.width/2 + buffer, 2) + Math.pow(building.depth/2 + buffer, 2));
       
       return distance < maxRadius;
     });
@@ -1914,23 +1922,31 @@ const NPC: React.FC<NPCProps> = ({ position, color, speed }) => {
   
   // Check if a position is inside a building
   const isInsideBuilding = (x: number, z: number): boolean => {
-    // Get reference to city's building list through mapDataRef
-    const buildingsList = mapDataRef.current?.buildings || [];
+    // Use the same static implementation as in the Agent component
+    const buildingLocations = [
+      { x: -BLOCK_SIZE, z: -BLOCK_SIZE, width: 20, depth: 20 }, // Bank
+      { x: BLOCK_SIZE, z: -BLOCK_SIZE, width: 15, depth: 15 }, // Police
+      { x: -BLOCK_SIZE, z: BLOCK_SIZE, width: 20, depth: 20 }, // Market
+      { x: BLOCK_SIZE, z: BLOCK_SIZE, width: 15, depth: 15 }, // Hotel
+      { x: 0, z: -2 * BLOCK_SIZE, width: 10, depth: 8 }, // Gas station
+      { x: -2 * BLOCK_SIZE, z: 0, width: 12, depth: 12 }, // Office 1
+      { x: 2 * BLOCK_SIZE, z: 0, width: 15, depth: 15 }, // Office 2
+      { x: 0, z: 2 * BLOCK_SIZE, width: 30, depth: 15 }, // Houses
+      { x: -2 * BLOCK_SIZE, z: -2 * BLOCK_SIZE, width: 18, depth: 18 }, // Nightclub
+      { x: 2 * BLOCK_SIZE, z: 2 * BLOCK_SIZE, width: 35, depth: 25 }, // Shopping Mall
+      { x: -BLOCK_SIZE/2, z: -2 * BLOCK_SIZE, width: 12, depth: 12 }, // Restaurant
+      { x: 2 * BLOCK_SIZE, z: -2 * BLOCK_SIZE, width: 25, depth: 20 }, // Hospital
+      { x: -2 * BLOCK_SIZE, z: 2 * BLOCK_SIZE, width: 30, depth: 20 }, // Factory
+      { x: BLOCK_SIZE/2, z: -2 * BLOCK_SIZE, width: 15, depth: 15 } // Casino
+    ];
     
-    // Add a small buffer around buildings to prevent getting too close
+    // Buffer to prevent getting too close to buildings
     const buffer = 3;
     
-    return buildingsList.some((building: BuildingProps) => {
-      const [bx, , bz] = building.position;
-      
-      // Calculate half dimensions with buffer
-      const halfWidth = building.width / 2 + buffer;
-      const halfDepth = building.depth / 2 + buffer;
-      
-      // Check if point is inside building (accounting for rotation)
-      // For simplicity, we'll use a distance-based check that approximates the rotated building
-      const distance = Math.sqrt(Math.pow(x - bx, 2) + Math.pow(z - bz, 2));
-      const maxRadius = Math.sqrt(halfWidth * halfWidth + halfDepth * halfDepth);
+    // Check if point is within any building's bounds (plus buffer)
+    return buildingLocations.some(building => {
+      const distance = Math.sqrt(Math.pow(x - building.x, 2) + Math.pow(z - building.z, 2));
+      const maxRadius = Math.sqrt(Math.pow(building.width/2 + buffer, 2) + Math.pow(building.depth/2 + buffer, 2));
       
       return distance < maxRadius;
     });
@@ -2927,15 +2943,7 @@ const City: React.FC<{ onAgentClick: (agent: any) => void, useSimpleRenderer?: b
     };
     
     setMapData(newMapData);
-    mapDataRef.current = newMapData;
   }, [onAgentClick]);
-  
-  // Update mapDataRef whenever mapData changes
-  useEffect(() => {
-    if (mapData) {
-      mapDataRef.current = mapData;
-    }
-  }, [mapData]);
   
   if (!mapData) return null;
   
