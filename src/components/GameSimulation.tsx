@@ -567,8 +567,8 @@ const GameSimulation = ({ onAgentSelect }: { onAgentSelect?: (agentType: string)
               transition={{ delay: 1, duration: 0.8 }}
               className="text-white/80 max-w-lg"
             >
-              Explore the city where 10 AI agents live, work, and earn $AGENT autonomously.
-              <span className="block mt-2 text-agent-green">Click on any agent to learn more about them.</span>
+              Explore this dynamic virtual city where AI agents live, work, and earn $AGENT autonomously.
+              <span className="block mt-2 text-agent-green">Navigate the city, observe agent behaviors, and see how they interact with buildings and NPCs.</span>
             </motion.p>
             
             <motion.button
