@@ -15,12 +15,7 @@ import {
 } from '@react-three/drei';
 import * as THREE from 'three';
 import { isWebGLAvailable, resetWebGLContext } from '@/utils/webgl-helper';
-import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
-import * as THREE from 'three';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Text, OrbitControls, Sky, Float, useAnimations, useGLTF } from '@react-three/drei';
-import React from 'react';
-import { CITY_SIZE, BLOCK_SIZE, ROAD_WIDTH } from './CityConstants';
+import { CITY_SIZE, BLOCK_SIZE, ROAD_WIDTH, AGENT_COUNT, NPC_COUNT, VEHICLE_COUNT } from './CityConstants';
 import { getRoadPoints, getParkingSpots, isOnRoad, findNearestRoadPoint, isInsideBlock } from './VehicleLogic';
 
 // Add interface extension for Window type
@@ -2755,17 +2750,16 @@ const City: React.FC<{ onAgentClick: (agent: any) => void, useSimpleRenderer?: b
 // Scene content component with environment and city
 const SceneContent: React.FC<{ 
   onAgentClick: (agent: any) => void, 
-  timeOfDay: string, 
-  setTimeOfDay: (time: string) => void, 
-  onTimeChange: (time: string) => void,
   useSimpleRenderer?: boolean,
   forceLoaded?: boolean
-}> = 
-    ({ onAgentClick, timeOfDay, setTimeOfDay, onTimeChange, useSimpleRenderer = false, forceLoaded = false }) => {
+}> = ({ onAgentClick, useSimpleRenderer = false, forceLoaded = false }) => {
   
   // Rendering state
   const [isRendering, setIsRendering] = useState(false);
   const [hasRendered, setHasRendered] = useState(false);
+  
+  // Fixed time of day - midday for best visibility
+  const timeOfDay = 'day';
   
   // Force render after timeout
   useEffect(() => {
